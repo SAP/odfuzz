@@ -9,3 +9,13 @@ class ODfuzzException(Exception):
 class ArgParserError(ODfuzzException):
     """An error occurred while parsing arguments"""
     pass
+
+
+class BuilderError(ODfuzzException):
+    """An error occurred while initializing queryable entities"""
+    pass
+
+
+class DispatcherError(ODfuzzException):
+    """An error occurred while reading response from the server"""
+    pass

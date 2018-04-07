@@ -1,4 +1,4 @@
-"""This module parses command line arguments"""
+"""This module contains a wrapper for parsing command line arguments"""
 
 from argparse import ArgumentParser
 
