@@ -4,7 +4,8 @@ import random
 import time
 import os
 
-from odfuzz.entities import Builder, Restricitons
+from odfuzz.entities import Builder
+from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME
 
@@ -12,22 +13,28 @@ from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME
 class Manager(object):
     def __init__(self, arguments):
         self._dispatcher = Dispatcher(arguments.service)
-        self._restrictions = Restrictions(arguments.restrictions)
+
+        restrictions_file = getattr(arguments, 'restr')
+        if restrictions_file:
+            self._restrictions = RestrictionsGroup(restrictions_file)
+        else:
+            self._restrictions = None
 
     def start(self):
-        builder = Builder(self._restrictions, self._dispatcher)
+        builder = Builder(self._dispatcher, self._restrictions)
+        entities = builder.build()
 
         mongo_client = pymongo.MongoClient()
         mongo_database = mongo_client[MONGODB_NAME]
 
-        fuzzer = Fuzzer(self._dispatcher, builder, mongo_database)
+        fuzzer = Fuzzer(self._dispatcher, entities, mongo_database)
         fuzzer.run()
 
 
 class Fuzzer(object):
-    def __init__(self, dispatcher, builder, mongodb, **kwargs):
+    def __init__(self, dispatcher, entities, mongodb, **kwargs):
         self._dispatcher = dispatcher
-        self._builder = builder
+        self._entities = entities
         self._mongodb = mongodb
 
         if kwargs.get('async'):

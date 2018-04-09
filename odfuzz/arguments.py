@@ -21,7 +21,7 @@ class ArgPaser(object):
             return self._parser.parse_args()
         except SystemExit as system_exit:
             raise ArgParserError('An exception was raised while parsing arguments: {}'
-                                 .format(str(system_exit)))
+                                 .format(system_exit))
 
     def _add_arguments(self):
         self._parser.add_argument('service', type=str, help='An OData service URL')

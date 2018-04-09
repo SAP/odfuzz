@@ -19,3 +19,8 @@ class BuilderError(ODfuzzException):
 class DispatcherError(ODfuzzException):
     """An error occurred while reading response from the server"""
     pass
+
+
+class RestrictionsError(ODfuzzException):
+    """An error occurred while initializing a restrictions object"""
+    pass
