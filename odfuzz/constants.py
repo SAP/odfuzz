@@ -1,3 +1,5 @@
+"""This module contains global constants."""
+
 LOGGER_NAME = 'odfuzz'
 MONGODB_NAME = 'fuzzer'
 

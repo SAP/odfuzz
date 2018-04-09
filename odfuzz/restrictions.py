@@ -1,3 +1,5 @@
+"""This module contains classes that convert restrictions to manageable objects."""
+
 from odfuzz.exceptions import RestrictionsError
 
 EXCLUDE = 'Exclude'
@@ -9,6 +11,8 @@ FILTER = 'FILTER'
 
 
 class RestrictionsGroup(object):
+    """A wrapper that holds a reference for all types of restrictions."""
+
     def __init__(self, restrictions_file):
         self._restrictions_file = restrictions_file
         self._restrictions = None
@@ -38,11 +42,13 @@ class RestrictionsGroup(object):
         self._init_restrictions(restrictions_dict)
 
     def _init_restrictions(self, restrictions_dict):
-        self._exclude = Restriction(restrictions_dict.get(EXCLUDE, None))
-        self._include = Restriction(restrictions_dict.get(EXCLUDE, None))
+        self._exclude = QueryRestrictions(restrictions_dict.get(EXCLUDE, None))
+        self._include = QueryRestrictions(restrictions_dict.get(EXCLUDE, None))
 
 
-class Restriction(object):
+class QueryRestrictions(object):
+    """A set of restrictions applied to a query option."""
+
     def __init__(self, restriction):
         self._restriction = restriction
         self._filter = None

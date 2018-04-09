@@ -1,3 +1,5 @@
+"""This module contains core parts of the fuzzer and additional handler classes."""
+
 import requests
 import pymongo
 import random
@@ -11,6 +13,8 @@ from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME
 
 
 class Manager(object):
+    """A class for managing the fuzzer runtime."""
+
     def __init__(self, arguments):
         self._dispatcher = Dispatcher(arguments.service)
 
@@ -32,6 +36,8 @@ class Manager(object):
 
 
 class Fuzzer(object):
+    """A main class that initiates a fuzzing process."""
+
     def __init__(self, dispatcher, entities, mongodb, **kwargs):
         self._dispatcher = dispatcher
         self._entities = entities
@@ -57,6 +63,8 @@ class Fuzzer(object):
 
 
 class Dispatcher(object):
+    """A dispatcher for sending HTTP requests to the particular OData service."""
+
     def __init__(self, service, sap_certificate=None):
         self._service = service.rstrip('/') + '/'
         self._sap_certificate = sap_certificate
