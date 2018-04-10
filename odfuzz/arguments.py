@@ -1,4 +1,4 @@
-"""This module contains a wrapper for parsing command line arguments"""
+"""This module contains a wrapper for parsing command line arguments."""
 
 from argparse import ArgumentParser
 
@@ -6,7 +6,7 @@ from odfuzz.exceptions import ArgParserError
 
 
 class ArgPaser(object):
-    """An argument parser wrapper"""
+    """An argument parser wrapper."""
 
     def __init__(self):
         self._parser = ArgumentParser(

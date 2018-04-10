@@ -1,13 +1,7 @@
 """This module contains classes that convert restrictions to manageable objects."""
 
 from odfuzz.exceptions import RestrictionsError
-
-EXCLUDE = 'Exclude'
-INCLUDE = 'Include'
-SEARCH = 'SEARCH'
-TOP = 'TOP'
-SKIP = 'SKIP'
-FILTER = 'FILTER'
+from odfuzz.constants import EXCLUDE, INCLUDE, QUERY_OPTIONS
 
 
 class RestrictionsGroup(object):
@@ -15,18 +9,14 @@ class RestrictionsGroup(object):
 
     def __init__(self, restrictions_file):
         self._restrictions_file = restrictions_file
-        self._restrictions = None
-        self._include = None
-        self._exclude = None
+        self._restrictions = {}
         self._parse_restrictions()
 
-    @property
-    def include(self):
-        return self._include
+    def restrictions(self):
+        return self._restrictions.values()
 
-    @property
-    def exclude(self):
-        return self._exclude
+    def restriction(self, query_name):
+        return self._restrictions[query_name]
 
     def _parse_restrictions(self):
         try:
@@ -42,50 +32,36 @@ class RestrictionsGroup(object):
         self._init_restrictions(restrictions_dict)
 
     def _init_restrictions(self, restrictions_dict):
-        self._exclude = QueryRestrictions(restrictions_dict.get(EXCLUDE, None))
-        self._include = QueryRestrictions(restrictions_dict.get(EXCLUDE, None))
+        exclude_restr = restrictions_dict.get(EXCLUDE, None)
+        include_restr = restrictions_dict.get(INCLUDE, None)
+
+        for query_option in QUERY_OPTIONS:
+            query_exclude_restr = None
+            query_include_restr = None
+            if exclude_restr:
+                query_exclude_restr = exclude_restr.get(query_option, None)
+            if include_restr:
+                query_include_restr = include_restr.get(query_option, None)
+
+            self._restrictions[query_option] = QueryRestrictions(
+                query_exclude_restr, query_include_restr
+            )
 
 
 class QueryRestrictions(object):
     """A set of restrictions applied to a query option."""
 
-    def __init__(self, restriction):
-        self._restriction = restriction
-        self._filter = None
-        self._skip = None
-        self._top = None
-        self._search = None
-
-        if restriction:
-            self._init_restriction()
+    def __init__(self, exclude_restr, include_restr):
+        self._exclude = exclude_restr
+        self._include = include_restr
 
     @property
-    def filter(self):
-        return self._filter
+    def include(self):
+        return self._include
 
     @property
-    def skip(self):
-        return self._skip
-
-    @property
-    def top(self):
-        return self._top
-
-    @property
-    def search(self):
-        return self._search
-
-    def _init_restriction(self):
-        self._init_query_restrictions('_filter', FILTER)
-        self._init_query_restrictions('_skip', SKIP)
-        self._init_query_restrictions('_top', TOP)
-        self._init_query_restrictions('_search', SEARCH)
-
-    def _init_query_restrictions(self, property_name, query_name):
-        query_restrictions = self._restriction.get(query_name, None)
-        if query_restrictions:
-            for key, restricted_item in query_restrictions.items():
-                setattr(self, property_name, restricted_item)
+    def exclude(self):
+        return self._exclude
 
 
 def read_lines(file_path):
