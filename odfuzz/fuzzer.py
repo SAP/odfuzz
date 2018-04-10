@@ -1,10 +1,10 @@
 """This module contains core parts of the fuzzer and additional handler classes."""
 
-import requests
-import pymongo
 import random
 import time
 import os
+import requests
+import pymongo
 
 from odfuzz.entities import Builder
 from odfuzz.restrictions import RestrictionsGroup
