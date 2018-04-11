@@ -9,7 +9,7 @@ import pymongo
 from odfuzz.entities import Builder
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.exceptions import DispatcherError
-from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME
+from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME, SEED_POPULATION
 
 
 class Manager(object):
@@ -55,11 +55,44 @@ class Fuzzer(object):
         time_seed = time.time()
         random.seed(time_seed)
 
+        self.seed_population()
+        self.evolve_population()
+
+    def seed_population(self):
+        # TODO: generate options for each query option (as many as SEED_POPULATION)
+        # TODO: shuffle generated options and build one query
+        for queryable in self._entities.all():
+            pass
+        # TODO: send queries to the server
+        # TODO: evaluate queries by fitness function
+
+    def evolve_population(self):
+        pass
+
+    def _generate_options(self, query_option):
+        pass
+
     def _generate_multiple(self):
         pass
 
     def _generate_single(self):
         pass
+
+
+class Selector(object):
+    pass
+
+
+class Analyzer(object):
+    pass
+
+
+class Heuristics(object):
+    pass
+
+
+class SAPErrors(object):
+    pass
 
 
 class Dispatcher(object):

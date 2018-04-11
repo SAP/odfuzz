@@ -1,11 +1,15 @@
 """This module contains a builder class and wrapper classes for queryable entities."""
 
+import copy
+import random
+
 from abc import ABCMeta, abstractmethod
 
 from pyodata.v2.model import Edmx
 from pyodata.exceptions import PyODataException
 
 from odfuzz.exceptions import BuilderError
+from odfuzz.generators import RandomGenerator
 from odfuzz.constants import CLIENT, GLOBAL_ENTITY, QUERY_OPTIONS, FILTER, SEARCH, TOP, SKIP
 
 
@@ -17,15 +21,12 @@ class Builder(object):
         self._dispatcher = dispatcher
         self._queryable = QueryableEntities()
 
-    @property
-    def queryable(self):
-        return self._queryable
-
     def build(self):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
             query_group = QueryGroup(entity_set, self._restrictions)
             self._queryable.add(query_group)
+        return self._queryable
 
     def _get_data_model(self):
         metadata_response = self._get_metadata_from_service()
@@ -73,6 +74,9 @@ class QueryGroup(object):
         self._entity_set = entity_set
         self._restrictions = restrictions
         self._query_options = dict.fromkeys(QUERY_OPTIONS)
+
+        self._query_options_list = []
+        self._query_filter_required = []
         self._init_group()
 
     @property
@@ -86,7 +90,10 @@ class QueryGroup(object):
         return self._query_options[query_name]
 
     def random_options(self):
-        pass
+        list_length = len(self._query_options_list)
+        sample_length = round(random.random() * list_length)
+        sample_options = random.sample(self._query_options_list, sample_length)
+        return sample_options + self._query_options_list
 
     def _init_group(self):
         self._init_filter_query()
@@ -101,14 +108,23 @@ class QueryGroup(object):
 
         if not is_queryable or not is_not_restricted:
             self._query_options[query_name] = query_object(self._entity_set, query_restr)
+            self._query_options_list.append(self._query_options[query_name])
 
     def _init_filter_query(self):
         query_restr = self._restrictions.restriction(FILTER)
-        is_filterable = self._is_entity_filterable(query_restr.exclude)
+        entity_set = self._delete_restricted_properties(query_restr.exclude)
         is_not_restricted = self._is_not_restricted(query_restr)
 
-        if is_filterable and is_not_restricted:
-            self._query_options[FILTER] = FilterQuery(self._entity_set, query_restr)
+        if is_not_restricted and entity_set.entity_type.proprties():
+            patch_property_generators(entity_set)
+            self._query_options[FILTER] = FilterQuery(entity_set, query_restr)
+            self._add_filter_option_to_list(entity_set)
+
+    def _add_filter_option_to_list(self, entity_set):
+        if entity_set.requires_filter:
+            self._query_filter_required.append(self._query_options[FILTER])
+        else:
+            self._query_options_list.append(self._query_options[FILTER])
 
     def _is_not_restricted(self, exclude_restr):
         restricted_entities = getattr(exclude_restr, GLOBAL_ENTITY, None)
@@ -118,15 +134,15 @@ class QueryGroup(object):
                 return False
         return True
 
-    def _is_entity_filterable(self, exclude_restr):
+    def _delete_restricted_properties(self, exclude_restr):
+        entity_set = copy.deepcopy(self._entity_set)
         restr_proprty_list = exclude_restr.get(self._entity_set.name, [])
 
         for proprty in self._entity_set.entity_type.proprties():
-            if proprty in restr_proprty_list:
-                continue
-            if proprty.filterable:
-                return True
-        return False
+            if proprty.name in restr_proprty_list or not proprty.filterable:
+                del entity_set.entity_type.proprties_dict[proprty.name]
+
+        return entity_set
 
 
 class QueryOption(metaclass=ABCMeta):
@@ -137,7 +153,7 @@ class QueryOption(metaclass=ABCMeta):
         self._restrictions = restrictions
 
     @property
-    def entity(self):
+    def entity_set(self):
         return self._entity_set
 
     @property
@@ -203,3 +219,39 @@ class FilterQuery(QueryOption):
 
     def generate(self):
         pass
+
+
+def patch_property_generators(entity_set):
+    for proprty in entity_set.entity_type.proprties():
+        property_type = proprty.typ.name
+        if property_type == 'Edm.String':
+            proprty.generate = RandomGenerator.edm_string
+        elif property_type == 'Edm.DateTime':
+            proprty.generate = RandomGenerator.edm_datetime
+        elif property_type == 'Edm.Boolean':
+            proprty.generate = RandomGenerator.edm_boolean
+        elif property_type == 'Edm.Byte':
+            proprty.generate = RandomGenerator.edm_byte
+        elif property_type == 'Edm.SByte':
+            proprty.generate = RandomGenerator.edm_sbyte
+        elif property_type == 'Edm.Single':
+            proprty.generate = RandomGenerator.edm_single
+        elif property_type == 'Edm.Guid':
+            proprty.generate = RandomGenerator.edm_guid
+        elif property_type == 'Edm.Decimal':
+            proprty.generate = RandomGenerator.edm_decimal
+        elif property_type == 'Edm.DateTimeOffset':
+            proprty.generate = RandomGenerator.edm_datetimeoffset
+        elif property_type == 'Edm.Time':
+            proprty.generate = RandomGenerator.edm_time
+        elif property_type[:7] == 'Edm.Int':
+            if property_type[:2] == '16':
+                proprty.generate = RandomGenerator.edm_int16
+            elif property_type[:2] == '32':
+                proprty.generate = RandomGenerator.edm_int32
+            elif property_type[:2] == '64':
+                proprty.generate = RandomGenerator.edm_int64
+            else:
+                proprty.generate = lambda: None
+        else:
+            proprty.generate = lambda: None

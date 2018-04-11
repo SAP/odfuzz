@@ -13,6 +13,8 @@ from odfuzz.exceptions import ArgParserError, ODfuzzException
 
 
 def main():
+    signal.signal(signal.SIGINT, signal_handler)
+
     arg_parser = ArgPaser()
     try:
         arguments = arg_parser.parse()
