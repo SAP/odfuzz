@@ -108,15 +108,16 @@ class RandomGenerator(object):
         return 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M'))
 
     @staticmethod
-    def edm_decimal(precision, scale):
-        divider = random.randint(1, 10 ** scale)
-        scale_range = random.randint(0, scale)
+    def edm_decimal(self):
+        divider = random.randint(1, 10 ** self.scale)
+        scale_range = random.randint(0, self.scale)
         return '{0:.{1}f}'.format(
-            random.randint(1, (10 ** (precision - scale_range)) - 1) / divider, scale_range) + 'm'
+            random.randint(1, (10 ** (self.precision - scale_range)) - 1)
+            / divider, scale_range) + 'm'
 
     @staticmethod
     def edm_double():
-        return str(round(random.uniform(2.23e-30, 1.79e+308), 15)) + 'd'
+        return str(round(random.uniform(-1.79e+30, 1.79e+30), 15)) + 'd'
 
     @staticmethod
     def edm_single():
@@ -143,9 +144,9 @@ class RandomGenerator(object):
         return str(random.randint(-128, 127))
 
     @staticmethod
-    def edm_string(min_length, max_length):
-        string = ''.join(random.choice(BASE_CHARSET)
-                         for _ in range(random.randint(min_length, max_length)))
+    def edm_string(self):
+        string_length = round(random.random() * self.max_string_length)
+        string = ''.join(random.choice(BASE_CHARSET) for _ in range(string_length))
         return '\'{}\''.format(string)
 
     @staticmethod
