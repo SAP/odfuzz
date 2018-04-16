@@ -16,7 +16,7 @@ from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
 from odfuzz.constants import CLIENT, GLOBAL_ENTITY, QUERY_OPTIONS, FILTER, SEARCH, TOP, SKIP, \
     STRING_FUNC_PROB, MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, \
-    EXPRESSION_OPERATORS, BOOLEAN_OPERATORS, LOGICAL_OPERATORS
+    EXPRESSION_OPERATORS, BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT
 
 
 class Builder(object):
@@ -92,8 +92,8 @@ class QueryGroup(object):
     def query_options(self):
         return self._query_options.values()
 
-    def query_option(self, query_name):
-        return self._query_options[query_name]
+    def query_option(self, option_name):
+        return self._query_options[option_name]
 
     def random_options(self):
         list_length = len(self._query_options_list)
@@ -107,24 +107,35 @@ class QueryGroup(object):
         self._init_query_type(TOP, 'topable', TopQuery)
         self._init_query_type(SKIP, 'pageable', SkipQuery)
 
-    def _init_query_type(self, query_name, metadata_attr, query_object):
-        query_restr = self._restrictions.restriction(query_name)
+    def _init_query_type(self, option_name, metadata_attr, query_object):
+        option_restr = self._get_restrictions(option_name)
         is_queryable = getattr(self._entity_set, metadata_attr)
-        is_not_restricted = self._is_not_restricted(query_restr.exclude)
 
-        if not is_queryable or not is_not_restricted:
-            self._query_options[query_name] = query_object(self._entity_set, query_restr)
-            self._query_options_list.append(self._query_options[query_name])
+        if is_queryable and option_restr.is_not_restricted:
+            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr)
+            self._query_options_list.append(self._query_options[option_name])
 
     def _init_filter_query(self):
-        query_restr = self._restrictions.restriction(FILTER)
-        entity_set = self._delete_restricted_proprties(query_restr.exclude)
-        is_not_restricted = self._is_not_restricted(query_restr)
+        option_restr = self._get_restrictions(FILTER)
+        if option_restr.restr:
+            entity_set = self._delete_restricted_proprties(option_restr.restr.exclude)
+        else:
+            entity_set = self._entity_set
 
-        if is_not_restricted and entity_set.entity_type.proprties():
+        if option_restr.is_not_restricted and entity_set.entity_type.proprties():
             patch_proprties(entity_set)
-            self._query_options[FILTER] = FilterQuery(entity_set, query_restr)
+            self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr)
             self._add_filter_option_to_list(entity_set)
+
+    def _get_restrictions(self, option_name):
+        OptionRestriction = namedtuple('OptionRestriction', ['restr', 'is_not_restricted'])
+        if self._restrictions:
+            query_restr = self._restrictions.restriction(option_name)
+            is_not_restricted = self._is_not_restricted(query_restr.exclude)
+        else:
+            query_restr = None
+            is_not_restricted = True
+        return OptionRestriction(query_restr, is_not_restricted)
 
     def _add_filter_option_to_list(self, entity_set):
         if entity_set.requires_filter:
@@ -146,7 +157,7 @@ class QueryGroup(object):
 
         for proprty in self._entity_set.entity_type.proprties():
             if proprty.name in restr_proprty_list or not proprty.filterable:
-                del entity_set.entity_type.proprties_dict[proprty.name]
+                del entity_set.entity_type._properties[proprty.name]
 
         return entity_set
 
@@ -154,13 +165,18 @@ class QueryGroup(object):
 class QueryOption(metaclass=ABCMeta):
     """An abstract class for a query option."""
 
-    def __init__(self, entity_set, restrictions=None):
+    def __init__(self, entity_set, name, restrictions=None):
         self._entity_set = entity_set
+        self._name = name
         self._restrictions = restrictions
 
     @property
     def entity_set(self):
         return self._entity_set
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def restrictions(self):
@@ -179,7 +195,7 @@ class SearchQuery(QueryOption):
     """The search query option."""
 
     def __init__(self, entity, restrictions):
-        super(SearchQuery, self).__init__(entity, restrictions)
+        super(SearchQuery, self).__init__(entity, 'search', restrictions)
 
     def apply_restrictions(self):
         pass
@@ -192,7 +208,7 @@ class TopQuery(QueryOption):
     """The $top query option."""
 
     def __init__(self, entity, restrictions):
-        super(TopQuery, self).__init__(entity, restrictions)
+        super(TopQuery, self).__init__(entity, '$top', restrictions)
 
     def apply_restrictions(self):
         pass
@@ -205,7 +221,7 @@ class SkipQuery(QueryOption):
     """The $skip query option."""
 
     def __init__(self, entity, restrictions):
-        super(SkipQuery, self).__init__(entity, restrictions)
+        super(SkipQuery, self).__init__(entity, '$skip', restrictions)
 
     def apply_restrictions(self):
         pass
@@ -218,96 +234,136 @@ class FilterQuery(QueryOption):
     """The $filter query option."""
 
     def __init__(self, entity, restrictions):
-        super(FilterQuery, self).__init__(entity, restrictions)
-        self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions.exclude)
-        self._parenthesis_count = 0
+        super(FilterQuery, self).__init__(entity, '$filter', restrictions)
+        self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions)
+
+        self._recursion_depth = 0
+        self._finalizing_group = False
+        self._option = None
+        self._parts_stack = None
+        self._logicals_stack = None
+        self._groups_stack = None
 
     def apply_restrictions(self):
         pass
 
     def generate(self):
-        option = Option()
-        option.string += '$filter='
-        self._noterm_part(option)
-        for _ in range(self._parenthesis_count):
-            option.string += ')'
-        self._parenthesis_count = 0
-        print(option.string)
-        return option
+        self._init_variables()
+        self._noterm_expression()
+        return self._option
 
-    def _noterm_part(self, option):
-        option.add_part({})
-        self._noterm_type(option)
-        self._noterm_comparator(option)
-        self._noterm_value(option)
-        self._noterm_next(option)
+    def _init_variables(self):
+        self._recursion_depth = 0
+        self._finalizing_group = False
+        self._option = Option()
+        self._parts_stack = Stack()
+        self._logicals_stack = Stack()
+        self._groups_stack = Stack()
 
-    def _noterm_type(self, option):
-        last_part = option.parts[-1]
-        last_part['id'] = str(uuid.UUID(int=random.getrandbits(128), version=4))
-
-        if random.random() < 0.5:
-            self._parenthesis_count += 1
-            option.string += '('
-        if random.random() < FUNCTION_WEIGHT:
-            self._generate_function(option)
+    def _noterm_expression(self):
+        self._recursion_depth += 1
+        if random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT:
+            self._generate_element()
         else:
-            self._generate_proprty(option)
+            self._noterm_child()
 
-    def _noterm_comparator(self, option):
-        last_part = option.parts[-1]
-        operator = weighted_random(last_part['operand'].operators.items())
-        last_part['operator'] = operator
-        option.string += ' ' + operator + ' '
+    def _noterm_parent(self):
+        if random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT:
+            self._noterm_expression()
+        else:
+            self._generate_child()
 
-    def _noterm_value(self, option):
-        last_part = option.parts[-1]
-        value = last_part['operand'].generate()
-        last_part['value'] = value
-        option.string += value
+    def _generate_child(self):
+        if random.random() < 0.5:
+            self._noterm_child()
+        else:
+            self._option.add_group()
+            self._groups_stack.push(self._option.groups[-1])
 
-    def _noterm_next(self, option):
-        if self._parenthesis_count != 0 and random.random() < 0.5:
-            self._parenthesis_count -= 1
-            option.string += ')'
-        if random.random() < 0.8:
-            self._noterm_logical(option)
-            self._noterm_part(option)
+            self._noterm_child()
+            self._finalizing_group = True
 
-    def _noterm_logical(self, option):
+    def _noterm_child(self):
+        self._option.add_logical()
+        self._logicals_stack.push(self._option.logicals[-1])
+
+        self._noterm_parent()
+        self._noterm_logical()
+        self._noterm_parent()
+
+        self._update_logical_right_part()
+
+    def _update_logical_right_part(self):
+        last_logical = self._logicals_stack.pop()
+        if self._finalizing_group:
+            self._finalizing_group = False
+            last_logical['right_id'] = self._groups_stack.top()['id']
+        else:
+            last_logical['right_id'] = self._parts_stack.top()['id']
+
+    def _noterm_logical(self):
         operator = weighted_random(LOGICAL_OPERATORS.items())
-        logical_operator = LogicalOperator(operator)
-        last_part = option.parts[-1]
-        logical_operator.part_one_id = last_part['id']
-        option.add_logical(LogicalOperator(operator))
-        option.string += ' ' + operator + ' '
+        last_logical = self._logicals_stack.top()
+        last_logical['name'] = operator
 
-    def _generate_function(self, option):
+        self._update_logical_left_part(last_logical)
+
+    def _update_logical_left_part(self, last_logical):
+        if self._finalizing_group:
+            self._finalizing_group = False
+            last_logical['left_id'] = self._groups_stack.pop()['id']
+        else:
+            last_group = self._groups_stack.top()
+            if last_group:
+                last_group['logicals'].append(last_logical['id'])
+            last_logical['left_id'] = self._parts_stack.top()['id']
+        self._parts_stack.pop()
+
+    def _generate_element(self):
+        self._option.add_part()
+        self._parts_stack.push(self._option.parts[-1])
+        if random.random() < FUNCTION_WEIGHT:
+            self._generate_function()
+        else:
+            self._generate_proprty()
+
+    def _generate_function(self):
         functions_wrapper = random.choice(list(self._functions.group.values()))
         functions_dict = get_methods_dict(functions_wrapper.__class__)
         function_call = random.choice(list(functions_dict.values()))
 
         generated_function = function_call(functions_wrapper)
-        last_part = option.parts[-1]
-        last_part['operand'] = generated_function
-        option.string += generated_function.generated_string
+        operator = weighted_random(generated_function.operators.items())
+        operand = generated_function.generate()
+        self._update_function_part(generated_function, operator, operand)
 
-    def _generate_proprty(self, option):
+    def _update_function_part(self, generated_function, operator, operand):
+        last_part = self._parts_stack.top()
+        last_part['string'] = generated_function.generated_string
+        last_part['operator'] = operator
+        last_part['operand'] = operand
+        last_part['proprties'] = generated_function.proprties
+        last_part['params'] = generated_function.params
+        last_part['name'] = generated_function.function_type.name
+
+    def _generate_proprty(self):
         proprty = random.choice(self.entity_set.entity_type.proprties())
-        last_part = option.parts[-1]
-        last_part['operand'] = proprty
-        option.string += proprty.name
+        operator = weighted_random(proprty.operators.items())
+        operand = proprty.generate()
+        self._update_proprty_part(proprty.name, operator, operand)
+
+    def _update_proprty_part(self, proprty_name, operator, operand):
+        last_part = self._parts_stack.top()
+        last_part['name'] = proprty_name
+        last_part['operator'] = operator
+        last_part['operand'] = operand
 
 
 class Option(object):
     def __init__(self):
-        self._string = ''
         self._logicals = []
         self._parts = []
-
-    @property
-    def string(self):
-        return self._string
+        self._groups = []
 
     @property
     def logicals(self):
@@ -317,56 +373,68 @@ class Option(object):
     def parts(self):
         return self._parts
 
-    @string.setter
-    def string(self, value):
-        self._string = value
-
-    def add_logical(self, logical):
-        self._logicals.append(logical)
-
-    def add_part(self, part):
-        self._parts.append(part)
-
-
-class LogicalOperator(object):
-    def __init__(self, operator):
-        self._id = str(uuid.UUID(int=random.getrandbits(128), version=4))
-        self._operator = operator
-        self._part_one_id = None
-        self._part_two_id = None
+    @property
+    def groups(self):
+        return self._groups
 
     @property
-    def id(self):
-        return self._id
+    def last_part(self):
+        return self._parts[-1]
 
     @property
-    def operator(self):
-        return self._operator
+    def last_logical(self):
+        return self._logicals[-1]
 
     @property
-    def part_one_id(self):
-        return self._part_one_id
+    def last_group(self):
+        return self._groups[-1]
 
-    @property
-    def part_two_id(self):
-        return self._part_two_id
+    @last_part.setter
+    def last_part(self, value):
+        self._parts[-1] = value
 
-    @part_one_id.setter
-    def part_one_id(self, value):
-        self._part_one_id = value
+    @last_logical.setter
+    def last_logical(self, value):
+        self._logicals[-1] = value
 
-    @part_two_id.setter
-    def part_two_id(self, value):
-        self._part_two_id = value
+    def add_logical(self):
+        logical_id = str(uuid.UUID(int=random.getrandbits(128), version=4))
+        self._logicals.append({'id': logical_id})
+
+    def add_part(self):
+        part_id = str(uuid.UUID(int=random.getrandbits(128), version=4))
+        self._parts.append({'id': part_id})
+
+    def add_group(self):
+        group_id = str(uuid.UUID(int=random.getrandbits(128), version=4))
+        self._groups.append({'id': group_id, 'logicals': []})
+
+
+class Stack(object):
+    def __init__(self):
+        self._stack = []
+
+    def push(self, element):
+        self._stack.append(element)
+
+    def top(self):
+        if self._stack:
+            return self._stack[-1]
+        return None
+
+    def pop(self):
+        if self._stack:
+            return self._stack.pop()
+        return None
 
 
 class FilterFunctionsGroup(object):
-    def __init__(self, filterable_proprties, exclude_restrictions):
+    def __init__(self, filterable_proprties, restrictions):
         self._group = {}
         self._init_functions_group(filterable_proprties)
 
-        if self._group:
-            self._apply_restrictions(exclude_restrictions)
+        if self._group and restrictions:
+            self._apply_restrictions(restrictions.exclude)
 
     @property
     def group(self):
@@ -652,6 +720,10 @@ class FilterFunction(object):
     @property
     def operators(self):
         return self._function_type.operators
+
+    @property
+    def function_type(self):
+        return self._function_type
 
     def generate(self):
         return self._function_type.generate()
