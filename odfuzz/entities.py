@@ -391,6 +391,8 @@ class FilterQuery(QueryOption):
 
 
 class Option(object):
+    """An option container holding cross-references of logical parts and groups."""
+
     def __init__(self):
         self._logicals = []
         self._parts = []
@@ -463,6 +465,8 @@ class Option(object):
 
 
 class Stack(object):
+    """An abstract stack data type."""
+
     def __init__(self):
         self._stack = []
 
@@ -487,6 +491,8 @@ class Stack(object):
 
 
 class FilterOptionBuilder(object):
+    """A filter option string builder."""
+
     def __init__(self, option):
         self._option = option
         self._option_string = None
@@ -567,6 +573,8 @@ class FilterOptionBuilder(object):
 
 
 class FilterFunctionsGroup(object):
+    """A wrapper for a group of all functions supported by the filter query option."""
+
     def __init__(self, filterable_proprties, restrictions):
         self._group = {}
         self._init_functions_group(filterable_proprties)
@@ -602,6 +610,8 @@ class FilterFunctionsGroup(object):
 
 
 class DateFilterFunctions(object):
+    """A wrapper of corresponding date filter functions family."""
+
     def __init__(self):
         self._probability = DATE_FUNC_PROB
         self._proprties = []
@@ -653,6 +663,8 @@ class DateFilterFunctions(object):
 
 
 class MathFilterFunctions(object):
+    """A wrapper of corresponding math filter functions family."""
+
     def __init__(self):
         self._probability = MATH_FUNC_PROB
         self._proprties = []
@@ -689,6 +701,8 @@ class MathFilterFunctions(object):
 
 
 class StringFilterFunctions(object):
+    """A wrapper of corresponding string filter functions family."""
+
     def __init__(self):
         self._probability = STRING_FUNC_PROB
         self._proprties = []
@@ -792,6 +806,8 @@ class StringFilterFunctions(object):
 
 
 class FunctionsReturnType(object):
+    """A type of filter query option function."""
+
     def __init__(self, return_type, operators, name, generator):
         self._return_type = return_type
         self._operators = operators
@@ -837,6 +853,8 @@ class FunctionsBool(FunctionsReturnType):
 
 
 class FilterFunction(object):
+    """A container of generated filter function."""
+
     def __init__(self, proprties, params, generated_string, function_type):
         self._proprties = proprties
         self._params = params
