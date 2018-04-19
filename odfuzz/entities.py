@@ -486,6 +486,86 @@ class Stack(object):
         return None
 
 
+class FilterOptionBuilder(object):
+    def __init__(self, option):
+        self._option = option
+        self._option_string = None
+        self._used_logicals = []
+
+    def build(self):
+        if not self._option_string:
+            self._option_string = ''
+            if len(self._option.parts) == 1:
+                self._option_string = build_filter_part(self._option.last_part)
+            else:
+                self._build_all(self._option.logicals[0])
+        return self._option_string
+
+    def _build_all(self, first_logical):
+        if 'group_id' in first_logical:
+            self._build_first_group(first_logical['group_id'])
+        else:
+            self._used_logicals.append(first_logical['id'])
+            self._option_string = self._build_left(first_logical) + ' ' + first_logical['name']\
+                                  + ' ' + self._build_right(first_logical)
+        self._check_last_logical()
+
+    def _build_first_group(self, group_id):
+        group = self._option.group_by_id(group_id)
+        self._option_string = self._build_group(group)
+        if 'left_id' in group:
+            self._option_string = self._build_surroundings(True, group, self._option_string)
+        if 'right_id' in group:
+            self._option_string = self._build_surroundings(False, group, self._option_string)
+
+    def _build_left(self, part):
+        left_id = part['left_id']
+        option_string = self._build_by_id(left_id, True)
+        return option_string
+
+    def _build_right(self, part):
+        right_id = part['right_id']
+        option_string = self._build_by_id(right_id, False)
+        return option_string
+
+    def _build_by_id(self, part_id, skip_left):
+        part = self._option.part_by_id(part_id)
+        if part:
+            generated_string = build_filter_part(part)
+            generated_string = self._build_surroundings(skip_left, part, generated_string)
+        else:
+            group = self._option.group_by_id(part_id)
+            generated_string = self._build_group(group)
+            generated_string = self._build_surroundings(skip_left, group, generated_string)
+        return generated_string
+
+    def _build_surroundings(self, skip_left, part, generated_string):
+        if skip_left and 'left_id' in part:
+            left_logical = self._option.logical_by_id(part['left_id'])
+            self._used_logicals.append(left_logical['id'])
+            generated_string = self._build_left(left_logical) + ' ' + left_logical['name']\
+                                                              + ' ' + generated_string
+        if not skip_left and 'right_id' in part:
+            right_logical = self._option.logical_by_id(part['right_id'])
+            self._used_logicals.append(right_logical['id'])
+            generated_string += ' ' + right_logical['name'] + ' ' + self._build_right(right_logical)
+        return generated_string
+
+    def _build_group(self, group):
+        first_logical_id = group['logicals'][0]
+        logical = self._option.logical_by_id(first_logical_id)
+        self._used_logicals.append(logical['id'])
+        group_string = '(' + self._build_left(logical) + ' ' + logical['name']\
+                           + ' ' + self._build_right(logical) + ')'
+        return group_string
+
+    def _check_last_logical(self):
+        if self._option.last_logical['id'] not in self._used_logicals:
+            logical = self._option.last_logical
+            self._option_string = self._build_left(logical) + ' ' + logical['name']\
+                                                            + ' ' + '(' + self._option_string + ')'
+
+
 class FilterFunctionsGroup(object):
     def __init__(self, filterable_proprties, restrictions):
         self._group = {}
@@ -803,3 +883,8 @@ def weighted_random(items):
             return value
         random_number -= weight
     return None
+
+
+def build_filter_part(part):
+    string_part = part['name'] + ' ' + part['operator'] + ' ' + part['operand']
+    return string_part
