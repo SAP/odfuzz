@@ -238,11 +238,15 @@ class FilterQuery(QueryOption):
         self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions)
 
         self._recursion_depth = 0
-        self._finalizing_group = False
+        self._finalizing_groups = 0
+        self._right_part = False
         self._option = None
-        self._parts_stack = None
-        self._logicals_stack = None
         self._groups_stack = None
+        self._option_string = ''
+
+    @property
+    def option_string(self):
+        return self._option_string
 
     def apply_restrictions(self):
         pass
@@ -250,15 +254,16 @@ class FilterQuery(QueryOption):
     def generate(self):
         self._init_variables()
         self._noterm_expression()
+        self._option.reverse_logicals()
         return self._option
 
     def _init_variables(self):
         self._recursion_depth = 0
-        self._finalizing_group = False
+        self._finalizing_groups = 0
+        self._right_part = False
         self._option = Option()
-        self._parts_stack = Stack()
-        self._logicals_stack = Stack()
         self._groups_stack = Stack()
+        self._option_string = ''
 
     def _noterm_expression(self):
         self._recursion_depth += 1
@@ -277,55 +282,67 @@ class FilterQuery(QueryOption):
         if random.random() < 0.5:
             self._noterm_child()
         else:
-            self._option.add_group()
-            self._groups_stack.push(self._option.groups[-1])
+            self._generate_child_group()
 
-            self._noterm_child()
-            self._finalizing_group = True
+    def _generate_child_group(self):
+        self._option_string += '('
+        self._option.add_group()
+        last_group = self._option.last_group
+        if self._right_part:
+            self._right_part = False
+            self._update_group_references(last_group)
+        self._groups_stack.push(last_group)
+        self._noterm_child()
+        self._finalizing_groups += 1
+        self._option_string += ')'
+
+    def _update_group_references(self, last_group):
+        last_logical = self._option.last_logical
+        last_logical['right_id'] = last_group['id']
+        last_group['left_id'] = last_logical['id']
+        stacked_group = self._groups_stack.top()
+        if stacked_group:
+            stacked_group['logicals'].append(last_logical['id'])
 
     def _noterm_child(self):
-        self._option.add_logical()
-        self._logicals_stack.push(self._option.logicals[-1])
-
         self._noterm_parent()
         self._noterm_logical()
         self._noterm_parent()
 
-        self._update_logical_right_part()
-
-    def _update_logical_right_part(self):
-        last_logical = self._logicals_stack.pop()
-        if self._finalizing_group:
-            self._finalizing_group = False
-            last_logical['right_id'] = self._groups_stack.top()['id']
-        else:
-            last_logical['right_id'] = self._parts_stack.top()['id']
-
     def _noterm_logical(self):
         operator = weighted_random(LOGICAL_OPERATORS.items())
-        last_logical = self._logicals_stack.top()
+        self._option_string += ' ' + operator + ' '
+
+        self._option.add_logical()
+        last_logical = self._option.last_logical
         last_logical['name'] = operator
 
-        self._update_logical_left_part(last_logical)
-
-    def _update_logical_left_part(self, last_logical):
-        if self._finalizing_group:
-            self._finalizing_group = False
-            last_logical['left_id'] = self._groups_stack.pop()['id']
+        if self._finalizing_groups:
+            popped_group = self._groups_stack.pop(self._finalizing_groups)
+            self._finalizing_groups = 0
+            last_logical['left_id'] = popped_group['id']
+            popped_group['right_id'] = last_logical['id']
         else:
-            last_group = self._groups_stack.top()
-            if last_group:
-                last_group['logicals'].append(last_logical['id'])
-            last_logical['left_id'] = self._parts_stack.top()['id']
-        self._parts_stack.pop()
+            self._update_left_logical_references(last_logical)
+        self._right_part = True
+
+    def _update_left_logical_references(self, last_logical):
+        stacked_group = self._groups_stack.top()
+        if stacked_group:
+            last_logical['group_id'] = stacked_group['id']
+        last_logical['left_id'] = self._option.last_part['id']
+        self._option.last_part['right_id'] = last_logical['id']
 
     def _generate_element(self):
         self._option.add_part()
-        self._parts_stack.push(self._option.parts[-1])
         if random.random() < FUNCTION_WEIGHT:
             self._generate_function()
         else:
             self._generate_proprty()
+
+        if self._right_part:
+            self._right_part = False
+            self._update_right_logical_references()
 
     def _generate_function(self):
         functions_wrapper = random.choice(list(self._functions.group.values()))
@@ -335,28 +352,42 @@ class FilterQuery(QueryOption):
         generated_function = function_call(functions_wrapper)
         operator = weighted_random(generated_function.operators.items())
         operand = generated_function.generate()
+        self._option_string += generated_function.generated_string + ' ' + operator + ' ' + operand
         self._update_function_part(generated_function, operator, operand)
 
     def _update_function_part(self, generated_function, operator, operand):
-        last_part = self._parts_stack.top()
-        last_part['string'] = generated_function.generated_string
+        last_part = self._option.last_part
+        last_part['name'] = generated_function.generated_string
         last_part['operator'] = operator
         last_part['operand'] = operand
         last_part['proprties'] = generated_function.proprties
         last_part['params'] = generated_function.params
-        last_part['name'] = generated_function.function_type.name
+        last_part['func'] = generated_function.function_type.name
 
     def _generate_proprty(self):
         proprty = random.choice(self.entity_set.entity_type.proprties())
         operator = weighted_random(proprty.operators.items())
         operand = proprty.generate()
+        self._option_string += proprty.name + ' ' + operator + ' ' + operand
         self._update_proprty_part(proprty.name, operator, operand)
 
     def _update_proprty_part(self, proprty_name, operator, operand):
-        last_part = self._parts_stack.top()
+        last_part = self._option.last_part
         last_part['name'] = proprty_name
         last_part['operator'] = operator
         last_part['operand'] = operand
+
+    def _update_right_logical_references(self):
+        last_logical = self._option.last_logical
+        last_part = self._option.last_part
+
+        last_logical['right_id'] = last_part['id']
+        last_part['left_id'] = last_logical['id']
+
+        last_group = self._groups_stack.top()
+        if last_group:
+            last_group['logicals'].append(last_logical['id'])
+            last_logical['group_id'] = last_group['id']
 
 
 class Option(object):
@@ -409,6 +440,27 @@ class Option(object):
         group_id = str(uuid.UUID(int=random.getrandbits(128), version=4))
         self._groups.append({'id': group_id, 'logicals': []})
 
+    def logical_by_id(self, id_logical):
+        for logical in self._logicals:
+            if logical['id'] == id_logical:
+                return logical
+        return None
+
+    def part_by_id(self, id_part):
+        for part in self._parts:
+            if part['id'] == id_part:
+                return part
+        return None
+
+    def group_by_id(self, id_group):
+        for group in self._groups:
+            if group['id'] == id_group:
+                return group
+        return None
+
+    def reverse_logicals(self):
+        self._logicals = list(reversed(self._logicals))
+
 
 class Stack(object):
     def __init__(self):
@@ -422,7 +474,13 @@ class Stack(object):
             return self._stack[-1]
         return None
 
-    def pop(self):
+    def pop(self, elements_to_pop=1):
+        popped_element = None
+        for _ in range(elements_to_pop):
+            popped_element = self._pop_one()
+        return popped_element
+
+    def _pop_one(self):
         if self._stack:
             return self._stack.pop()
         return None
