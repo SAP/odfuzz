@@ -16,7 +16,7 @@ from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
 from odfuzz.constants import CLIENT, GLOBAL_ENTITY, QUERY_OPTIONS, FILTER, SEARCH, TOP, SKIP, \
     STRING_FUNC_PROB, MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, \
-    EXPRESSION_OPERATORS, BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT
+    EXPRESSION_OPERATORS, BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB
 
 
 class Builder(object):
@@ -243,6 +243,8 @@ class FilterQuery(QueryOption):
         self._option = None
         self._groups_stack = None
         self._option_string = ''
+        self._filterable_proprties = None
+        self._restricted_proprties = None
 
     @property
     def option_string(self):
@@ -253,7 +255,17 @@ class FilterQuery(QueryOption):
 
     def generate(self):
         self._init_variables()
-        self._noterm_expression()
+        self._append_restricted_proprties()
+        if len(self._restricted_proprties) == len(self._filterable_proprties):
+            self._filterable_proprties = self._restricted_proprties
+            self._generate_element()
+        else:
+            if len(self._restricted_proprties) >= 1 and random.random() < SINGLE_VALUE_PROB:
+                self._option.add_part()
+                self._generate_proprty()
+            else:
+                self._delete_restricted_proprties()
+                self._noterm_expression()
         self._option.reverse_logicals()
         return self._option
 
@@ -264,6 +276,22 @@ class FilterQuery(QueryOption):
         self._option = Option()
         self._groups_stack = Stack()
         self._option_string = ''
+        self._filterable_proprties = list(self._entity_set.entity_type.proprties())
+        self._restricted_proprties = []
+
+    def _append_restricted_proprties(self):
+        self._restricted_proprties = [proprty for proprty in self._filterable_proprties
+                                      if proprty.filter_restriction == 'single-value']
+
+    def _delete_restricted_proprties(self):
+        self._filterable_proprties[:] = [proprty for proprty in self._filterable_proprties
+                                      if proprty.filter_restriction != 'single-value']
+
+    def _has_single_restricted(self):
+        for filterable_proprty in self._filterable_proprties:
+            if filterable_proprty.filter_restriction == 'single-value':
+                return True
+        return False
 
     def _noterm_expression(self):
         self._recursion_depth += 1
@@ -365,7 +393,7 @@ class FilterQuery(QueryOption):
         last_part['func'] = generated_function.function_type.name
 
     def _generate_proprty(self):
-        proprty = random.choice(self.entity_set.entity_type.proprties())
+        proprty = random.choice(self._filterable_proprties)
         operator = weighted_random(proprty.operators.items())
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
