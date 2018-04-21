@@ -4,6 +4,7 @@ import random
 import time
 import os
 import sys
+import uuid
 import requests
 import pymongo
 
@@ -13,7 +14,7 @@ from odfuzz.entities import Builder, FilterOptionBuilder
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME, SEED_POPULATION, \
-    MONGODB_COLLECTION, FILTER, POOL_SIZE
+    MONGODB_COLLECTION, FILTER, POOL_SIZE, STRING_THRESHOLD, DEATH_CHANCE
 
 
 class Manager(object):
@@ -44,8 +45,8 @@ class Fuzzer(object):
         self._dispatcher = dispatcher
         self._entities = entities
         self._mongodb = MongoClient()
-        self._analyzer = Analyzer()
-        self._selector = Selector()
+        self._analyzer = Analyzer(self._mongodb)
+        self._selector = Selector(self._mongodb)
 
         self._async = kwargs.get('async')
         if self._async:
@@ -134,23 +135,89 @@ class Fuzzer(object):
 
 
 class Selector(object):
-    def __init__(self):
-        pass
+    def __init__(self, mongodb):
+        self._mongodb = mongodb
 
     def select(self):
         pass
 
 
 class Analyzer(object):
-    def __init__(self):
-        pass
+    """An analyzer for analyzing generated queries."""
+
+    def __init__(self, mongodb):
+        self._mongodb = mongodb
 
     def analyze(self, query):
-        pass
+        new_score = FitnessEvaluator.evaluate(query)
+        query.score = new_score
+        query = self._mongodb.query_by_id(query.query_id)
+        if query and 'predecessors' in query:
+            if not self._has_offspring_good_score(query['predecessors'], new_score):
+                if random.random() < DEATH_CHANCE:
+                    return AnalysisInfo(new_score, True)
+        return AnalysisInfo(new_score, False)
+
+    def _has_offspring_good_score(self, predecessors_id, new_score):
+        for predecessor_id in predecessors_id:
+            if self._mongodb.query_by_id(predecessor_id)['score'] <= new_score:
+                return True
+        return False
 
 
-class Heuristics(object):
-    pass
+class AnalysisInfo(object):
+    """A set of basic information about performed analysis."""
+
+    def __init__(self, score, killable):
+        self._score = score
+        self._killable = killable
+
+    @property
+    def score(self):
+        return self._score
+
+    @property
+    def killable(self):
+        return self._killable
+
+
+class FitnessEvaluator(object):
+    """A group of heuristic functions."""
+
+    @staticmethod
+    def evaluate(query):
+        total_score = 0
+        keys_len = sum(len(option_name) for option_name in query.options.keys())
+        query_len = len(query.query_string) - len(query.entity_name) - keys_len
+        total_score += FitnessEvaluator.eval_string_length(query_len)
+        total_score += FitnessEvaluator.eval_http_status_code(query.response.status_code)
+        total_score += FitnessEvaluator.eval_http_response_time(query.response.elapsed
+                                                                .total_seconds())
+        return total_score
+
+    @staticmethod
+    def eval_http_status_code(status_code):
+        if status_code == 200:
+            return 0
+        elif status_code == 500:
+            return 100
+        else:
+            return 10
+
+    @staticmethod
+    def eval_http_response_time(total_seconds):
+        if total_seconds < 2:
+            return 0
+        elif total_seconds < 10:
+            return 1
+        elif total_seconds < 20:
+            return 2
+        else:
+            return 5
+
+    @staticmethod
+    def eval_string_length(string_length):
+        return round(STRING_THRESHOLD / string_length)
 
 
 class SAPErrors(object):
@@ -167,7 +234,9 @@ class Query(object):
         self._query_string = ''
         self._dict = {}
         self._score = {}
+        self._predecessors = []
         self._response = None
+        self._id = str(uuid.UUID(int=random.getrandbits(128), version=4))
 
     @property
     def entity_name(self):
@@ -195,6 +264,14 @@ class Query(object):
     def score(self):
         return self._score
 
+    @property
+    def query_id(self):
+        return self._id
+
+    @property
+    def predecessors(self):
+        return self._predecessors
+
     @query_string.setter
     def query_string(self, value):
         self._query_string = value
@@ -210,13 +287,18 @@ class Query(object):
     def add_option(self, name, option):
         self._options[name] = option
 
+    def add_predecessor(self, predecessor_id):
+        self._predecessors.append(predecessor_id)
+
     def _create_dict(self):
         self._dict['HTTP'] = str(self._response.status_code)
         self._dict['ErrorCode'] = getattr(self._response, 'error_code', None)
         self._dict['ErrorMessage'] = getattr(self._response, 'error_message', None)
         self._dict['EntitySet'] = {'name': self._entity_name,
                                    'queries': [
-                                       {'string': self._query_string,
+                                       {'id': self._id,
+                                        'predecessors': self._predecessors,
+                                        'string': self._query_string,
                                         'score': self._score,
                                         'search': self._options.get('search'),
                                         'top': self._options.get('$top'),
@@ -256,6 +338,19 @@ class MongoClient(object):
             ]},
             {'$push': {'EntitySet.queries': query}}
         )
+
+    def query_by_id(self, query_id):
+        cursor = self._collection.aggregate(
+            [
+                {'$project': {'Query': '$EntitySet.queries'}},
+                {'$unwind': '$Query'},
+                {'$match': {'Query.id': query_id}}
+            ])
+
+        cursor_list = list(cursor)
+        if cursor_list:
+            return cursor_list[0]
+        return None
 
 
 class Dispatcher(object):
