@@ -1,7 +1,8 @@
 """This module contains global constants."""
 
 LOGGER_NAME = 'odfuzz'
-MONGODB_NAME = 'fuzzer'
+MONGODB_NAME = 'odfuzz'
+MONGODB_COLLECTION = 'entities'
 
 CLIENT = 'sap-client=500'
 FORMAT = '$format=json'
@@ -32,3 +33,4 @@ EXPRESSION_OPERATORS = {'eq': 0.3, 'ne': 0.3, 'gt': 0.1, 'ge': 0.1, 'lt': 0.1, '
 
 SEED_POPULATION = 20
 RECURSION_LIMIT = 3
+POOL_SIZE = 10

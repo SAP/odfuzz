@@ -14,9 +14,9 @@ from pyodata.exceptions import PyODataException
 from odfuzz.exceptions import BuilderError
 from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
-from odfuzz.constants import CLIENT, GLOBAL_ENTITY, QUERY_OPTIONS, FILTER, SEARCH, TOP, SKIP, \
-    STRING_FUNC_PROB, MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, \
-    EXPRESSION_OPERATORS, BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB
+from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, SEARCH, TOP, SKIP, STRING_FUNC_PROB, \
+    MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
+    BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB
 
 
 class Builder(object):
@@ -79,7 +79,7 @@ class QueryGroup(object):
     def __init__(self, entity_set, restrictions):
         self._entity_set = entity_set
         self._restrictions = restrictions
-        self._query_options = dict.fromkeys(QUERY_OPTIONS)
+        self._query_options = {}
 
         self._query_options_list = []
         self._query_filter_required = []
@@ -246,10 +246,6 @@ class FilterQuery(QueryOption):
         self._filterable_proprties = None
         self._restricted_proprties = None
 
-    @property
-    def option_string(self):
-        return self._option_string
-
     def apply_restrictions(self):
         pass
 
@@ -266,7 +262,9 @@ class FilterQuery(QueryOption):
             else:
                 self._delete_restricted_proprties()
                 self._noterm_expression()
+
         self._option.reverse_logicals()
+        self._option.option_string = self._option_string
         return self._option
 
     def _init_variables(self):
@@ -419,12 +417,13 @@ class FilterQuery(QueryOption):
 
 
 class Option(object):
-    """An option container holding cross-references of logical parts and groups."""
+    """An option container holding cross-references and data of logical parts and groups."""
 
     def __init__(self):
         self._logicals = []
         self._parts = []
         self._groups = []
+        self._option_string = ''
 
     @property
     def logicals(self):
@@ -450,6 +449,16 @@ class Option(object):
     def last_group(self):
         return self._groups[-1]
 
+    @property
+    def option_string(self):
+        return self._option_string
+
+    @property
+    def data(self):
+        data_dict = {'groups': self._groups, 'logicals': self._logicals,
+                     'parts': self._parts}
+        return data_dict
+
     @last_part.setter
     def last_part(self, value):
         self._parts[-1] = value
@@ -457,6 +466,10 @@ class Option(object):
     @last_logical.setter
     def last_logical(self, value):
         self._logicals[-1] = value
+
+    @option_string.setter
+    def option_string(self, value):
+        self._option_string = value
 
     def add_logical(self):
         logical_id = str(uuid.UUID(int=random.getrandbits(128), version=4))
@@ -662,32 +675,32 @@ class DateFilterFunctions(object):
     def func_day(self):
         proprty = random.choice(self._proprties)
         generated_string = 'day({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('day'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('day'))
 
     def func_hour(self):
         proprty = random.choice(self._proprties)
         generated_string = 'hour({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('hour'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('hour'))
 
     def func_minute(self):
         proprty = random.choice(self._proprties)
         generated_string = 'minute({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('minute'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('minute'))
 
     def func_month(self):
         proprty = random.choice(self._proprties)
         generated_string = 'month({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('month'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('month'))
 
     def func_second(self):
         proprty = random.choice(self._proprties)
         generated_string = 'second({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('second'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('second'))
 
     def func_year(self):
         proprty = random.choice(self._proprties)
         generated_string = 'year({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('second'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('second'))
 
 
 class MathFilterFunctions(object):
@@ -715,17 +728,17 @@ class MathFilterFunctions(object):
     def func_round(self):
         proprty = random.choice(self._proprties)
         generated_string = 'round({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('round'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('round'))
 
     def func_floor(self):
         proprty = random.choice(self._proprties)
         generated_string = 'floor({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('floor'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('floor'))
 
     def func_ceiling(self):
         proprty = random.choice(self._proprties)
         generated_string = 'ceiling({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsInt('ceiling'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsInt('ceiling'))
 
 
 class StringFilterFunctions(object):
@@ -754,31 +767,31 @@ class StringFilterFunctions(object):
         proprty = random.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'substringof({}, {})'.format(proprty.name, value)
-        return FilterFunction([proprty], [value], generated_string, FunctionsBool('substringof'))
+        return FilterFunction([proprty.name], [value], generated_string, FunctionsBool('substringof'))
 
     def func_endswith(self):
         proprty = random.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'endswith({}, {})'.format(proprty.name, value)
-        return FilterFunction([proprty], [value], generated_string, FunctionsBool('endswith'))
+        return FilterFunction([proprty.name], [value], generated_string, FunctionsBool('endswith'))
 
     def func_startswith(self):
         proprty = random.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'startswith({}, {})'.format(proprty.name, value)
-        return FilterFunction([proprty], [value], generated_string, FunctionsBool('startswith'))
+        return FilterFunction([proprty.name], [value], generated_string, FunctionsBool('startswith'))
 
     def func_length(self):
         proprty = random.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'length({})'.format(proprty.name)
-        return FilterFunction([proprty], [value], generated_string, FunctionsInt('length'))
+        return FilterFunction([proprty.name], [value], generated_string, FunctionsInt('length'))
 
     def func_indexof(self):
         proprty = random.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'indexof({}, {})'.format(proprty.name, value)
-        return FilterFunction([proprty], [value], generated_string, FunctionsInt('indexof'))
+        return FilterFunction([proprty.name], [value], generated_string, FunctionsInt('indexof'))
 
     def func_replace(self):
         proprty = random.choice(self._proprties)
@@ -786,7 +799,7 @@ class StringFilterFunctions(object):
         literal1 = RandomGenerator.edm_string(self_mock)
         literal2 = RandomGenerator.edm_string(self_mock)
         generated_string = 'replace({}, {}, {})'.format(proprty.name, literal1, literal2)
-        return FilterFunction([proprty], [literal1, literal2], generated_string,
+        return FilterFunction([proprty.name], [literal1, literal2], generated_string,
                               FunctionsString('replace'))
 
     def func_substring(self):
@@ -799,34 +812,34 @@ class StringFilterFunctions(object):
         else:
             param_list = [int1]
             generated_string = 'substring({}, {})'.format(proprty.name, int1)
-        return FilterFunction([proprty], param_list, generated_string, FunctionsString('substring'))
+        return FilterFunction([proprty.name], param_list, generated_string, FunctionsString('substring'))
 
     def func_tolower(self):
         proprty = random.choice(self._proprties)
         generated_string = 'tolower({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsString('tolower'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsString('tolower'))
 
     def func_toupper(self):
         proprty = random.choice(self._proprties)
         generated_string = 'toupper({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsString('toupper'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsString('toupper'))
 
     def func_trim(self):
         proprty = random.choice(self._proprties)
         generated_string = 'trim({})'.format(proprty.name)
-        return FilterFunction([proprty], None, generated_string, FunctionsString('trim'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsString('trim'))
 
     def func_concat(self):
         proprty = random.choice(self._proprties)
         if random.random() > 0.5:
             self_mock = type('', (), {'max_string_length': 20})
             value = RandomGenerator.edm_string(self_mock)
-            proprty_list = [proprty]
+            proprty_list = [proprty.name]
             param_list = [value]
             generated_string = 'concat({}, {})'.format(proprty.name, value)
         else:
             proprty2 = random.choice(self._proprties)
-            proprty_list = [proprty, proprty2]
+            proprty_list = [proprty.name, proprty2.name]
             param_list = None
             generated_string = 'concat({}, {})'.format(proprty.name, proprty2.name)
         return FilterFunction(proprty_list, param_list, generated_string,
