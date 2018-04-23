@@ -271,7 +271,7 @@ class FilterQuery(QueryOption):
         self._recursion_depth = 0
         self._finalizing_groups = 0
         self._right_part = False
-        self._option = Option()
+        self._option = Option([], [], [])
         self._groups_stack = Stack()
         self._option_string = ''
         self._filterable_proprties = list(self._entity_set.entity_type.proprties())
@@ -419,10 +419,10 @@ class FilterQuery(QueryOption):
 class Option(object):
     """An option container holding cross-references and data of logical parts and groups."""
 
-    def __init__(self):
-        self._logicals = []
-        self._parts = []
-        self._groups = []
+    def __init__(self, logicals, parts, groups):
+        self._logicals = logicals
+        self._parts = parts
+        self._groups = groups
         self._option_string = ''
 
     @property
@@ -767,7 +767,8 @@ class StringFilterFunctions(object):
         proprty = random.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'substringof({}, {})'.format(proprty.name, value)
-        return FilterFunction([proprty.name], [value], generated_string, FunctionsBool('substringof'))
+        return FilterFunction([proprty.name], [value], generated_string,
+                              FunctionsBool('substringof'))
 
     def func_endswith(self):
         proprty = random.choice(self._proprties)
@@ -779,7 +780,8 @@ class StringFilterFunctions(object):
         proprty = random.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'startswith({}, {})'.format(proprty.name, value)
-        return FilterFunction([proprty.name], [value], generated_string, FunctionsBool('startswith'))
+        return FilterFunction([proprty.name], [value], generated_string,
+                              FunctionsBool('startswith'))
 
     def func_length(self):
         proprty = random.choice(self._proprties)
@@ -812,7 +814,8 @@ class StringFilterFunctions(object):
         else:
             param_list = [int1]
             generated_string = 'substring({}, {})'.format(proprty.name, int1)
-        return FilterFunction([proprty.name], param_list, generated_string, FunctionsString('substring'))
+        return FilterFunction([proprty.name], param_list, generated_string,
+                              FunctionsString('substring'))
 
     def func_tolower(self):
         proprty = random.choice(self._proprties)
