@@ -65,15 +65,16 @@ class Fuzzer(object):
         self.evolve_population()
 
     def seed_population(self):
-        for queryable in self._entities.all():
-            seed_range = len(queryable.entity_set.entity_type.proprties()) * SEED_POPULATION
-            if self._async:
-                seed_range = round(seed_range / POOL_SIZE)
-            for _ in range(seed_range):
-                queries = self._generate(queryable)
-                self._evaluate_queries(queries)
-                self._save_to_database(queries)
-                self._print_tests_num()
+        while True:
+            for queryable in self._entities.all():
+                seed_range = len(queryable.entity_set.entity_type.proprties()) * SEED_POPULATION
+                if self._async:
+                    seed_range = round(seed_range / POOL_SIZE)
+                for _ in range(seed_range):
+                    queries = self._generate(queryable)
+                    self._evaluate_queries(queries)
+                    self._save_to_database(queries)
+                    self._print_tests_num()
 
     def evolve_population(self):
         pass
@@ -93,6 +94,7 @@ class Fuzzer(object):
         query = self._generate_query(queryable)
         if query:
             self._get_single_response(query)
+            self._tests_num += 1
         return [query]
 
     def _generate_query(self, queryable):
