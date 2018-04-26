@@ -144,8 +144,7 @@ class QueryGroup(object):
             self._query_options_list.append(self._query_options[FILTER])
 
     def _is_not_restricted(self, exclude_restr):
-        restricted_entities = getattr(exclude_restr, GLOBAL_ENTITY, None)
-
+        restricted_entities = exclude_restr.get(GLOBAL_ENTITY)
         if restricted_entities:
             if self._entity_set.name in restricted_entities:
                 return False
