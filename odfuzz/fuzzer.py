@@ -120,6 +120,8 @@ class Fuzzer(object):
     def _get_single_response(self, query):
         query.response = self._dispatcher.get(query.query_string)
         if query.response.status_code != 200:
+            with open('errors.txt', 'a', encoding='utf-8') as f:
+                f.write(str(query.response.status_code) + ':' + query.query_string + '\n')
             self._fails_num += 1
 
     def _evaluate_queries(self, queries):
@@ -153,7 +155,7 @@ class Analyzer(object):
     def analyze(self, query):
         new_score = FitnessEvaluator.evaluate(query)
         query.score = new_score
-        query = self._mongodb.query_by_id(query.query_id)
+        query = self._mongodb.collection.find(query.dictionary)
         if query and 'predecessors' in query:
             if not self._has_offspring_good_score(query['predecessors'], new_score):
                 if random.random() < DEATH_CHANCE:
@@ -234,7 +236,7 @@ class Query(object):
         self._entity_name = entity_name
         self._options = {}
         self._query_string = ''
-        self._dict = {}
+        self._dict = None
         self._score = {}
         self._predecessors = []
         self._response = None
@@ -293,20 +295,18 @@ class Query(object):
         self._predecessors.append(predecessor_id)
 
     def _create_dict(self):
-        self._dict['HTTP'] = str(self._response.status_code)
-        self._dict['ErrorCode'] = getattr(self._response, 'error_code', None)
-        self._dict['ErrorMessage'] = getattr(self._response, 'error_message', None)
-        self._dict['EntitySet'] = {'name': self._entity_name,
-                                   'queries': [
-                                       {'id': self._id,
-                                        'predecessors': self._predecessors,
-                                        'string': self._query_string,
-                                        'score': self._score,
-                                        'search': self._options.get('search'),
-                                        'top': self._options.get('$top'),
-                                        'skip': self._options.get('$skip'),
-                                        'filter': self._options.get(FILTER)}
-                                   ]}
+        self._dict = {'id': self._id,
+                      'http': str(self._response.status_code),
+                      'error_code': getattr(self._response, 'error_code', None),
+                      'error_message': getattr(self._response, 'error_message', None),
+                      'entity_set': self._entity_name,
+                      'predecessors': self._predecessors,
+                      'string': self._query_string,
+                      'score': self._score,
+                      'search': self._options.get('search'),
+                      'top': self._options.get('$top'),
+                      'skip': self._options.get('$skip'),
+                      'filter': self._options.get(FILTER)}
 
 
 class MongoClient(object):
@@ -316,38 +316,39 @@ class MongoClient(object):
         self._mongodb = pymongo.MongoClient()
         self._collection = self._mongodb[MONGODB_NAME][MONGODB_COLLECTION]
 
+    @property
+    def collection(self):
+        return self._collection
+
     def save_document(self, query_dict):
         was_inserted = self.insert_single_document(query_dict)
         if not was_inserted:
-            self.update_single_document(query_dict)
+            pass
+            #self.update_single_document(query_dict)
 
     def insert_single_document(self, query_dict):
-        cursor = self._collection.find({'EntitySet.name': query_dict['EntitySet']['name'],
-                                        'ErrorCode': query_dict['ErrorCode']})
+        cursor = self._collection.find(query_dict)
         if cursor.count() == 0:
             self._collection.insert_one(query_dict)
             return True
         return False
 
+    '''
     def update_single_document(self, query_dict):
         entity_set_dict = query_dict['EntitySet']
         query = entity_set_dict['queries'][0]
         self._collection.update_one(
             {'$and': [
-                {'EntitySet.name': entity_set_dict['name']},
-                {'ErrorCode': query_dict['ErrorCode']},
-                {'EntitySet.queries.string': {'$ne': query['string']}}
+                {'entity_set': query_dict['entity_set']},
+                {'error_code': query_dict['error_code']},
+                {'string': {'$ne': query['string']}}
             ]},
             {'$push': {'EntitySet.queries': query}}
         )
+    '''
 
     def query_by_id(self, query_id):
-        cursor = self._collection.aggregate(
-            [
-                {'$project': {'Query': '$EntitySet.queries'}},
-                {'$unwind': '$Query'},
-                {'$match': {'Query.id': query_id}}
-            ])
+        cursor = self._collection.find({'id': query_id})
 
         cursor_list = list(cursor)
         if cursor_list:
