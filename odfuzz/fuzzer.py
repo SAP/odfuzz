@@ -322,31 +322,8 @@ class MongoClient(object):
         return self._collection
 
     def save_document(self, query_dict):
-        was_inserted = self.insert_single_document(query_dict)
-        if not was_inserted:
-            pass
-            #self.update_single_document(query_dict)
-
-    def insert_single_document(self, query_dict):
-        cursor = self._collection.find(query_dict)
-        if cursor.count() == 0:
+        if self._collection.find(query_dict).count() == 0:
             self._collection.insert_one(query_dict)
-            return True
-        return False
-
-    '''
-    def update_single_document(self, query_dict):
-        entity_set_dict = query_dict['EntitySet']
-        query = entity_set_dict['queries'][0]
-        self._collection.update_one(
-            {'$and': [
-                {'entity_set': query_dict['entity_set']},
-                {'error_code': query_dict['error_code']},
-                {'string': {'$ne': query['string']}}
-            ]},
-            {'$push': {'EntitySet.queries': query}}
-        )
-    '''
 
     def query_by_id(self, query_id):
         cursor = self._collection.find({'id': query_id})
