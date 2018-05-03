@@ -9,6 +9,7 @@ import requests
 import pymongo
 
 from gevent.pool import Pool
+from bson.objectid import ObjectId
 
 from odfuzz.entities import Builder, FilterOptionBuilder
 from odfuzz.restrictions import RestrictionsGroup
@@ -240,7 +241,7 @@ class Query(object):
         self._score = {}
         self._predecessors = []
         self._response = None
-        self._id = str(uuid.UUID(int=random.getrandbits(128), version=4))
+        self._id = ObjectId()
 
     @property
     def entity_name(self):
@@ -295,7 +296,7 @@ class Query(object):
         self._predecessors.append(predecessor_id)
 
     def _create_dict(self):
-        self._dict = {'id': self._id,
+        self._dict = {'_id': self._id,
                       'http': str(self._response.status_code),
                       'error_code': getattr(self._response, 'error_code', None),
                       'error_message': getattr(self._response, 'error_message', None),
