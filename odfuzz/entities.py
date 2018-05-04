@@ -100,7 +100,7 @@ class QueryGroup(object):
         list_length = len(self._query_options_list)
         sample_length = round(random.random() * list_length)
         sample_options = random.sample(self._query_options_list, sample_length)
-        return sample_options + self._query_options_list
+        return sample_options + self._query_filter_required
 
     def _init_group(self):
         self._init_filter_query()

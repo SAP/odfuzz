@@ -35,7 +35,7 @@ LOGICAL_OPERATORS = {'and': 0.5, 'or': 0.5}
 BOOLEAN_OPERATORS = {'eq': 0.5, 'ne': 0.5}
 EXPRESSION_OPERATORS = {'eq': 0.3, 'ne': 0.3, 'gt': 0.1, 'ge': 0.1, 'lt': 0.1, 'le': 0.1}
 
-SEED_POPULATION = 20
+SEED_POPULATION = 40
 RECURSION_LIMIT = 3
 POOL_SIZE = 10
 STRING_THRESHOLD = 300

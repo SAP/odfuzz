@@ -17,7 +17,8 @@ from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME, SEED_POPULATION, \
     MONGODB_COLLECTION, FILTER, POOL_SIZE, STRING_THRESHOLD, DEATH_CHANCE, SCORE_EPS, \
-    PARTS_NUM, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, ORDERBY
+    PARTS_NUM, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, ORDERBY, \
+    STATS_LOGGER
 
 
 class Manager(object):
@@ -46,6 +47,9 @@ class Fuzzer(object):
 
     def __init__(self, dispatcher, entities, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
+        self._stats = logging.getLogger(STATS_LOGGER)
+        self._stats.info('HTTP;Code;Message;EntitySet;Query')
+
         self._dispatcher = dispatcher
         self._entities = entities
         self._mongodb = MongoClient()
@@ -91,6 +95,7 @@ class Fuzzer(object):
                 self._evaluate_queries(queries)
                 self._save_to_database(queries)
                 self._print_tests_num()
+                self._log_stats(queries)
 
     def evolve_population(self):
         self._logger.info('Evolving population of requests...')
@@ -106,6 +111,7 @@ class Fuzzer(object):
             generated_tests = self._tests_num - old_tests_num
             self._slay_weak_individuals(selection.score_average, generated_tests)
             self._print_tests_num()
+            self._log_stats(queries)
 
     def _generate_multiple(self, queryable):
         queries = []
@@ -206,6 +212,9 @@ class Fuzzer(object):
         sys.stdout.write('Generated tests: {} | Failed tests: {} \r'
                          .format(self._tests_num, self._fails_num))
         sys.stdout.flush()
+
+    def _log_stats(self, queries):
+        pass
 
 
 class Selector(object):
@@ -475,6 +484,7 @@ class MongoClient(object):
     def __init__(self):
         self._mongodb = pymongo.MongoClient()
         self._collection = self._mongodb[MONGODB_NAME][MONGODB_COLLECTION]
+        self._collection.remove({})
 
     @property
     def collection(self):
