@@ -9,6 +9,7 @@ import logging
 
 from odfuzz.arguments import ArgPaser
 from odfuzz.fuzzer import Manager
+from odfuzz.loggers import init_loggers
 from odfuzz.exceptions import ArgParserError, ODfuzzException
 
 
@@ -20,6 +21,8 @@ def main():
         arguments = arg_parser.parse()
     except ArgParserError:
         sys.exit(1)
+
+    init_loggers(arguments.logs, arguments.stats)
 
     manager = Manager(arguments)
     try:

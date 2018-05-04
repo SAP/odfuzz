@@ -7,20 +7,25 @@ class ODfuzzException(Exception):
 
 
 class ArgParserError(ODfuzzException):
-    """An error occurred while parsing arguments"""
+    """An error occurred while parsing arguments."""
     pass
 
 
 class BuilderError(ODfuzzException):
-    """An error occurred while initializing queryable entities"""
+    """An error occurred while initializing queryable entities."""
     pass
 
 
 class DispatcherError(ODfuzzException):
-    """An error occurred while reading response from the server"""
+    """An error occurred while reading response from the server."""
     pass
 
 
 class RestrictionsError(ODfuzzException):
-    """An error occurred while initializing a restrictions object"""
+    """An error occurred while initializing a restrictions object."""
+    pass
+
+
+class LoggersError(ODfuzzException):
+    """An error occurred while creating directories."""
     pass

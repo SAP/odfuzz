@@ -1,6 +1,10 @@
 """This module contains global constants."""
 
-LOGGER_NAME = 'odfuzz'
+FUZZER_LOGGER = 'odfuzz'
+STATS_LOGGER = 'stats'
+FILTER_LOGGER = 'filter'
+CONFIG_PATH = 'config/logging/logging.conf'
+
 MONGODB_NAME = 'odfuzz'
 MONGODB_COLLECTION = 'entities'
 
