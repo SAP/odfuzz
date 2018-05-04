@@ -4,18 +4,20 @@ import random
 import time
 import os
 import sys
+import logging
+import operator
 import requests
 import pymongo
 
 from gevent.pool import Pool
 from bson.objectid import ObjectId
 
-from odfuzz.entities import Builder, FilterOptionBuilder, Option
+from odfuzz.entities import Builder, FilterOptionBuilder, FilterOption
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME, SEED_POPULATION, \
     MONGODB_COLLECTION, FILTER, POOL_SIZE, STRING_THRESHOLD, DEATH_CHANCE, SCORE_EPS, \
-    SELECTION_THRESHOLD, PARTS_NUM, ITERATIONS_THRESHOLD
+    PARTS_NUM, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, ORDERBY
 
 
 class Manager(object):
@@ -43,6 +45,7 @@ class Fuzzer(object):
     """A main class that initiates a fuzzing process."""
 
     def __init__(self, dispatcher, entities, **kwargs):
+        self._logger = logging.getLogger(FUZZER_LOGGER)
         self._dispatcher = dispatcher
         self._entities = entities
         self._mongodb = MongoClient()
@@ -60,20 +63,29 @@ class Fuzzer(object):
         self._tests_num = 0
         self._fails_num = 0
 
+        self._query_appendix = ''
+        if CLIENT:
+            self._query_appendix += '&' + CLIENT
+        if FORMAT:
+            self._query_appendix += '&' + FORMAT
+
     def run(self):
         time_seed = time.time()
         random.seed(time_seed)
-        print(time_seed)
+        self._logger.info('Seed is set to \'{}\''.format(time_seed))
 
-        #self.seed_population()
-        #self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
+        self.seed_population()
+        self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
         self.evolve_population()
 
     def seed_population(self):
+        self._logger.info('Seeding population with requests...')
         for queryable in self._entities.all():
             seed_range = len(queryable.entity_set.entity_type.proprties()) * SEED_POPULATION
             if self._async:
                 seed_range = round(seed_range / POOL_SIZE)
+            self._logger.info('Population range for entity \'{}\' is set to {}'
+                              .format(queryable.entity_set.name, seed_range))
             for _ in range(seed_range):
                 queries = self._generate(queryable)
                 self._evaluate_queries(queries)
@@ -81,6 +93,7 @@ class Fuzzer(object):
                 self._print_tests_num()
 
     def evolve_population(self):
+        self._logger.info('Evolving population of requests...')
         while True:
             selection = self._selector.select()
             old_tests_num = self._tests_num
@@ -108,20 +121,18 @@ class Fuzzer(object):
         query = self._generate_query(queryable)
         if query:
             self._get_single_response(query)
-            self._tests_num += 1
         return [query]
 
     def _generate_query(self, queryable):
         query = Query(queryable.entity_set.name)
-        try:
-            option = queryable.query_option(FILTER)
-        except KeyError:
-            return None
+        query.query_string += query.entity_name + '?'
 
-        generated_option = option.generate()
-        query.add_option(FILTER, generated_option.data)
-        query.query_string = query.entity_name + '?' + option.name \
-                                               + '=' + generated_option.option_string
+        for option in queryable.random_options():
+            generated_option = option.generate()
+            query.add_option(option.name, generated_option.data)
+            query.query_string += option.name + '=' + generated_option.option_string + '&'
+        query.query_string.rstrip('&')
+        self._logger.info('Generated query \'{}\''.format(query.query_string))
         self._tests_num += 1
         return query
 
@@ -146,10 +157,10 @@ class Fuzzer(object):
         offspring = self._mate(query1, query2)
         query = Query(entity_set_name)
         query.add_option(FILTER, offspring)
-        option = Option(offspring['logicals'], offspring['parts'], offspring['groups'])
+        option = FilterOption(offspring['logicals'], offspring['parts'], offspring['groups'])
         option_string = FilterOptionBuilder(option).build()
         query.query_string = query.entity_name + '?$filter=' \
-                             + option_string
+                                               + option_string + '&$top=20'
         self._tests_num += 1
         return query
 
@@ -174,7 +185,7 @@ class Fuzzer(object):
         pool.join()
 
     def _get_single_response(self, query):
-        query.response = self._dispatcher.get(query.query_string)
+        query.response = self._dispatcher.get(query.query_string + self._query_appendix)
         if query.response.status_code != 200:
             with open('errors.txt', 'a', encoding='utf-8') as f:
                 f.write(str(query.response.status_code) + ':' + query.query_string + '\n')
@@ -182,17 +193,11 @@ class Fuzzer(object):
 
     def _evaluate_queries(self, queries):
         for query in queries:
-            if query:
-                self._analyzer.analyze(query)
-            else:
-                print('what')
+            self._analyzer.analyze(query)
 
     def _save_to_database(self, queries):
         for query in queries:
-            if query:
-                self._mongodb.save_document(query.dictionary)
-            else:
-                print('co')
+            self._mongodb.save_document(query.dictionary)
 
     def _slay_weak_individuals(self, score_average, number):
         self._mongodb.remove_weak_queries(score_average, number)
@@ -205,6 +210,7 @@ class Fuzzer(object):
 
 class Selector(object):
     def __init__(self, mongodb, entities):
+        self._logger = logging.getLogger(FUZZER_LOGGER)
         self._mongodb = mongodb
         self._score_average = 0
         self._passed_iterations = 0
@@ -224,8 +230,10 @@ class Selector(object):
             selection = Selection(None, random.choice(list(self._entities.all())),
                                   self._score_average)
         else:
-            queryable = random.choice(list(self._entities.all()))
-            crossable = self._get_crossable(queryable)
+            crossable = None
+            while not crossable:
+                queryable = random.choice(list(self._entities.all()))
+                crossable = self._get_crossable(queryable)
             selection = Selection(crossable, queryable, self._score_average)
         self._passed_iterations += 1
 
@@ -245,16 +253,25 @@ class Selector(object):
         pass
 
     def _get_crossable(self, queryable):
-        queries_pair = None
-        for _ in range(SELECTION_THRESHOLD):
-            queries_pair = self._mongodb.find_similar_queries(['500'], queryable.entity_set.name)
-            if not queries_pair:
-                queries_pair = self._mongodb.find_similar_queries(['200', '500'], queryable.entity_set.name)
-                if not queries_pair:
-                    continue
-            if len(queries_pair) == 2:
-                break
-        return queries_pair
+        entity_set_name = queryable.entity_set.name
+        parent1 = self._get_single_parent(entity_set_name)
+        parent2 = self._get_single_parent(entity_set_name)
+        if parent1 is None or parent2 is None:
+            return None
+        return parent1, parent2
+
+    def _get_single_parent(self, entity_set_name):
+        queries_sample = self._mongodb.queries_sample_filter(entity_set_name, 10)
+        if not queries_sample:
+            return None
+        parent = self._get_best_query(queries_sample)
+        return parent
+
+    def _get_best_query(self, queries_sample):
+        sorted_queries = sorted(queries_sample, key=operator.itemgetter('score'), reverse=True)
+        best_query = sorted_queries[0]
+        self._logger.info('Selected parent is \'{}\''.format(best_query['string']))
+        return best_query
 
 
 class Selection(object):
@@ -346,8 +363,10 @@ class FitnessEvaluator(object):
     def eval_http_status_code(status_code):
         if status_code == 500:
             return 100
-        else:
+        elif status_code == 200:
             return 0
+        else:
+            return -30
 
     @staticmethod
     def eval_http_response_time(total_seconds):
@@ -444,9 +463,9 @@ class Query(object):
                       'predecessors': self._predecessors,
                       'string': self._query_string,
                       'score': self._score,
-                      'search': self._options.get('search'),
-                      'top': self._options.get('$top'),
-                      'skip': self._options.get('$skip'),
+                      'orderby': self._options.get(ORDERBY),
+                      'top': self._options.get(TOP),
+                      'skip': self._options.get(SKIP),
                       'filter': self._options.get(FILTER)}
 
 
@@ -489,14 +508,15 @@ class MongoClient(object):
     def total_queries(self):
         return self._collection.find().count()
 
-    def queries_sample(self, http_code, entity_set_name, sample_size):
+    def queries_sample_filter(self, entity_set_name, sample_size):
         cursor = self._collection.aggregate(
             [
-                {'$match': {'http': http_code, 'entity_set': entity_set_name}},
+                {'$match': {'entity_set': entity_set_name,
+                            'filter.parts': {'$exists': True},
+                            '$expr': {'$gte': [{'$size': '$filter.parts'}, PARTS_NUM]}}},
                 {'$sample': {'size': sample_size}}
             ])
-        queries = [query['Query'] for query in cursor]
-        return queries
+        return list(cursor)
 
     def remove_weak_queries(self, score_average, number):
         cursor = self._collection.aggregate(
@@ -508,27 +528,19 @@ class MongoClient(object):
         for query in cursor:
             self._collection.remove(query)
 
-    def find_similar_queries(self, http_code, entity_set_name):
-        cursor = self._collection.aggregate(
-            [
-                {'$match': {'http': http_code, 'entity_set': entity_set_name}},
-                {'$project': {'filter': 1}},
-                {'$match': {'$expr': {'$gte': [{'$size': '$filter.parts'}, PARTS_NUM]}}},
-                {'$sample': {'size': 2}}
-            ])
-        return list(cursor)
-
 
 class Dispatcher(object):
     """A dispatcher for sending HTTP requests to the particular OData service."""
 
     def __init__(self, service, sap_certificate=None):
+        self._logger = logging.getLogger(FUZZER_LOGGER)
         self._service = service.rstrip('/') + '/'
         self._sap_certificate = sap_certificate
 
         self._session = requests.Session()
         self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
         self._session.verify = self._get_sap_certificate()
+
 
     @property
     def session(self):
@@ -545,6 +557,7 @@ class Dispatcher(object):
         except requests.exceptions.RequestException as requests_ex:
             raise DispatcherError('An exception was raised while sending HTTP {}: {}'
                                   .format(method, requests_ex))
+        self._logger.info('Received HTTP {} response from {}'.format(response.status_code, url))
         return response
 
     def get(self, query, **kwargs):

@@ -89,7 +89,8 @@ class RandomGenerator(object):
     @staticmethod
     def edm_binary():
         prefix = 'X' if random.random() < 0.5 else 'binary'
-        binary = ''.join([random.choice(HEX_BINARY) for _ in range(random.randint(0, 20000))])
+        #binary = ''.join([random.choice(HEX_BINARY) for _ in range(random.randint(0, 10))])
+        binary = 'a'
         return '{0}\'{1}\''.format(prefix, binary)
 
     @staticmethod

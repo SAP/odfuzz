@@ -14,7 +14,7 @@ from pyodata.exceptions import PyODataException
 from odfuzz.exceptions import BuilderError
 from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
-from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, SEARCH, TOP, SKIP, STRING_FUNC_PROB, \
+from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, ORDERBY, TOP, SKIP, STRING_FUNC_PROB, \
     MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
     BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB
 
@@ -31,7 +31,8 @@ class Builder(object):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
             query_group = QueryGroup(entity_set, self._restrictions)
-            self._queryable.add(query_group)
+            if query_group.query_options():
+                self._queryable.add(query_group)
         return self._queryable
 
     def _get_data_model(self):
@@ -103,7 +104,7 @@ class QueryGroup(object):
 
     def _init_group(self):
         self._init_filter_query()
-        self._init_query_type(SEARCH, 'searchable', SearchQuery)
+        self._init_orderby_query()
         self._init_query_type(TOP, 'topable', TopQuery)
         self._init_query_type(SKIP, 'pageable', SkipQuery)
 
@@ -118,7 +119,7 @@ class QueryGroup(object):
     def _init_filter_query(self):
         option_restr = self._get_restrictions(FILTER)
         if option_restr.restr:
-            entity_set = self._delete_restricted_proprties(option_restr.restr.exclude)
+            entity_set = self._delete_restricted_proprties(option_restr.restr.exclude, 'filterable')
         else:
             entity_set = self._entity_set
 
@@ -126,6 +127,16 @@ class QueryGroup(object):
             patch_proprties(entity_set)
             self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr)
             self._add_filter_option_to_list(entity_set)
+
+    def _init_orderby_query(self):
+        option_restr = self._get_restrictions(ORDERBY)
+        if option_restr.restr:
+            entity_set = self._delete_restricted_proprties(option_restr.restr.exclude, 'sortable')
+        else:
+            entity_set = self._entity_set
+
+        if option_restr.is_not_restricted and entity_set.entity_type.proprties():
+            self._query_options[ORDERBY] = OrderbyQuery(entity_set, option_restr.restr)
 
     def _get_restrictions(self, option_name):
         OptionRestriction = namedtuple('OptionRestriction', ['restr', 'is_not_restricted'])
@@ -144,18 +155,23 @@ class QueryGroup(object):
             self._query_options_list.append(self._query_options[FILTER])
 
     def _is_not_restricted(self, exclude_restr):
+        if not exclude_restr:
+            return True
         restricted_entities = exclude_restr.get(GLOBAL_ENTITY)
         if restricted_entities:
             if self._entity_set.name in restricted_entities:
                 return False
         return True
 
-    def _delete_restricted_proprties(self, exclude_restr):
+    def _delete_restricted_proprties(self, exclude_restr, attribute):
         entity_set = copy.deepcopy(self._entity_set)
-        restr_proprty_list = exclude_restr.get(self._entity_set.name, [])
+        if exclude_restr:
+            restr_proprty_list = exclude_restr.get(self._entity_set.name, [])
+        else:
+            restr_proprty_list = []
 
         for proprty in self._entity_set.entity_type.proprties():
-            if proprty.name in restr_proprty_list or not proprty.filterable:
+            if proprty.name in restr_proprty_list or not getattr(proprty, attribute):
                 del entity_set.entity_type._properties[proprty.name]
 
         return entity_set
@@ -190,17 +206,19 @@ class QueryOption(metaclass=ABCMeta):
         pass
 
 
-class SearchQuery(QueryOption):
+class OrderbyQuery(QueryOption):
     """The search query option."""
 
     def __init__(self, entity, restrictions):
-        super(SearchQuery, self).__init__(entity, 'search', restrictions)
+        super(OrderbyQuery, self).__init__(entity, '$orderby', restrictions)
 
     def apply_restrictions(self):
         pass
 
     def generate(self):
-        pass
+        option = OrderbyOption()
+        option.option_string = ''
+        return option
 
 
 class TopQuery(QueryOption):
@@ -213,7 +231,9 @@ class TopQuery(QueryOption):
         pass
 
     def generate(self):
-        pass
+        option = TopOption()
+        option.option_string = '10'
+        return option
 
 
 class SkipQuery(QueryOption):
@@ -226,7 +246,9 @@ class SkipQuery(QueryOption):
         pass
 
     def generate(self):
-        pass
+        option = SkipOption()
+        option.option_string = '1'
+        return option
 
 
 class FilterQuery(QueryOption):
@@ -270,7 +292,7 @@ class FilterQuery(QueryOption):
         self._recursion_depth = 0
         self._finalizing_groups = 0
         self._right_part = False
-        self._option = Option([], [], [])
+        self._option = FilterOption([], [], [])
         self._groups_stack = Stack()
         self._option_string = ''
         self._filterable_proprties = list(self._entity_set.entity_type.proprties())
@@ -415,10 +437,60 @@ class FilterQuery(QueryOption):
             last_logical['group_id'] = last_group['id']
 
 
-class Option(object):
-    """An option container holding cross-references and data of logical parts and groups."""
+class Option(metaclass=ABCMeta):
+    """An option container."""
+
+    def __init__(self):
+        self._option_string = ''
+
+    @property
+    def option_string(self):
+        return self._option_string
+
+    @option_string.setter
+    def option_string(self, value):
+        self._option_string = value
+
+    @abstractmethod
+    def data(self):
+        pass
+
+
+class SkipOption(Option):
+    """A skip option container holding an integer value."""
+
+    def __init__(self):
+        super(SkipOption, self).__init__()
+
+    def data(self):
+        return self._option_string
+
+
+class TopOption(Option):
+    """A top option container holding an integer value."""
+
+    def __init__(self):
+        super(TopOption, self).__init__()
+
+    def data(self):
+        return self._option_string
+
+
+class OrderbyOption(Option):
+    """An orderby option container holding a list of used properties and type of order operation."""
+
+    def __init__(self):
+        super(OrderbyOption, self).__init__()
+
+    def data(self):
+        return self._option_string
+
+
+class FilterOption(Option):
+    """A filter option container holding cross-references and data of logical parts and groups."""
 
     def __init__(self, logicals, parts, groups):
+        super(FilterOption, self).__init__()
         self._logicals = logicals
         self._parts = parts
         self._groups = groups
@@ -449,10 +521,6 @@ class Option(object):
         return self._groups[-1]
 
     @property
-    def option_string(self):
-        return self._option_string
-
-    @property
     def data(self):
         data_dict = {'groups': self._groups, 'logicals': self._logicals,
                      'parts': self._parts}
@@ -465,10 +533,6 @@ class Option(object):
     @last_logical.setter
     def last_logical(self, value):
         self._logicals[-1] = value
-
-    @option_string.setter
-    def option_string(self, value):
-        self._option_string = value
 
     def add_logical(self):
         logical_id = str(uuid.UUID(int=random.getrandbits(128), version=4))
