@@ -137,7 +137,7 @@ class Fuzzer(object):
             generated_option = option.generate()
             query.add_option(option.name, generated_option.data)
             query.query_string += option.name + '=' + generated_option.option_string + '&'
-        query.query_string.rstrip('&')
+        query.query_string = query.query_string.rstrip('&')
         self._logger.info('Generated query \'{}\''.format(query.query_string))
         self._tests_num += 1
         return query
