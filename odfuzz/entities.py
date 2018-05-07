@@ -98,7 +98,10 @@ class QueryGroup(object):
 
     def random_options(self):
         list_length = len(self._query_options_list)
-        sample_length = round(random.random() * list_length)
+        if list_length == 0:
+            sample_length = 0
+        else:
+            sample_length = round(random.random() * (list_length - 1)) + 1
         sample_options = random.sample(self._query_options_list, sample_length)
         return sample_options + self._query_filter_required
 
@@ -180,10 +183,11 @@ class QueryGroup(object):
 class QueryOption(metaclass=ABCMeta):
     """An abstract class for a query option."""
 
-    def __init__(self, entity_set, name, restrictions=None):
+    def __init__(self, entity_set, name, dollar, restrictions=None):
         self._entity_set = entity_set
         self._name = name
         self._restrictions = restrictions
+        self._dollar = dollar
 
     @property
     def entity_set(self):
@@ -197,6 +201,10 @@ class QueryOption(metaclass=ABCMeta):
     def restrictions(self):
         return self._restrictions
 
+    @property
+    def dollar(self):
+        return self._dollar
+
     @abstractmethod
     def apply_restrictions(self):
         pass
@@ -205,12 +213,22 @@ class QueryOption(metaclass=ABCMeta):
     def generate(self):
         pass
 
+    '''
+    @abstractmethod
+    def mutate(self):
+        pass
+
+    @abstractmethod
+    def crossable_data(self):
+        pass
+    '''
+
 
 class OrderbyQuery(QueryOption):
     """The search query option."""
 
     def __init__(self, entity, restrictions):
-        super(OrderbyQuery, self).__init__(entity, '$orderby', restrictions)
+        super(OrderbyQuery, self).__init__(entity, ORDERBY, '$', restrictions)
 
     def apply_restrictions(self):
         pass
@@ -225,7 +243,7 @@ class TopQuery(QueryOption):
     """The $top query option."""
 
     def __init__(self, entity, restrictions):
-        super(TopQuery, self).__init__(entity, '$top', restrictions)
+        super(TopQuery, self).__init__(entity, TOP, '$', restrictions)
 
     def apply_restrictions(self):
         pass
@@ -240,7 +258,7 @@ class SkipQuery(QueryOption):
     """The $skip query option."""
 
     def __init__(self, entity, restrictions):
-        super(SkipQuery, self).__init__(entity, '$skip', restrictions)
+        super(SkipQuery, self).__init__(entity, SKIP, '$', restrictions)
 
     def apply_restrictions(self):
         pass
@@ -255,7 +273,7 @@ class FilterQuery(QueryOption):
     """The $filter query option."""
 
     def __init__(self, entity, restrictions):
-        super(FilterQuery, self).__init__(entity, '$filter', restrictions)
+        super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions)
         self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions)
 
         self._recursion_depth = 0
@@ -451,6 +469,7 @@ class Option(metaclass=ABCMeta):
     def option_string(self, value):
         self._option_string = value
 
+    @property
     @abstractmethod
     def data(self):
         pass
@@ -462,6 +481,7 @@ class SkipOption(Option):
     def __init__(self):
         super(SkipOption, self).__init__()
 
+    @property
     def data(self):
         return self._option_string
 
@@ -472,6 +492,7 @@ class TopOption(Option):
     def __init__(self):
         super(TopOption, self).__init__()
 
+    @property
     def data(self):
         return self._option_string
 
@@ -482,6 +503,7 @@ class OrderbyOption(Option):
     def __init__(self):
         super(OrderbyOption, self).__init__()
 
+    @property
     def data(self):
         return self._option_string
 
@@ -700,9 +722,10 @@ class FilterFunctionsGroup(object):
                 self._group.setdefault('Math', DateFilterFunctions()).add_proprty(proprty)
 
     def _apply_restrictions(self, exclude_restrictions):
-        restricted_functions = exclude_restrictions.get(GLOBAL_FUNCTION, None)
-        if restricted_functions:
-            self._delete_restricted_functions(restricted_functions)
+        if exclude_restrictions:
+            restricted_functions = exclude_restrictions.get(GLOBAL_FUNCTION, None)
+            if restricted_functions:
+                self._delete_restricted_functions(restricted_functions)
 
     def _delete_restricted_functions(self, restricted_functions):
         for functions_wrapper in self._group.values():

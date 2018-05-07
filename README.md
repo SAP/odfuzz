@@ -31,7 +31,7 @@ ODfuzz is creating multiple statistics about performed experiments and tests. Th
 With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following format:
 ```
 [ Exclude | Include ]
-    [ $filter | orderby | search | ... ]
+    [ $filter | $orderby | $skip | ... ]
         EntitySet name
             Property name
             Property name
@@ -43,4 +43,3 @@ With restrictions, a user is able to define rules which forbid a usage of some e
 Every line, except the first line, starts with a tab or set of tabs and should be properly aligned. At the moment, only entity, property and global function restrictions are implemented.
 
 #### Known bugs
-- mongoDB's read performance is decreasing with a higher number of queries. [See line 156 in fuzzer.py module.](https://github.wdf.sap.corp/I342520/BP-ODfuzz/blob/master/odfuzz/fuzzer.py#L156) A simple workaround is to comment out lines [75](https://github.wdf.sap.corp/I342520/BP-ODfuzz/blob/master/odfuzz/fuzzer.py#L75) and [76](https://github.wdf.sap.corp/I342520/BP-ODfuzz/blob/master/odfuzz/fuzzer.py#L75). Current version of ODfuzz in the master branch does not support evaluation of queries either.

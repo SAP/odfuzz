@@ -1,7 +1,6 @@
 """This module contains core parts of the fuzzer and additional handler classes."""
 
 import random
-import time
 import os
 import sys
 import logging
@@ -9,6 +8,7 @@ import operator
 import requests
 import pymongo
 
+from datetime import datetime
 from gevent.pool import Pool
 from bson.objectid import ObjectId
 
@@ -16,9 +16,9 @@ from odfuzz.entities import Builder, FilterOptionBuilder, FilterOption
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME, SEED_POPULATION, \
-    MONGODB_COLLECTION, FILTER, POOL_SIZE, STRING_THRESHOLD, DEATH_CHANCE, SCORE_EPS, \
-    PARTS_NUM, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, ORDERBY, \
-    STATS_LOGGER
+    MONGODB_COLLECTION, FILTER, POOL_SIZE, STRING_THRESHOLD, SCORE_EPS, PARTS_NUM, \
+    ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, ORDERBY, \
+    STATS_LOGGER, FILTER_PROBABILITY
 
 
 class Manager(object):
@@ -74,7 +74,8 @@ class Fuzzer(object):
             self._query_appendix += '&' + FORMAT
 
     def run(self):
-        time_seed = time.time()
+        time_seed = datetime.now()
+        time_seed = '2018-05-08 15:25:48.058485'
         random.seed(time_seed)
         self._logger.info('Seed is set to \'{}\''.format(time_seed))
 
@@ -101,15 +102,15 @@ class Fuzzer(object):
         self._logger.info('Evolving population of requests...')
         while True:
             selection = self._selector.select()
-            old_tests_num = self._tests_num
             if selection.crossable:
+                self._logger.info('Crossing parents...')
                 queries = self._crossover(selection.crossable, selection.queryable.entity_set.name)
             else:
+                self._logger.info('Generating new queries...')
                 queries = self._generate(selection.queryable)
             self._evaluate_queries(queries)
             self._save_to_database(queries)
-            generated_tests = self._tests_num - old_tests_num
-            self._slay_weak_individuals(selection.score_average, generated_tests)
+            self._slay_weak_individuals(selection.score_average, len(queries))
             self._print_tests_num()
             self._log_stats(queries)
 
@@ -132,15 +133,18 @@ class Fuzzer(object):
     def _generate_query(self, queryable):
         query = Query(queryable.entity_set.name)
         query.query_string += query.entity_name + '?'
+        self._generate_options(queryable, query)
+        self._tests_num += 1
+        return query
 
+    def _generate_options(self, queryable, query):
         for option in queryable.random_options():
             generated_option = option.generate()
             query.add_option(option.name, generated_option.data)
-            query.query_string += option.name + '=' + generated_option.option_string + '&'
+            query.query_string += option.name + '=' \
+                                  + generated_option.option_string + '&'
         query.query_string = query.query_string.rstrip('&')
         self._logger.info('Generated query \'{}\''.format(query.query_string))
-        self._tests_num += 1
-        return query
 
     def _crossover_multiple(self, crossable_selection, entity_set_name):
         children = []
@@ -160,19 +164,26 @@ class Fuzzer(object):
         return [query]
 
     def _crossover_queries(self, query1, query2, entity_set_name):
-        offspring = self._mate(query1, query2)
-        query = Query(entity_set_name)
-        query.add_option(FILTER, offspring)
-        option = FilterOption(offspring['logicals'], offspring['parts'], offspring['groups'])
-        option_string = FilterOptionBuilder(option).build()
-        query.query_string = query.entity_name + '?$filter=' \
-                                               + option_string + '&$top=20'
+        if is_filter_crossable(query1, query2):
+            offspring = self._crossover_filter(query1, query2)
+        else:
+            offspring = self._crossover_options(query1, query2)
+        query = build_offspring(entity_set_name, offspring)
         self._tests_num += 1
         return query
 
-    def _mate(self, query1, query2):
-        filter_option1 = query1['filter']
-        filter_option2 = query2['filter']
+    def _crossover_options(self, query1, query2):
+        filled_options = [option_name for option_name, value in query2.items()
+                          if value is not None and option_name.startswith('_$')]
+        selected_option = random.choice(filled_options)
+        if selected_option not in query1['order']:
+            query1['order'].append(selected_option)
+        query1[selected_option] = query2[selected_option]
+        return query1
+
+    def _crossover_filter(self, query1, query2):
+        filter_option1 = query1['_$filter']
+        filter_option2 = query2['_$filter']
 
         part_to_replace = random.choice(filter_option1['parts'])
         replacing_part = random.choice(filter_option2['parts'])
@@ -181,7 +192,7 @@ class Fuzzer(object):
         part_to_replace['operator'] = replacing_part['operator']
         part_to_replace['operand'] = replacing_part['operand']
 
-        return filter_option1
+        return query1
 
     def _get_multiple_responses(self, queries):
         responses = []
@@ -198,8 +209,10 @@ class Fuzzer(object):
             self._fails_num += 1
 
     def _evaluate_queries(self, queries):
-        for query in queries:
-            self._analyzer.analyze(query)
+        for query in queries[:]:
+            analysis = self._analyzer.analyze(query)
+            if analysis.killable:
+                queries.remove(query)
 
     def _save_to_database(self, queries):
         for query in queries:
@@ -239,13 +252,15 @@ class Selector(object):
             selection = Selection(None, random.choice(list(self._entities.all())),
                                   self._score_average)
         else:
-            crossable = None
-            while not crossable:
-                queryable = random.choice(list(self._entities.all()))
-                crossable = self._get_crossable(queryable)
-            selection = Selection(crossable, queryable, self._score_average)
+            selection = self._crossable_selection()
         self._passed_iterations += 1
 
+        return selection
+
+    def _crossable_selection(self):
+        queryable = random.choice(list(self._entities.all()))
+        crossable = self._get_crossable(queryable)
+        selection = Selection(crossable, queryable, self._score_average)
         return selection
 
     def _is_score_stagnating(self):
@@ -263,14 +278,16 @@ class Selector(object):
 
     def _get_crossable(self, queryable):
         entity_set_name = queryable.entity_set.name
-        parent1 = self._get_single_parent(entity_set_name)
-        parent2 = self._get_single_parent(entity_set_name)
-        if parent1 is None or parent2 is None:
+        parent1 = self._get_single_parent(entity_set_name, None)
+        if parent1 is None:
+            return None
+        parent2 = self._get_single_parent(entity_set_name, ObjectId(parent1['_id']))
+        if parent2 is None:
             return None
         return parent1, parent2
 
-    def _get_single_parent(self, entity_set_name):
-        queries_sample = self._mongodb.queries_sample_filter(entity_set_name, 10)
+    def _get_single_parent(self, entity_set_name, object_id):
+        queries_sample = self._mongodb.queries_sample_filter(entity_set_name, 10, object_id)
         if not queries_sample:
             return None
         parent = self._get_best_query(queries_sample)
@@ -313,18 +330,17 @@ class Analyzer(object):
         new_score = FitnessEvaluator.evaluate(query)
         query.score = new_score
         self._update_population_score(new_score)
-        query = self._mongodb.collection.find(query.dictionary)
-        if query and 'predecessors' in query:
-            if not self._has_offspring_good_score(query['predecessors'], new_score):
-                if random.random() < DEATH_CHANCE:
-                    return AnalysisInfo(new_score, True, self._population_score)
+        if not self._has_offspring_good_score(query.dictionary['predecessors'], new_score):
+            return AnalysisInfo(new_score, True, self._population_score)
         return AnalysisInfo(new_score, False, self._population_score)
 
     def _has_offspring_good_score(self, predecessors_id, new_score):
-        for predecessor_id in predecessors_id:
-            if self._mongodb.query_by_id(predecessor_id)['score'] <= new_score:
-                return True
-        return False
+        if predecessors_id:
+            for predecessor_id in predecessors_id:
+                if self._mongodb.query_by_id(predecessor_id)['score'] < new_score:
+                    return True
+            return False
+        return True
 
     def _update_population_score(self, query_score):
         if self._population_score == 0:
@@ -375,7 +391,7 @@ class FitnessEvaluator(object):
         elif status_code == 200:
             return 0
         else:
-            return -30
+            return -50
 
     @staticmethod
     def eval_http_response_time(total_seconds):
@@ -390,7 +406,10 @@ class FitnessEvaluator(object):
 
     @staticmethod
     def eval_string_length(string_length):
-        return round(STRING_THRESHOLD / string_length)
+        if string_length < 10:
+            return 0
+        else:
+            return round(STRING_THRESHOLD / string_length)
 
 
 class SAPErrors(object):
@@ -408,7 +427,9 @@ class Query(object):
         self._dict = None
         self._score = {}
         self._predecessors = []
+        self._order = []
         self._response = None
+        self._parts = 0
         self._id = ObjectId()
 
     @property
@@ -459,23 +480,45 @@ class Query(object):
 
     def add_option(self, name, option):
         self._options[name] = option
+        self._order.append('_' + name)
 
     def add_predecessor(self, predecessor_id):
         self._predecessors.append(predecessor_id)
 
+    def build_string(self):
+        self._query_string += self._entity_name + '?'
+        for option_name in self._order:
+            if option_name.endswith('filter'):
+                filter_data = self._options[option_name[1:]]
+                filter_option = FilterOption(filter_data['logicals'], filter_data['parts'],
+                                             filter_data['groups'])
+                option_string = FilterOptionBuilder(filter_option).build()
+            else:
+                option_string = self._options[option_name[1:]]
+            self._query_string += option_name[1:] + '=' + option_string + '&'
+        self._query_string = self._query_string.rstrip('&')
+
     def _create_dict(self):
-        self._dict = {'_id': self._id,
-                      'http': str(self._response.status_code),
-                      'error_code': getattr(self._response, 'error_code', None),
-                      'error_message': getattr(self._response, 'error_message', None),
-                      'entity_set': self._entity_name,
-                      'predecessors': self._predecessors,
-                      'string': self._query_string,
-                      'score': self._score,
-                      'orderby': self._options.get(ORDERBY),
-                      'top': self._options.get(TOP),
-                      'skip': self._options.get(SKIP),
-                      'filter': self._options.get(FILTER)}
+        # key fields cannot start with a dollar sign in mongoDB,
+        # therefore names of query options start with an underscore;
+        # in the further processing, the underscore is skipped;
+        # we are doing this because the search query option introduced
+        # to OData 2.0 SAP applications does not contain a dollar sign
+        self._dict = {
+            '_id': self._id,
+            'http': str(self._response.status_code),
+            'error_code': getattr(self._response, 'error_code', None),
+            'error_message': getattr(self._response, 'error_message', None),
+            'entity_set': self._entity_name,
+            'predecessors': self._predecessors,
+            'string': self._query_string,
+            'score': self._score,
+            'order': self._order,
+            '_$orderby': self._options.get(ORDERBY),
+            '_$top': self._options.get(TOP),
+            '_$skip': self._options.get(SKIP),
+            '_$filter': self._options.get(FILTER)
+        }
 
 
 class MongoClient(object):
@@ -518,12 +561,12 @@ class MongoClient(object):
     def total_queries(self):
         return self._collection.find().count()
 
-    def queries_sample_filter(self, entity_set_name, sample_size):
+    def queries_sample_filter(self, entity_set_name, sample_size, without):
         cursor = self._collection.aggregate(
             [
-                {'$match': {'entity_set': entity_set_name,
-                            'filter.parts': {'$exists': True},
-                            '$expr': {'$gte': [{'$size': '$filter.parts'}, PARTS_NUM]}}},
+                {'$match': {'entity_set': entity_set_name, '_id': {'$ne': without},
+                            '_$filter.parts': {'$exists': True},
+                            '$expr': {'$gte': [{'$size': '$_$filter.parts'}, PARTS_NUM]}}},
                 {'$sample': {'size': sample_size}}
             ])
         return list(cursor)
@@ -532,11 +575,11 @@ class MongoClient(object):
         cursor = self._collection.aggregate(
             [
                 {'$project': {'score': 1}},
-                {'$match': {'score': {'$lt': number}}},
-                {'$limit': 1}
+                {'$match': {'score': {'$lt': score_average}}},
+                {'$limit': number}
             ])
         for query in cursor:
-            self._collection.remove(query)
+            self._collection.remove({'_id': query['_id']})
 
 
 class Dispatcher(object):
@@ -584,3 +627,21 @@ class Dispatcher(object):
                 return None
             self._sap_certificate = candidate_path
         return self._sap_certificate
+
+
+def is_filter_crossable(query1, query2):
+    crossable = False
+    if query1['order'] and query2['order'] == ['_$filter']:
+        crossable = True
+    if query1['_$filter'] and query2['_$filter'] and random.random() < FILTER_PROBABILITY:
+        crossable = True
+    return crossable
+
+
+def build_offspring(entity_set_name, offspring):
+    query = Query(entity_set_name)
+    for option in offspring['order']:
+        query.add_option(option[1:], offspring[option])
+    query.build_string()
+    return query
+
