@@ -15,6 +15,7 @@ from odfuzz.entities import Builder, FilterOptionBuilder, FilterOption
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats
 from odfuzz.mongos import MongoClient
+from odfuzz.generators import NumberMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
@@ -75,11 +76,12 @@ class Fuzzer(object):
 
     def run(self):
         time_seed = datetime.now()
-        random.seed(time_seed)
+        #random.seed(time_seed)
+        random.seed('2018-05-09 21:24:27.494189')
         self._logger.info('Seed is set to \'{}\''.format(time_seed))
-        self._mongodb.remove_collection()
+        #self._mongodb.remove_collection()
 
-        self.seed_population()
+        #self.seed_population()
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
         self.evolve_population()
 
@@ -93,10 +95,7 @@ class Fuzzer(object):
                               .format(queryable.entity_set.name, seed_range))
             for _ in range(seed_range):
                 queries = self._generate(queryable)
-                self._evaluate_queries(queries)
-                self._save_to_database(queries)
-                self._print_tests_num()
-                self._log_stats(queries)
+                self._save_queries(queries)
 
     def evolve_population(self):
         self._logger.info('Evolving population of requests...')
@@ -104,15 +103,18 @@ class Fuzzer(object):
             selection = self._selector.select()
             if selection.crossable:
                 self._logger.info('Crossing parents...')
-                queries = self._crossover(selection.crossable, selection.queryable.entity_set.name)
+                queries = self._crossover(selection.crossable, selection.queryable)
             else:
                 self._logger.info('Generating new queries...')
                 queries = self._generate(selection.queryable)
-            self._evaluate_queries(queries)
-            self._save_to_database(queries)
+            self._save_queries(queries)
             self._slay_weak_individuals(selection.score_average, len(queries))
-            self._print_tests_num()
-            self._log_stats(queries)
+
+    def _save_queries(self, queries):
+        self._evaluate_queries(queries)
+        self._save_to_database(queries)
+        self._print_tests_num()
+        self._log_stats(queries)
 
     def _generate_multiple(self, queryable):
         queries = []
@@ -146,31 +148,60 @@ class Fuzzer(object):
         query.query_string = query.query_string.rstrip('&')
         self._logger.info('Generated query \'{}\''.format(query.query_string))
 
-    def _crossover_multiple(self, crossable_selection, entity_set_name):
+    def _crossover_multiple(self, crossable_selection, queryable):
         children = []
         for _ in range(POOL_SIZE):
             query1, query2 = crossable_selection
-            offspring = self._crossover_queries(query1, query2, entity_set_name)
+            offspring = self._crossover_queries(query1, query2, queryable)
             if offspring:
                 children.append(offspring)
         if children:
             self._get_multiple_responses(children)
         return children
 
-    def _crossover_single(self, crossable_selection, entity_set_name):
+    def _crossover_single(self, crossable_selection, queryable):
         query1, query2 = crossable_selection
-        query = self._crossover_queries(query1, query2, entity_set_name)
+        query = self._crossover_queries(query1, query2, queryable)
         self._get_single_response(query)
         return [query]
 
-    def _crossover_queries(self, query1, query2, entity_set_name):
+    def _crossover_queries(self, query1, query2, queryable):
         if is_filter_crossable(query1, query2):
             offspring = self._crossover_filter(query1, query2)
         else:
             offspring = self._crossover_options(query1, query2)
-        query = build_offspring(entity_set_name, offspring)
+        query = build_offspring(queryable.entity_set.name, offspring)
+        if query.query_string == query1['string'] or query.query_string == query2['string']:
+            self._mutate_query(query, queryable)
         self._tests_num += 1
         return query
+
+    def _mutate_query(self, query, queryable):
+        option_name, option_value = random.choice(list(query.options.items()))
+        if option_name == FILTER:
+            part = random.choice(query.options[option_name]['parts'])
+            if 'operand' in part:
+                proprty = queryable.query_option(option_name).entity_set.entity_type.proprty(part['name'])
+                part['operand'] = proprty.mutate(part['operand'])
+        elif option_name == ORDERBY:
+            pass
+        else:
+            print(type(option_value))
+            query.options[option_name] = self._mutate_value(NumberMutator, int(option_value))
+            print(type(query.options[option_name]))
+
+    def _mutate_value(self, mutator_class, value):
+        mutators = self._get_mutators(mutator_class)
+        mutator = random.choice(mutators)
+        mutated_value = getattr(mutator_class, mutator)(value)
+        return mutated_value
+
+    def _get_mutators(self, mutators_class):
+        mutators = []
+        for func_name in mutators_class.__dict__.keys():
+            if not func_name.startswith('_'):
+                mutators.append(func_name)
+        return mutators
 
     def _crossover_options(self, query1, query2):
         filled_options = [option_name for option_name, value in query2.items()
@@ -495,6 +526,7 @@ class Query(object):
                 option_string = FilterOptionBuilder(filter_option).build()
             else:
                 option_string = self._options[option_name[1:]]
+            print(option_string, option_name)
             self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
 

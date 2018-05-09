@@ -16,20 +16,20 @@ DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
 
 class StringMutator(object):
     @staticmethod
-    def flip_bit(string):
+    def flip_bit(self, string):
         index = round(random.random() * (len(string) - 1))
         ord_char = ord(string[index])
         ord_char ^= 1 << round(random.random() * (ord_char.bit_length()))
         return ''.join([string[:index], chr(ord_char), string[index + 1:]])
 
     @staticmethod
-    def replace_char(string):
+    def replace_char(self, string):
         index = round(random.random() * (len(string) - 1))
         rand_char = chr(round(random.random() * 0x10ffff))
         return ''.join([string[:index], rand_char, string[index + 1:]])
 
     @staticmethod
-    def swap_chars(string):
+    def swap_chars(self, string):
         index_length = len(string) - 1
         index1 = round(random.random() * index_length)
         index2 = round(random.random() * index_length)
@@ -41,7 +41,7 @@ class StringMutator(object):
         return ''.join(list_char)
 
     @staticmethod
-    def invert_chars(string):
+    def invert_chars(self, string):
         index_len = len(string) - 1
         start_index = round(random.random() * (index_len - 2))
         end_index = round(random.random() * (index_len - start_index - 1)) + start_index + 2
@@ -52,45 +52,60 @@ class StringMutator(object):
         return ''.join(list_char)
 
     @staticmethod
-    def add_char(string):
+    def add_char(self, string):
         index = round(random.random() * (len(string)))
         new_char = random.choice(BASE_CHARSET)
-        return ''.join([string[:index], new_char, string[index:]])
+        generated_string = ''.join([string[:index], new_char, string[index:]])
+        if self.max_string_length < len(generated_string):
+            generated_string = generated_string[:-1]
+        return generated_string
 
     @staticmethod
-    def delete_char(string):
-        index = round(random.random() * (len(string) - 1))
-        return ''.join([string[:index], string[index + 1:]])
+    def delete_char(self, string):
+        if len(string) >= 1:
+            index = round(random.random() * (len(string) - 1))
+            return ''.join([string[:index], string[index + 1:]])
+        else:
+            return string
 
 
 class NumberMutator(object):
     @staticmethod
-    def flip_bit(number):
-        pass
-
-    @staticmethod
     def increment_value(number):
-        return number + 1
+        return str(number + 1)
 
     @staticmethod
     def decrement_value(number):
-        return number - 1
+        value = number - 1
+        if value < 0:
+            value = 0
+        return str(value)
 
     @staticmethod
     def add_digit(number):
-        pass
+        string_number = str(number)
+        digit = round(random.random() * 9)
+        position = round(random.random() * len(string_number))
+        string_number = ''.join([string_number[:position], str(digit), string_number[position:]])
+        print('JUCHUUUU')
+        print(type(string_number))
+        return string_number
 
     @staticmethod
     def delete_digit(number):
-        pass
+        string_number = str(number)
+        if len(string_number) >= 1:
+            index = round(random.random() * (len(string_number) - 1))
+            return ''.join([string_number[:index], string_number[index + 1:]])
+        else:
+            return string_number
 
 
 class RandomGenerator(object):
     @staticmethod
     def edm_binary():
         prefix = 'X' if random.random() < 0.5 else 'binary'
-        #binary = ''.join([random.choice(HEX_BINARY) for _ in range(random.randint(0, 10))])
-        binary = 'a'
+        binary = ''.join([random.choice(HEX_BINARY) for _ in range(random.randint(0, 10))])
         return '{0}\'{1}\''.format(prefix, binary)
 
     @staticmethod
