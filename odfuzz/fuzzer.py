@@ -6,7 +6,6 @@ import sys
 import logging
 import operator
 import requests
-import pymongo
 
 from datetime import datetime
 from gevent.pool import Pool
@@ -14,11 +13,12 @@ from bson.objectid import ObjectId
 
 from odfuzz.entities import Builder, FilterOptionBuilder, FilterOption
 from odfuzz.restrictions import RestrictionsGroup
+from odfuzz.statistics import Stats
+from odfuzz.mongos import MongoClient
 from odfuzz.exceptions import DispatcherError
-from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, MONGODB_NAME, SEED_POPULATION, \
-    MONGODB_COLLECTION, FILTER, POOL_SIZE, STRING_THRESHOLD, SCORE_EPS, PARTS_NUM, \
-    ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, ORDERBY, \
-    STATS_LOGGER, FILTER_PROBABILITY
+from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
+    STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
+    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY
 
 
 class Manager(object):
@@ -75,9 +75,9 @@ class Fuzzer(object):
 
     def run(self):
         time_seed = datetime.now()
-        time_seed = '2018-05-08 15:25:48.058485'
         random.seed(time_seed)
         self._logger.info('Seed is set to \'{}\''.format(time_seed))
+        self._mongodb.remove_collection()
 
         self.seed_population()
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
@@ -519,67 +519,6 @@ class Query(object):
             '_$skip': self._options.get(SKIP),
             '_$filter': self._options.get(FILTER)
         }
-
-
-class MongoClient(object):
-    """A NoSQL database client."""
-
-    def __init__(self):
-        self._mongodb = pymongo.MongoClient()
-        self._collection = self._mongodb[MONGODB_NAME][MONGODB_COLLECTION]
-        self._collection.remove({})
-
-    @property
-    def collection(self):
-        return self._collection
-
-    def save_document(self, query_dict):
-        if self._collection.find(query_dict).count() == 0:
-            self._collection.insert_one(query_dict)
-
-    def query_by_id(self, query_id):
-        cursor = self._collection.find({'id': query_id})
-
-        cursor_list = list(cursor)
-        if cursor_list:
-            return cursor_list[0]
-        return None
-
-    def overall_score(self):
-        cursor = self._collection.aggregate(
-            [
-                {'$project': {'score': 1}},
-                {'$group': {'_id': None, 'overall': {'$sum': '$score'}}}
-            ])
-        cursor_list = list(cursor)
-        if cursor_list:
-            population_overall = cursor_list[0]['overall']
-        else:
-            population_overall = 0
-        return population_overall
-
-    def total_queries(self):
-        return self._collection.find().count()
-
-    def queries_sample_filter(self, entity_set_name, sample_size, without):
-        cursor = self._collection.aggregate(
-            [
-                {'$match': {'entity_set': entity_set_name, '_id': {'$ne': without},
-                            '_$filter.parts': {'$exists': True},
-                            '$expr': {'$gte': [{'$size': '$_$filter.parts'}, PARTS_NUM]}}},
-                {'$sample': {'size': sample_size}}
-            ])
-        return list(cursor)
-
-    def remove_weak_queries(self, score_average, number):
-        cursor = self._collection.aggregate(
-            [
-                {'$project': {'score': 1}},
-                {'$match': {'score': {'$lt': score_average}}},
-                {'$limit': number}
-            ])
-        for query in cursor:
-            self._collection.remove({'_id': query['_id']})
 
 
 class Dispatcher(object):

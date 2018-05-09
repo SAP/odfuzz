@@ -1,44 +1,15 @@
 """This module contains functions for initializing loggers"""
 
 import os
-import sys
-import uuid
-import errno
 import logging.config
 
-from datetime import datetime
 
 from odfuzz.constants import FUZZER_LOGGER, STATS_LOGGER, FILTER_LOGGER, CONFIG_PATH
-from odfuzz.exceptions import LoggersError
 
 
 def init_loggers(logs_directory, stats_directory):
-    logs_path = directory_path(logs_directory)
-    stats_path = directory_path(stats_directory)
-    create_directory(logs_path)
-    create_directory(stats_path)
-
-    config_defaults = create_config_defaults(logs_path, stats_path)
+    config_defaults = create_config_defaults(logs_directory, stats_directory)
     logging.config.fileConfig(CONFIG_PATH, disable_existing_loggers=False, defaults=config_defaults)
-
-
-def directory_path(directory):
-    if directory is None:
-        directory = os.getcwd()
-
-    subdirectory = '{}_{}'.format(datetime.now().strftime('%Y-%m-%dT%H-%M-%S'), str(uuid.uuid1()))
-    result_directory = os.path.join(directory, subdirectory)
-    if os.name == 'nt':
-        result_directory = str(result_directory).replace('\\', '\\\\')
-    return result_directory
-
-
-def create_directory(directory):
-    try:
-        os.makedirs(directory)
-    except OSError as os_ex:
-        if os_ex != errno.EEXIST:
-            raise LoggersError('Cannot create directory \'{}\''.format(directory))
 
 
 def create_config_defaults(logs_path, stats_path):
