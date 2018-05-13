@@ -6,6 +6,7 @@ import sys
 import logging
 import operator
 import requests
+import requests.adapters
 
 from datetime import datetime
 from gevent.pool import Pool
@@ -15,11 +16,11 @@ from odfuzz.entities import Builder, FilterOptionBuilder, FilterOption
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats
 from odfuzz.mongos import MongoClient
-from odfuzz.generators import NumberMutator
+from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
-    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY
+    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER
 
 
 class Manager(object):
@@ -75,9 +76,9 @@ class Fuzzer(object):
             self._query_appendix += '&' + FORMAT
 
     def run(self):
-        time_seed = datetime.now()
-        #random.seed(time_seed)
-        random.seed('2018-05-09 21:24:27.494189')
+        #time_seed = datetime.now()
+        time_seed = 2018
+        random.seed(2018, version=1)
         self._logger.info('Seed is set to \'{}\''.format(time_seed))
         #self._mongodb.remove_collection()
 
@@ -171,24 +172,242 @@ class Fuzzer(object):
         else:
             offspring = self._crossover_options(query1, query2)
         query = build_offspring(queryable.entity_set.name, offspring)
+        print('ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz')
+        print(query.options)
+        self._mutate_query(query, queryable)
+        print('ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZz')
+        print(query.options)
+        query.add_predecessor(query1['_id'])
+        query.add_predecessor(query2['_id'])
         if query.query_string == query1['string'] or query.query_string == query2['string']:
-            self._mutate_query(query, queryable)
+            pass
         self._tests_num += 1
         return query
 
     def _mutate_query(self, query, queryable):
+        print('MUTATING....................')
         option_name, option_value = random.choice(list(query.options.items()))
         if option_name == FILTER:
-            part = random.choice(query.options[option_name]['parts'])
-            if 'operand' in part:
-                proprty = queryable.query_option(option_name).entity_set.entity_type.proprty(part['name'])
-                part['operand'] = proprty.mutate(part['operand'])
+            if random.random() < 1:
+                self._remove_logical_part(option_name, option_value)
+            else:
+                part = random.choice(option_value['parts'])
+                if 'func' in part:
+                    if part['params'] and random.random() < 0.5:
+                        proprty = queryable.query_option(option_name).entity_set.entity_type \
+                            .proprty(part['proprties'][0])
+                        part['params'][0] = proprty.mutate(part['params'][0])
+                    else:
+                        if part['return_type'] == 'Edm.Boolean':
+                            part['operand'] = 'true' if part['operand'] == 'false' else 'false'
+                        elif part['return_type'] == 'Edm.String':
+                            part['operand'] = self._mutate_value(StringMutator, part['operand'])
+                        elif part['return_type'] == 'Edm.Int32':
+                            part['operand'] = self._mutate_value(NumberMutator, part['operand'])
+                else:
+                    proprty = queryable.query_option(option_name).entity_set.entity_type \
+                        .proprty(part['name'])
+                    part['operand'] = proprty.mutate(part['operand'])
         elif option_name == ORDERBY:
             pass
         else:
-            print(type(option_value))
-            query.options[option_name] = self._mutate_value(NumberMutator, int(option_value))
-            print(type(query.options[option_name]))
+            query.options[option_name] = self._mutate_value(NumberMutator, option_value)
+
+    def _remove_logical_part(self, option_name, option_value):
+        if not option_value['logicals']:
+            return
+        query = Query('blabla')
+        print(option_value)
+        query.add_option('$filter', option_value)
+        query.build_string()
+        print('-------------------')
+        print(option_value)
+        print(query.query_string)
+        print('-------------------')
+        index = round(random.random() * (len(option_value['logicals']) - 1))
+        logical = option_value['logicals'].pop(index)
+        self._remove_from_group(option_value, logical['id'])
+        print(logical['id'])
+        self._remove_adjacent(option_value, logical)
+
+    def _remove_from_group(self, option_value, identifier):
+        if 'groups' in option_value:
+            for group in option_value['groups'][:]:
+                try:
+                    group['logicals'].remove(identifier)
+                except ValueError:
+                    pass
+            print(option_value['groups'])
+
+    def _remove_adjacent(self, option_value, logical):
+        selected_id = random.choice(['left_id', 'right_id'])
+        remained_id = 'left_id' if selected_id.startswith('right') else 'right_id'
+        deleting_part = self._dict_by_id(option_value['parts'], logical[selected_id])
+        remaining_part = self._get_part_by_id(option_value, logical, remained_id)
+        # check if there is another part next to the deleting
+        if deleting_part:
+            print('in deleting part....')
+            option_value['parts'].remove(deleting_part)
+            print(deleting_part)
+            if selected_id in deleting_part:
+                print('[[[', remaining_part,']]]')
+                remaining_part[selected_id] = deleting_part[selected_id]
+                print('((((((((', deleting_part, ')))))))))')
+                if option_value['logicals']:
+                    referencing_logical = self._dict_by_id(option_value['logicals'], deleting_part[selected_id])
+                    referencing_logical[remained_id] = remaining_part['id']
+            # there is nothing on the opposite
+            else:
+                print('in remained_id', selected_id)
+                print(remaining_part)
+                remaining_part.pop(selected_id)
+                #print(deleting_part[remained_id])
+                #referencing_logical = self._dict_by_id(option_value['logicals'], logical[remained_id])
+                #remaining_part[remained_id] = referencing_logical['id']
+
+            #else:
+            if 'group_id' in logical:
+                print('in group_id')
+                group_border = self._dict_by_value(option_value['groups'], 'id', logical['group_id'])
+                if not group_border['logicals']:
+                    option_value['groups'].remove(group_border)
+                    if selected_id in group_border:
+                        remaining_logical = self._dict_by_value(option_value['logicals'], 'id', group_border[selected_id])
+                        remaining_part[selected_id] = group_border[selected_id]
+                        remaining_logical[remained_id] = remaining_part['id']
+                    if remained_id in group_border:
+                        remaining_logical = self._dict_by_value(option_value['logicals'], 'id', group_border[remained_id])
+                        remaining_part[remained_id] = group_border[remained_id]
+                        remaining_logical[selected_id] = remaining_part['id']
+
+                #print(remaining_part.pop(remained_id))
+                print('tu je chyba?')
+        else:
+            print('REMOVING GROUP...')
+        for group in option_value['groups'][:]:
+            if not group['logicals']:
+                option_value['groups'].remove(group)
+
+    def _get_part_by_id(self, option_value, logical, selected_id):
+        part = self._dict_by_id(option_value['parts'], logical[selected_id])
+        if not part:
+            part = self._dict_by_id(option_value['groups'], logical[selected_id])
+        return part
+
+    def _dict_by_id(self, object_list, identifier):
+        for dictionary in object_list:
+            if dictionary['id'] == identifier:
+                return dictionary
+        return None
+
+    def bla(self, option_value, logical):
+        ids = ['left_id', 'right_id']
+        popped_id = ids.pop(round(random.random()))
+        opposite_id = ids[0]
+        id_to_remove = logical[popped_id]
+        part = self._dict_by_value(option_value['parts'], 'id', id_to_remove)
+        if part:
+            option_value['parts'].remove(part)
+            print(option_value['parts'])
+            print('KOKOSSSSSSSSSSSSSSSSSS')
+            remaining_part = self._dict_by_value(option_value['parts'], 'id', logical[opposite_id])
+            if not remaining_part:
+                # get group if part does not exist
+                remaining_part = self._dict_by_value(option_value['groups'], 'id', logical[opposite_id])
+                print(remaining_part)
+            if popped_id in part:
+                print('777777777777777777777777777777777')
+                remaining_part[popped_id] = part[popped_id]
+                # add backwards reference from logical operator
+                if option_value['logicals']:
+                    remaining_logical = self._dict_by_value(option_value['logicals'], 'id', part[popped_id])
+                    remaining_logical[opposite_id] = remaining_part['id']
+            elif popped_id in remaining_part:
+                print(option_value)
+                print('??????????????????????????????????????')
+                print(remaining_part.pop(popped_id))
+                if 'group_id' in logical:
+                    containing_group = self._dict_by_value(option_value['groups'], 'id', logical['group_id'])
+                    print('SAK TUUUU SOMMMMMMMMM')
+                    if not containing_group['logicals'] and popped_id in containing_group:
+                        remaining_part[popped_id] = containing_group[popped_id]
+                        remaining_logical = self._dict_by_value(option_value['logicals'], 'id', containing_group[opposite_id])
+                        remaining_logical[opposite_id] = remaining_part['id']
+                        if opposite_id in containing_group:
+                            remaining_logical = self._dict_by_value(option_value['logicals'], 'id', containing_group)
+            else:
+                group_border = self._dict_by_value(option_value['groups'], 'id', logical['group_id'])
+                if not group_border['logicals']:
+                    option_value['groups'].remove(group_border)
+                remaining_logical = self._dict_by_value(option_value['logicals'], 'id', group_border[opposite_id])
+                remaining_part[opposite_id] = group_border[opposite_id]
+                remaining_logical[popped_id] = remaining_part['id']
+                print('99999999999999999999999999999999')
+            for group in option_value['groups'][:]:
+                if not group['logicals']:
+                    option_value['groups'].remove(group)
+        else:
+            print('HEHE')
+            part = self._dict_by_value(option_value['groups'], 'id', id_to_remove)
+            option_value['groups'].remove(part)
+            remaining_part = self._dict_by_value(option_value['parts'], 'id', logical[opposite_id])
+            if not remaining_part:
+                # get group if part does not exist
+                remaining_part = self._dict_by_value(option_value['groups'], 'id', logical[opposite_id])
+                if remaining_part is None:
+                    print(option_value['groups'], '!!!!!!', logical[opposite_id])
+                    print(option_value['parts'], 'VALUEPARTS', logical[opposite_id])
+                print(remaining_part)
+            if popped_id in part:
+                remaining_part[popped_id] = part[popped_id]
+                # add backwards reference from logical operator
+                if option_value['logicals']:
+                    remaining_logical = self._dict_by_value(option_value['logicals'], 'id', part[popped_id])
+                    remaining_logical[opposite_id] = remaining_part['id']
+            elif popped_id in remaining_part:
+                remaining_part.pop(popped_id)
+            else:
+                group_border = self._dict_by_value(option_value['groups'], 'id', logical['group_id'])
+                if not group_border['logicals']:
+                    option_value['groups'].remove(group_border)
+                remaining_logical = self._dict_by_value(option_value['logicals'], 'id', group_border[opposite_id])
+                remaining_part[opposite_id] = group_border[opposite_id]
+                remaining_logical[popped_id] = remaining_part['id']
+            self._remove_all(option_value, part, opposite_id)
+            for group in option_value['groups'][:]:
+                if not group['logicals']:
+                    option_value['groups'].remove(group)
+
+        print(option_value)
+
+    def _remove_all(self, option_value, part, opposite_id):
+        for logical in option_value['logicals'][:]:
+            if 'group_id' in logical:
+                if logical['group_id'] == part['id']:
+                    option_value['logicals'].remove(logical)
+                    part_del = self._dict_by_value(option_value['parts'], 'id', logical['left_id'])
+                    if part_del:
+                        option_value['parts'].remove(part_del)
+                    part_del = self._dict_by_value(option_value['parts'], 'id', logical['right_id'])
+                    if part_del:
+                        option_value['parts'].remove(part_del)
+                    part_del = self._dict_by_value(option_value['groups'], 'id', logical['left_id'])
+                    if part_del:
+                        option_value['groups'].remove(part_del)
+                        self._remove_all(option_value, part_del, opposite_id)
+                    part_del = self._dict_by_value(option_value['groups'], 'id', logical['right_id'])
+                    if part_del:
+                        option_value['groups'].remove(part_del)
+                        self._remove_all(option_value, part_del, opposite_id)
+
+    def _remove_containing_references(self, logical):
+        pass
+
+    def _dict_by_value(self, containing_list, key, value):
+        for dictionary in containing_list[:]:
+            if dictionary[key] == value:
+                return dictionary
+        return None
 
     def _mutate_value(self, mutator_class, value):
         mutators = self._get_mutators(mutator_class)
@@ -218,6 +437,12 @@ class Fuzzer(object):
 
         part_to_replace = random.choice(filter_option1['parts'])
         replacing_part = random.choice(filter_option2['parts'])
+
+        if 'func' in replacing_part:
+            part_to_replace['func'] = replacing_part['func']
+            part_to_replace['params'] = replacing_part['params']
+            part_to_replace['proprties'] = replacing_part['proprties']
+            part_to_replace['return_type'] = replacing_part['return_type']
 
         part_to_replace['name'] = replacing_part['name']
         part_to_replace['operator'] = replacing_part['operator']
@@ -250,7 +475,8 @@ class Fuzzer(object):
             self._mongodb.save_document(query.dictionary)
 
     def _slay_weak_individuals(self, score_average, number):
-        self._mongodb.remove_weak_queries(score_average, number)
+        if number:
+            self._mongodb.remove_weak_queries(score_average, number)
 
     def _print_tests_num(self):
         sys.stdout.write('Generated tests: {} | Failed tests: {} \r'
@@ -426,14 +652,10 @@ class FitnessEvaluator(object):
 
     @staticmethod
     def eval_http_response_time(total_seconds):
-        if total_seconds < 2:
-            return 0
-        elif total_seconds < 10:
-            return 1
-        elif total_seconds < 20:
-            return 2
-        else:
-            return 5
+        score = total_seconds / 10
+        if total_seconds < 100:
+            score += (total_seconds ** 2) / (10 ** (len(str(total_seconds)) + 1))
+        return round(score)
 
     @staticmethod
     def eval_string_length(string_length):
@@ -526,7 +748,6 @@ class Query(object):
                 option_string = FilterOptionBuilder(filter_option).build()
             else:
                 option_string = self._options[option_name[1:]]
-            print(option_string, option_name)
             self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
 
@@ -562,9 +783,10 @@ class Dispatcher(object):
         self._sap_certificate = sap_certificate
 
         self._session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=POOL_SIZE, pool_maxsize=POOL_SIZE)
+        self._session.mount(ADAPTER, adapter)
         self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
         self._session.verify = self._get_sap_certificate()
-
 
     @property
     def session(self):

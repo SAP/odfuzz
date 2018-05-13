@@ -33,7 +33,7 @@ class StringMutator(object):
         index_length = len(string) - 1
         index1 = round(random.random() * index_length)
         index2 = round(random.random() * index_length)
-        while index1 == index2:
+        if index1 == index2:
             index2 = round(random.random() * index_length)
 
         list_char = list(string)
@@ -71,34 +71,33 @@ class StringMutator(object):
 
 class NumberMutator(object):
     @staticmethod
-    def increment_value(number):
-        return str(number + 1)
+    def increment_value(string_number):
+        return str(int(string_number) + 1)
 
     @staticmethod
-    def decrement_value(number):
-        value = number - 1
+    def decrement_value(string_number):
+        value = int(string_number) - 1
         if value < 0:
             value = 0
         return str(value)
 
     @staticmethod
-    def add_digit(number):
-        string_number = str(number)
+    def add_digit(string_number):
         digit = round(random.random() * 9)
         position = round(random.random() * len(string_number))
         string_number = ''.join([string_number[:position], str(digit), string_number[position:]])
-        print('JUCHUUUU')
-        print(type(string_number))
         return string_number
 
     @staticmethod
-    def delete_digit(number):
-        string_number = str(number)
+    def delete_digit(string_number):
         if len(string_number) >= 1:
             index = round(random.random() * (len(string_number) - 1))
-            return ''.join([string_number[:index], string_number[index + 1:]])
+            generated_number = ''.join([string_number[:index], string_number[index + 1:]])
         else:
-            return string_number
+            generated_number = string_number
+        if string_number == '':
+            return '0'
+        return generated_number
 
 
 class RandomGenerator(object):

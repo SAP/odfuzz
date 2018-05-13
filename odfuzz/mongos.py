@@ -24,7 +24,7 @@ class MongoClient(object):
             self._collection.insert_one(query_dict)
 
     def query_by_id(self, query_id):
-        cursor = self._collection.find({'id': query_id})
+        cursor = self._collection.find({'_id': query_id})
 
         cursor_list = list(cursor)
         if cursor_list:
@@ -70,6 +70,7 @@ class MongoClient(object):
     def existing_entities(self):
         cursor = self._collection.aggregate(
             [
+                {'$match': {'http': '500'}},
                 {'$group': {'_id': '$entity_set'}}
             ])
 
@@ -79,6 +80,6 @@ class MongoClient(object):
         return entities
 
     def sorted_queries_by_entity(self, entity_set_name, queries_num):
-        cursor = self._collection.find({'entity_set': entity_set_name}).sort([('score', -1)]) \
-            .limit(queries_num)
+        cursor = self._collection.find({'entity_set': entity_set_name,
+                                        'http': '500'}).sort([('score', -1)]).limit(queries_num)
         return list(cursor)

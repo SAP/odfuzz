@@ -18,6 +18,7 @@ from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, ORDERBY, TOP, SKIP, 
     MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
     BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB
 
+# TODO: Global restrictions for properties
 
 class Builder(object):
     """A class for building and initializing all queryable entities."""
@@ -428,6 +429,7 @@ class FilterQuery(QueryOption):
         last_part['proprties'] = generated_function.proprties
         last_part['params'] = generated_function.params
         last_part['func'] = generated_function.function_type.name
+        last_part['return_type'] = generated_function.function_type.return_type
 
     def _generate_proprty(self):
         proprty = random.choice(self._filterable_proprties)
@@ -627,6 +629,11 @@ class FilterOptionBuilder(object):
     def build(self):
         if not self._option_string:
             self._option_string = ''
+            print('333344444')
+            print(len(self._option.parts))
+            print(self._option.logicals)
+            print('333344444')
+            print(self._option)
             if len(self._option.parts) == 1:
                 self._option_string = build_filter_part(self._option.last_part)
             else:
@@ -662,6 +669,7 @@ class FilterOptionBuilder(object):
 
     def _build_by_id(self, part_id, skip_left):
         part = self._option.part_by_id(part_id)
+        print(part_id)
         if part:
             generated_string = build_filter_part(part)
             generated_string = self._build_surroundings(skip_left, part, generated_string)
