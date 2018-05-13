@@ -564,6 +564,7 @@ class Query(object):
         for option_name in self._order:
             if option_name.endswith('filter'):
                 filter_data = self._options[option_name[1:]]
+                replace_forbidden_characters(filter_data['parts'])
                 filter_option = FilterOption(filter_data['logicals'], filter_data['parts'],
                                              filter_data['groups'])
                 option_string = FilterOptionBuilder(filter_option).build()
@@ -658,3 +659,24 @@ def build_offspring(entity_set_name, offspring):
         query.add_option(option[1:], offspring[option])
     query.build_string()
     return query
+
+
+def replace_forbidden_characters(parts):
+    for data in parts:
+        if data['operand'].startswith('\''):
+            data['operand'] = '\'' + replace(data['operand'][1:-1]) + '\''
+        if 'params' in data:
+            for index, param in enumerate(data['params']):
+                if param.startswith('\''):
+                    data['params'][index] = '\'' + replace(param[1:-1]) + '\''
+
+
+def replace(replacing_string):
+    replacing_string = replacing_string.replace('%', '%25')
+    replacing_string = replacing_string.replace('&', '%26')
+    replacing_string = replacing_string.replace('#', '%23')
+    replacing_string = replacing_string.replace('?', '%3F')
+    replacing_string = replacing_string.replace('+', '%2B')
+    replacing_string = replacing_string.replace('/', '%2F')
+    replacing_string = replacing_string.replace('\'', '\'\'')
+    return replacing_string

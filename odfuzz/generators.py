@@ -24,7 +24,7 @@ class StringMutator(object):
         ord_char ^= 1 << round(random.random() * (ord_char.bit_length()))
         ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
-        return replace(generated_string.decode(errors='surrogatepass'))
+        return generated_string.decode(errors='surrogatepass')
 
     @staticmethod
     def replace_char(self, string):
@@ -33,7 +33,7 @@ class StringMutator(object):
         index = round(random.random() * (len(string) - 1))
         rand_char = chr(round(random.random() * 0x10ffff))
         generated_string = ''.join([string[:index], rand_char, string[index + 1:]]).encode(errors='surrogatepass')
-        return replace(generated_string.decode(errors='surrogatepass'))
+        return generated_string.decode(errors='surrogatepass')
 
     @staticmethod
     def swap_chars(self, string):
@@ -192,14 +192,3 @@ class RandomGenerator(object):
         formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
         offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
         return 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
-
-
-def replace(replacing_string):
-    replacing_string = replacing_string.replace('%', '%25')
-    replacing_string = replacing_string.replace('&', '%26')
-    replacing_string = replacing_string.replace('#', '%23')
-    replacing_string = replacing_string.replace('?', '%3F')
-    replacing_string = replacing_string.replace('+', '%2B')
-    replacing_string = replacing_string.replace('/', '%2F')
-    replacing_string = replacing_string.replace('\'', '\'\'')
-    return replacing_string
