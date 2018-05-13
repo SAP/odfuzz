@@ -174,8 +174,6 @@ class Fuzzer(object):
         self._mutate_query(query, queryable)
         query.add_predecessor(query1['_id'])
         query.add_predecessor(query2['_id'])
-        if query.query_string == query1['string'] or query.query_string == query2['string']:
-            pass
         self._tests_num += 1
         return query
 
@@ -212,13 +210,14 @@ class Fuzzer(object):
                 if part['return_type'] == 'Edm.Boolean':
                     part['operand'] = 'true' if part['operand'] == 'false' else 'false'
                 elif part['return_type'] == 'Edm.String':
-                    part['operand'] = self._mutate_value(StringMutator, part['operand'])
+                    part['operand'] = self._mutate_value(StringMutator, part['operand'][1:-1])
+                    part['operand'] = '\'' + part['operand'] + '\''
                 elif part['return_type'] == 'Edm.Int32':
                     part['operand'] = self._mutate_value(NumberMutator, part['operand'])
         else:
             proprty = queryable.query_option(option_name).entity_set.entity_type \
                 .proprty(part['name'])
-            part['operand'] = proprty.mutate(part['operand'])
+            part['operand'] = '\'' + proprty.mutate(part['operand'][1:-1]) + '\''
 
     def _mutate_orderby_part(self):
         pass
@@ -257,6 +256,12 @@ class Fuzzer(object):
             part_to_replace['params'] = replacing_part['params']
             part_to_replace['proprties'] = replacing_part['proprties']
             part_to_replace['return_type'] = replacing_part['return_type']
+        else:
+            if 'func' in part_to_replace:
+                part_to_replace.pop('func')
+                part_to_replace.pop('params')
+                part_to_replace.pop('proprties')
+                part_to_replace.pop('return_type')
 
         part_to_replace['name'] = replacing_part['name']
         part_to_replace['operator'] = replacing_part['operator']
@@ -372,6 +377,8 @@ class Selector(object):
 
 
 class Selection(object):
+    """A container that holds objects created by Selector."""
+
     def __init__(self, crossable, queryable, score_average):
         self._crossable = crossable
         self._queryable = queryable
