@@ -214,16 +214,6 @@ class QueryOption(metaclass=ABCMeta):
     def generate(self):
         pass
 
-    '''
-    @abstractmethod
-    def mutate(self):
-        pass
-
-    @abstractmethod
-    def crossable_data(self):
-        pass
-    '''
-
 
 class OrderbyQuery(QueryOption):
     """The search query option."""
@@ -629,11 +619,6 @@ class FilterOptionBuilder(object):
     def build(self):
         if not self._option_string:
             self._option_string = ''
-            print('333344444')
-            print(len(self._option.parts))
-            print(self._option.logicals)
-            print('333344444')
-            print(self._option)
             if len(self._option.parts) == 1:
                 self._option_string = build_filter_part(self._option.last_part)
             else:
@@ -669,7 +654,6 @@ class FilterOptionBuilder(object):
 
     def _build_by_id(self, part_id, skip_left):
         part = self._option.part_by_id(part_id)
-        print(part_id)
         if part:
             generated_string = build_filter_part(part)
             generated_string = self._build_surroundings(skip_left, part, generated_string)

@@ -72,10 +72,14 @@ class StringMutator(object):
 class NumberMutator(object):
     @staticmethod
     def increment_value(string_number):
+        if not string_number:
+            string_number = '0'
         return str(int(string_number) + 1)
 
     @staticmethod
     def decrement_value(string_number):
+        if not string_number:
+            string_number = '0'
         value = int(string_number) - 1
         if value < 0:
             value = 0
