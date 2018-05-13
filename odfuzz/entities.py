@@ -690,6 +690,98 @@ class FilterOptionBuilder(object):
                                                             + ' ' + '(' + self._option_string + ')'
 
 
+class FilterOptionDeleter(object):
+    """A filter option remover that deletes a random part next to the selected logical operator."""
+
+    def __init__(self, option_value, logical):
+        self._option_value = option_value
+        self._logical = logical
+        self._selected_id = None
+        self._remained_id = None
+        self._deleting_part = None
+        self._remaining_part = None
+
+    def remove_adjacent(self):
+        self._remove_logical_in_group()
+        self._init_selection()
+        if self._deleting_part:
+            self._option_value['parts'].remove(self._deleting_part)
+            self._add_part_references()
+        else:
+            self._deleting_part = dict_by_id(self._option_value['groups'],
+                                             self._logical[self._selected_id])
+            self._option_value['groups'].remove(self._deleting_part)
+            self._add_part_references()
+            self._remove_all(self._deleting_part)
+        for group in self._option_value['groups'][:]:
+            if not group['logicals']:
+                self._option_value['groups'].remove(group)
+
+    def _remove_logical_in_group(self):
+        group_id = self._logical.get('group_id')
+        if group_id:
+            remove_logical_from_group(self._option_value, group_id, self._logical['id'])
+
+    def _init_selection(self):
+        self._selected_id = random.choice(['left_id', 'right_id'])
+        self._remained_id = 'left_id' if self._selected_id.startswith('right') else 'right_id'
+        self._deleting_part = dict_by_id(self._option_value['parts'],
+                                         self._logical[self._selected_id])
+        self._remaining_part = get_part_by_id(self._option_value, self._logical,
+                                              self._remained_id)
+
+    def _add_part_references(self):
+        if self._selected_id in self._deleting_part:
+            self._manage_part_references()
+        else:
+            self._remaining_part.pop(self._selected_id)
+        if 'group_id' in self._logical:
+            self._manage_group_references()
+
+    def _manage_part_references(self):
+        self._remaining_part[self._selected_id] = self._deleting_part[self._selected_id]
+        if self._option_value['logicals']:
+            referencing_logical = dict_by_id(self._option_value['logicals'],
+                                             self._deleting_part[self._selected_id])
+            referencing_logical[self._remained_id] = self._remaining_part['id']
+
+    def _manage_group_references(self):
+        group_border = dict_by_id(self._option_value['groups'], self._logical['group_id'])
+        if not group_border['logicals']:
+            try:
+                self._option_value['groups'].remove(group_border)
+            except ValueError:
+                pass
+            else:
+                self._update_group_references(group_border, self._option_value['logicals'])
+
+    def _update_group_references(self, group_border, logicals):
+        if self._selected_id in group_border:
+            remaining_logical = dict_by_id(logicals, group_border[self._selected_id])
+            self._remaining_part[self._selected_id] = group_border[self._selected_id]
+            remaining_logical[self._remained_id] = self._remaining_part['id']
+        if self._remained_id in group_border:
+            remaining_logical = dict_by_id(logicals, group_border[self._remained_id])
+            self._remaining_part[self._remained_id] = group_border[self._remained_id]
+            remaining_logical[self._selected_id] = self._remaining_part['id']
+
+    def _remove_all(self, part):
+        for logical in self._option_value['logicals'][:]:
+            if 'group_id' in logical:
+                if logical['group_id'] == part['id']:
+                    self._option_value['logicals'].remove(logical)
+                    remove_by_reference(self._option_value['parts'], logical['left_id'])
+                    remove_by_reference(self._option_value['parts'], logical['right_id'])
+                    part_del = dict_by_id(self._option_value['groups'], logical['left_id'])
+                    if part_del:
+                        self._option_value['groups'].remove(part_del)
+                        self._remove_all(part_del)
+                    part_del = dict_by_id(self._option_value['groups'], logical['right_id'])
+                    if part_del:
+                        self._option_value['groups'].remove(part_del)
+                        self._remove_all(part_del)
+
+
 class FilterFunctionsGroup(object):
     """A wrapper for a group of all functions supported by the filter query option."""
 
@@ -1028,3 +1120,32 @@ def weighted_random(items):
 def build_filter_part(part):
     string_part = part['name'] + ' ' + part['operator'] + ' ' + part['operand']
     return string_part
+
+
+def dict_by_id(object_list, identifier):
+    for dictionary in object_list:
+        if dictionary['id'] == identifier:
+            return dictionary
+    return None
+
+
+def get_part_by_id(option_value, logical, selected_id):
+    part = dict_by_id(option_value['parts'], logical[selected_id])
+    if not part:
+        part = dict_by_id(option_value['groups'], logical[selected_id])
+    return part
+
+
+def remove_by_reference(corresponding_list, corresponding_id):
+    part_del = dict_by_id(corresponding_list, corresponding_id)
+    if part_del:
+        corresponding_list.remove(part_del)
+    return part_del
+
+
+def remove_logical_from_group(option_value, group_id, logical_id):
+    group = dict_by_id(option_value['groups'], group_id)
+    try:
+        group['logicals'].remove(logical_id)
+    except ValueError:
+        pass

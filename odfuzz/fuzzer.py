@@ -12,7 +12,7 @@ from datetime import datetime
 from gevent.pool import Pool
 from bson.objectid import ObjectId
 
-from odfuzz.entities import Builder, FilterOptionBuilder, FilterOption
+from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats
 from odfuzz.mongos import MongoClient
@@ -20,7 +20,7 @@ from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
-    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER
+    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER, FILTER_DEL_PROB
 
 
 class Manager(object):
@@ -76,13 +76,12 @@ class Fuzzer(object):
             self._query_appendix += '&' + FORMAT
 
     def run(self):
-        #time_seed = datetime.now()
-        time_seed = 2018
-        random.seed(2018, version=1)
+        time_seed = datetime.now()
+        random.seed(time_seed, version=1)
         self._logger.info('Seed is set to \'{}\''.format(time_seed))
-        #self._mongodb.remove_collection()
+        self._mongodb.remove_collection()
 
-        #self.seed_population()
+        self.seed_population()
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
         self.evolve_population()
 
@@ -183,141 +182,46 @@ class Fuzzer(object):
     def _mutate_query(self, query, queryable):
         option_name, option_value = random.choice(list(query.options.items()))
         if option_name == FILTER:
-            if random.random() < 1:
-                self._remove_logical_part(option_name, option_value)
+            if random.random() < FILTER_DEL_PROB:
+                status = self._remove_logical_part(option_value)
+                if not status:
+                    self._mutate_filter_part(queryable, option_name, option_value)
             else:
-                part = random.choice(option_value['parts'])
-                if 'func' in part:
-                    if part['params'] and random.random() < 0.5:
-                        proprty = queryable.query_option(option_name).entity_set.entity_type \
-                            .proprty(part['proprties'][0])
-                        part['params'][0] = proprty.mutate(part['params'][0])
-                    else:
-                        if part['return_type'] == 'Edm.Boolean':
-                            part['operand'] = 'true' if part['operand'] == 'false' else 'false'
-                        elif part['return_type'] == 'Edm.String':
-                            part['operand'] = self._mutate_value(StringMutator, part['operand'])
-                        elif part['return_type'] == 'Edm.Int32':
-                            part['operand'] = self._mutate_value(NumberMutator, part['operand'])
-                else:
-                    proprty = queryable.query_option(option_name).entity_set.entity_type \
-                        .proprty(part['name'])
-                    part['operand'] = proprty.mutate(part['operand'])
+                self._mutate_filter_part(queryable, option_name, option_value)
         elif option_name == ORDERBY:
-            pass
+            self._mutate_orderby_part()
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
 
-    def _remove_logical_part(self, option_name, option_value):
+    def _remove_logical_part(self, option_value):
         if not option_value['logicals']:
-            return
+            return False
         index = round(random.random() * (len(option_value['logicals']) - 1))
         logical = option_value['logicals'].pop(index)
-        self._remove_from_group(option_value, logical['id'])
-        self._remove_adjacent(option_value, logical)
+        FilterOptionDeleter(option_value, logical).remove_adjacent()
+        return True
 
-    def _remove_from_group(self, option_value, identifier):
-        if 'groups' in option_value:
-            for group in option_value['groups'][:]:
-                try:
-                    group['logicals'].remove(identifier)
-                except ValueError:
-                    pass
-
-    def _remove_adjacent(self, option_value, logical):
-        selected_id = random.choice(['left_id', 'right_id'])
-        remained_id = 'left_id' if selected_id.startswith('right') else 'right_id'
-        deleting_part = self._dict_by_id(option_value['parts'], logical[selected_id])
-        remaining_part = self._get_part_by_id(option_value, logical, remained_id)
-        # check if there is another part next to the deleting
-        if deleting_part:
-            option_value['parts'].remove(deleting_part)
-            if selected_id in deleting_part:
-                remaining_part[selected_id] = deleting_part[selected_id]
-                if option_value['logicals']:
-                    referencing_logical = self._dict_by_id(option_value['logicals'], deleting_part[selected_id])
-                    referencing_logical[remained_id] = remaining_part['id']
-            # there is nothing on the opposite
+    def _mutate_filter_part(self, queryable, option_name, option_value):
+        part = random.choice(option_value['parts'])
+        if 'func' in part:
+            if part['params'] and random.random() < 0.5:
+                proprty = queryable.query_option(option_name).entity_set.entity_type \
+                    .proprty(part['proprties'][0])
+                part['params'][0] = proprty.mutate(part['params'][0])
             else:
-                remaining_part.pop(selected_id)
-
-            if 'group_id' in logical:
-                group_border = self._dict_by_value(option_value['groups'], 'id', logical['group_id'])
-                if not group_border['logicals']:
-                    option_value['groups'].remove(group_border)
-                    if selected_id in group_border:
-                        remaining_logical = self._dict_by_value(option_value['logicals'], 'id', group_border[selected_id])
-                        remaining_part[selected_id] = group_border[selected_id]
-                        remaining_logical[remained_id] = remaining_part['id']
-                    if remained_id in group_border:
-                        remaining_logical = self._dict_by_value(option_value['logicals'], 'id', group_border[remained_id])
-                        remaining_part[remained_id] = group_border[remained_id]
-                        remaining_logical[selected_id] = remaining_part['id']
+                if part['return_type'] == 'Edm.Boolean':
+                    part['operand'] = 'true' if part['operand'] == 'false' else 'false'
+                elif part['return_type'] == 'Edm.String':
+                    part['operand'] = self._mutate_value(StringMutator, part['operand'])
+                elif part['return_type'] == 'Edm.Int32':
+                    part['operand'] = self._mutate_value(NumberMutator, part['operand'])
         else:
-            deleting_part = self._dict_by_id(option_value['groups'], logical[selected_id])
-            option_value['groups'].remove(deleting_part)
-            if selected_id in deleting_part:
-                remaining_part[selected_id] = deleting_part[selected_id]
-                if option_value['logicals']:
-                    referencing_logical = self._dict_by_id(option_value['logicals'], deleting_part[selected_id])
-                    referencing_logical[remained_id] = remaining_part['id']
-            # there is nothing on the opposite
-            else:
-                remaining_part.pop(selected_id)
-            if 'group_id' in logical:
-                group_border = self._dict_by_value(option_value['groups'], 'id', logical['group_id'])
-                if not group_border['logicals']:
-                    option_value['groups'].remove(group_border)
-                    if selected_id in group_border:
-                        remaining_logical = self._dict_by_value(option_value['logicals'], 'id', group_border[selected_id])
-                        remaining_part[selected_id] = group_border[selected_id]
-                        remaining_logical[remained_id] = remaining_part['id']
-                    if remained_id in group_border:
-                        remaining_logical = self._dict_by_value(option_value['logicals'], 'id', group_border[remained_id])
-                        remaining_part[remained_id] = group_border[remained_id]
-                        remaining_logical[selected_id] = remaining_part['id']
-            self._remove_all(option_value, deleting_part, remained_id)
-        for group in option_value['groups'][:]:
-            if not group['logicals']:
-                option_value['groups'].remove(group)
+            proprty = queryable.query_option(option_name).entity_set.entity_type \
+                .proprty(part['name'])
+            part['operand'] = proprty.mutate(part['operand'])
 
-    def _get_part_by_id(self, option_value, logical, selected_id):
-        part = self._dict_by_id(option_value['parts'], logical[selected_id])
-        if not part:
-            part = self._dict_by_id(option_value['groups'], logical[selected_id])
-        return part
-
-    def _dict_by_id(self, object_list, identifier):
-        for dictionary in object_list:
-            if dictionary['id'] == identifier:
-                return dictionary
-        return None
-
-    def _remove_all(self, option_value, part, opposite_id):
-        for logical in option_value['logicals'][:]:
-            if 'group_id' in logical:
-                if logical['group_id'] == part['id']:
-                    option_value['logicals'].remove(logical)
-                    part_del = self._dict_by_value(option_value['parts'], 'id', logical['left_id'])
-                    if part_del:
-                        option_value['parts'].remove(part_del)
-                    part_del = self._dict_by_value(option_value['parts'], 'id', logical['right_id'])
-                    if part_del:
-                        option_value['parts'].remove(part_del)
-                    part_del = self._dict_by_value(option_value['groups'], 'id', logical['left_id'])
-                    if part_del:
-                        option_value['groups'].remove(part_del)
-                        self._remove_all(option_value, part_del, opposite_id)
-                    part_del = self._dict_by_value(option_value['groups'], 'id', logical['right_id'])
-                    if part_del:
-                        option_value['groups'].remove(part_del)
-                        self._remove_all(option_value, part_del, opposite_id)
-
-    def _dict_by_value(self, containing_list, key, value):
-        for dictionary in containing_list[:]:
-            if dictionary[key] == value:
-                return dictionary
-        return None
+    def _mutate_orderby_part(self):
+        pass
 
     def _mutate_value(self, mutator_class, value):
         mutators = self._get_mutators(mutator_class)
@@ -747,4 +651,3 @@ def build_offspring(entity_set_name, offspring):
         query.add_option(option[1:], offspring[option])
     query.build_string()
     return query
-
