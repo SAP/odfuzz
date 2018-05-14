@@ -8,6 +8,7 @@ import operator
 import requests
 import requests.adapters
 
+from copy import deepcopy
 from datetime import datetime
 from gevent.pool import Pool
 from bson.objectid import ObjectId
@@ -573,11 +574,9 @@ class Query(object):
         self._query_string += self._entity_name + '?'
         for option_name in self._order:
             if option_name.endswith('filter'):
-                filter_data = self._options[option_name[1:]]
+                filter_data = deepcopy(self._options[option_name[1:]])
                 replace_forbidden_characters(filter_data['parts'])
-                filter_option = FilterOption(filter_data['logicals'], filter_data['parts'],
-                                             filter_data['groups'])
-                option_string = FilterOptionBuilder(filter_option).build()
+                option_string = build_filter_string(filter_data)
             else:
                 option_string = self._options[option_name[1:]]
             self._query_string += option_name[1:] + '=' + option_string + '&'
@@ -668,6 +667,14 @@ def build_offspring(entity_set_name, offspring):
     for option in offspring['order']:
         query.add_option(option[1:], offspring[option])
     return query
+
+
+def build_filter_string(filter_data):
+    filter_option = FilterOption(filter_data['logicals'],
+                                 filter_data['parts'],
+                                 filter_data['groups'])
+    option_string = FilterOptionBuilder(filter_option).build()
+    return option_string
 
 
 def replace_forbidden_characters(parts):
