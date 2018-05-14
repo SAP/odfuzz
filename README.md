@@ -43,3 +43,4 @@ With restrictions, a user is able to define rules which forbid a usage of some e
 Every line, except the first line, starts with a tab or set of tabs and should be properly aligned. At the moment, only entity, property and global function restrictions are implemented.
 
 #### Known bugs
+While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
