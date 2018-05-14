@@ -24,7 +24,7 @@ class StringMutator(object):
         ord_char ^= 1 << round(random.random() * (ord_char.bit_length()))
         ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
-        return generated_string.decode(errors='surrogatepass')
+        return generated_string.decode(errors='replace')
 
     @staticmethod
     def replace_char(self, string):
@@ -33,7 +33,7 @@ class StringMutator(object):
         index = round(random.random() * (len(string) - 1))
         rand_char = chr(round(random.random() * 0x10ffff))
         generated_string = ''.join([string[:index], rand_char, string[index + 1:]]).encode(errors='surrogatepass')
-        return generated_string.decode(errors='surrogatepass')
+        return generated_string.decode(errors='replace')
 
     @staticmethod
     def swap_chars(self, string):

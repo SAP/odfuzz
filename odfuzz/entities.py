@@ -16,9 +16,8 @@ from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
 from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, ORDERBY, TOP, SKIP, STRING_FUNC_PROB, \
     MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
-    BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB
+    BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB, GLOBAL_PROPRTY
 
-# TODO: Global restrictions for properties
 
 class Builder(object):
     """A class for building and initializing all queryable entities."""
@@ -171,6 +170,7 @@ class QueryGroup(object):
         entity_set = copy.deepcopy(self._entity_set)
         if exclude_restr:
             restr_proprty_list = exclude_restr.get(self._entity_set.name, [])
+            restr_proprty_list.extend(exclude_restr.get(GLOBAL_PROPRTY, []))
         else:
             restr_proprty_list = []
 

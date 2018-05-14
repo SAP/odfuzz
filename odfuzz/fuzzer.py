@@ -14,7 +14,7 @@ from bson.objectid import ObjectId
 
 from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption
 from odfuzz.restrictions import RestrictionsGroup
-from odfuzz.statistics import Stats
+from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.mongos import MongoClient
 from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
@@ -66,8 +66,8 @@ class Fuzzer(object):
             self._crossover = self._crossover_single
             self._generate = self._generate_single
 
-        self._tests_num = 0
-        self._fails_num = 0
+        Stats.tests_num = 0
+        Stats.fails_num = 0
 
         self._query_appendix = ''
         if CLIENT:
@@ -136,7 +136,7 @@ class Fuzzer(object):
         query = Query(queryable.entity_set.name)
         query.query_string += query.entity_name + '?'
         self._generate_options(queryable, query)
-        self._tests_num += 1
+        Stats.tests_num += 1
         return query
 
     def _generate_options(self, queryable, query):
@@ -170,11 +170,14 @@ class Fuzzer(object):
             offspring = self._crossover_filter(query1, query2)
         else:
             offspring = self._crossover_options(query1, query2)
+        Stats.created_by_crossover += 1
         query = build_offspring(queryable.entity_set.name, offspring)
         self._mutate_query(query, queryable)
+        query.build_string()
         query.add_predecessor(query1['_id'])
         query.add_predecessor(query2['_id'])
-        self._tests_num += 1
+        self._logger.info('Generated {}'.format(query.query_string))
+        Stats.tests_num += 1
         return query
 
     def _mutate_query(self, query, queryable):
@@ -190,6 +193,7 @@ class Fuzzer(object):
             self._mutate_orderby_part()
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
+        Stats.created_by_mutation += 1
 
     def _remove_logical_part(self, option_value):
         if not option_value['logicals']:
@@ -274,14 +278,19 @@ class Fuzzer(object):
         pool = Pool(POOL_SIZE)
         for query in queries:
             responses.append(pool.spawn(self._get_single_response, query))
-        pool.join()
+        try:
+            pool.join(raise_error=True)
+        except Exception:
+            stats = StatsPrinter()
+            stats.write()
+            sys.exit(0)
 
     def _get_single_response(self, query):
         query.response = self._dispatcher.get(query.query_string + self._query_appendix)
         if query.response.status_code != 200:
             with open('errors.txt', 'a', encoding='utf-8') as f:
                 f.write(str(query.response.status_code) + ':' + query.query_string + '\n')
-            self._fails_num += 1
+            Stats.fails_num += 1
 
     def _evaluate_queries(self, queries):
         for query in queries[:]:
@@ -295,11 +304,12 @@ class Fuzzer(object):
 
     def _slay_weak_individuals(self, score_average, number):
         if number:
+            Stats.removed_num += number
             self._mongodb.remove_weak_queries(score_average, number)
 
     def _print_tests_num(self):
         sys.stdout.write('Generated tests: {} | Failed tests: {} \r'
-                         .format(self._tests_num, self._fails_num))
+                         .format(Stats.tests_num, Stats.fails_num))
         sys.stdout.flush()
 
     def _log_stats(self, queries):
@@ -657,7 +667,6 @@ def build_offspring(entity_set_name, offspring):
     query = Query(entity_set_name)
     for option in offspring['order']:
         query.add_option(option[1:], offspring[option])
-    query.build_string()
     return query
 
 
