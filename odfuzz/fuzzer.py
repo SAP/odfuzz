@@ -21,7 +21,7 @@ from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
-    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER, FILTER_DEL_PROB
+    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE
 
 
 class Manager(object):
@@ -469,8 +469,7 @@ class FitnessEvaluator(object):
         query_len = len(query.query_string) - len(query.entity_name) - keys_len
         total_score += FitnessEvaluator.eval_string_length(query_len)
         total_score += FitnessEvaluator.eval_http_status_code(query.response.status_code)
-        total_score += FitnessEvaluator.eval_http_response_time(query.response.elapsed
-                                                                .total_seconds())
+        total_score += FitnessEvaluator.eval_http_response_time(query.response)
         return total_score
 
     @staticmethod
@@ -483,7 +482,10 @@ class FitnessEvaluator(object):
             return -50
 
     @staticmethod
-    def eval_http_response_time(total_seconds):
+    def eval_http_response_time(response):
+        if int(response.headers['content-length']) > CONTENT_LEN_SIZE:
+            return -10
+        total_seconds = response.elapsed.total_seconds()
         score = total_seconds / 10
         if total_seconds < 100:
             score += (total_seconds ** 2) / (10 ** (len(str(total_seconds)) + 1))
