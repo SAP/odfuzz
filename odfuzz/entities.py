@@ -11,12 +11,13 @@ from collections import namedtuple
 from pyodata.v2.model import Edmx
 from pyodata.exceptions import PyODataException
 
-from odfuzz.exceptions import BuilderError
+from odfuzz.exceptions import BuilderError, DispatcherError
 from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
 from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, ORDERBY, TOP, SKIP, STRING_FUNC_PROB, \
     MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
-    BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB, GLOBAL_PROPRTY
+    BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB, GLOBAL_PROPRTY, \
+    INT_MAX
 
 
 class Builder(object):
@@ -148,6 +149,7 @@ class QueryGroup(object):
 
         if option_restr.is_not_restricted and entity_set.entity_type.proprties():
             self._query_options[ORDERBY] = OrderbyQuery(entity_set, option_restr.restr)
+            self._query_options_list.append(self._query_options[ORDERBY])
 
     def _get_restrictions(self, option_name):
         OptionRestriction = namedtuple('OptionRestriction', ['restr', 'is_not_restricted'])
@@ -228,13 +230,22 @@ class OrderbyQuery(QueryOption):
 
     def __init__(self, entity, restrictions):
         super(OrderbyQuery, self).__init__(entity, ORDERBY, '$', restrictions)
+        self._proprties = set(proprty.name for proprty in self.entity_set.entity_type.proprties())
 
     def apply_restrictions(self):
         pass
 
     def generate(self):
-        option = OrderbyOption()
-        option.option_string = ''
+        option = OrderbyOption([], '')
+        total_proprties = len(self._proprties)
+        if total_proprties > 3:
+            total_proprties = 3
+        sample_size = round(random.random() * (total_proprties - 1)) + 1
+
+        for proprty in random.sample(self._proprties, sample_size):
+            option.add_proprty(proprty)
+        option.order = random.choice(['asc', 'desc'])
+        option.option_string = OrderbyOptionBuilder(option).build()
         return option
 
 
@@ -244,7 +255,7 @@ class TopQuery(QueryOption):
     def __init__(self, entity, restrictions, dispatcher):
         super(TopQuery, self).__init__(entity, TOP, '$', restrictions)
         self._dispatcher = dispatcher
-        self._max_range_prob = {2147483646: 1.0}
+        self._max_range_prob = {INT_MAX: 1.0}
         self.apply_restrictions()
 
     def apply_restrictions(self):
@@ -253,26 +264,38 @@ class TopQuery(QueryOption):
     def generate(self, dependent_option=None):
         option = TopOption()
         selected_value = weighted_random(self._max_range_prob.items())
-        if dependent_option and int(dependent_option) + selected_value > 2147483646:
-            max_range = 2147483646 - int(dependent_option)
+        if dependent_option and int(dependent_option) + selected_value > INT_MAX:
+            max_range = INT_MAX - int(dependent_option)
         else:
             max_range = selected_value
         option.option_string = str(round(random.random() * max_range))
         return option
 
     def _set_max_range(self):
-        self._max_range_prob.update({2147483646: 0.01})
+        self._max_range_prob.update({INT_MAX: 0.01})
         max_values = self.restrictions.include.get(self.entity_set.name)
         if max_values:
             total_entities = int(max_values[0])
         else:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT)
-            total_entities = int(response.text)
+            total_entities = self._get_total_entities()
 
         if total_entities > 1000:
             self._max_range_prob[1000] = 0.99
         else:
             self._max_range_prob[total_entities] = 0.99
+
+    def _get_total_entities(self):
+        try:
+            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT,
+                                            timeout=3)
+        except DispatcherError:
+            total_entities = INT_MAX
+        else:
+            try:
+                total_entities = int(response.text)
+            except ValueError:
+                total_entities = INT_MAX
+        return total_entities
 
 
 class SkipQuery(QueryOption):
@@ -281,7 +304,7 @@ class SkipQuery(QueryOption):
     def __init__(self, entity, restrictions, dispatcher):
         super(SkipQuery, self).__init__(entity, SKIP, '$', restrictions)
         self._dispatcher = dispatcher
-        self._max_range_prob = {2147483646: 1.0}
+        self._max_range_prob = {INT_MAX: 1.0}
         self.apply_restrictions()
 
     def apply_restrictions(self):
@@ -290,23 +313,35 @@ class SkipQuery(QueryOption):
     def generate(self, dependent_option=None):
         option = SkipOption()
         selected_value = weighted_random(self._max_range_prob.items())
-        if dependent_option and int(dependent_option) + selected_value > 2147483646:
-            max_range = 2147483646 - int(dependent_option)
+        if dependent_option and int(dependent_option) + selected_value > INT_MAX:
+            max_range = INT_MAX - int(dependent_option)
         else:
             max_range = selected_value
         option.option_string = str(round(random.random() * max_range))
         return option
 
     def _set_max_range(self):
-        self._max_range_prob.update({2147483646: 0.01})
+        self._max_range_prob.update({INT_MAX: 0.01})
         max_values = self.restrictions.include.get(self.entity_set.name)
         if max_values:
             total_entities = int(max_values[0])
         else:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT)
-            total_entities = int(response.text)
+            total_entities = self._get_total_entities()
 
         self._max_range_prob[total_entities] = 0.99
+
+    def _get_total_entities(self):
+        try:
+            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT,
+                                            timeout=3)
+        except DispatcherError:
+            total_entities = INT_MAX
+        else:
+            try:
+                total_entities = int(response.text)
+            except ValueError:
+                total_entities = INT_MAX
+        return total_entities
 
 
 class FilterQuery(QueryOption):
@@ -541,12 +576,29 @@ class TopOption(Option):
 class OrderbyOption(Option):
     """An orderby option container holding a list of used properties and type of order operation."""
 
-    def __init__(self):
+    def __init__(self, proprties, order):
         super(OrderbyOption, self).__init__()
+        self._proprties = proprties
+        self._order = order
 
     @property
     def data(self):
-        return self._option_string
+        data_dict = {'proprties': self._proprties, 'order': self._order}
+        return data_dict
+
+    @property
+    def order(self):
+        return self._order
+
+    @order.setter
+    def order(self, value):
+        self._order = value
+
+    def add_proprty(self, proprty_name):
+        self._proprties.append(proprty_name)
+
+    def delete_proprty(self, proprty):
+        self._proprties.remove(proprty)
 
 
 class FilterOption(Option):
@@ -655,6 +707,24 @@ class Stack(object):
         if self._stack:
             return self._stack.pop()
         return None
+
+
+class OrderbyOptionBuilder(object):
+    """An orderby option string builder."""
+
+    def __init__(self, option):
+        self._option = option
+        self._option_string = None
+
+    def build(self):
+        if not self._option_string:
+            self._option_string = ''
+            option_data = self._option.data
+            for proprty in option_data['proprties']:
+                self._option_string += proprty + ','
+            self._option_string = self._option_string.rstrip(',')
+            self._option_string += ' ' + option_data['order']
+        return self._option_string
 
 
 class FilterOptionBuilder(object):

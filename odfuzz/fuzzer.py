@@ -1,6 +1,7 @@
 """This module contains core parts of the fuzzer and additional handler classes."""
 
 import random
+import io
 import os
 import sys
 import logging
@@ -10,10 +11,13 @@ import requests.adapters
 
 from copy import deepcopy
 from datetime import datetime
+from lxml import etree
 from gevent.pool import Pool
 from bson.objectid import ObjectId
 
-from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption
+from pyodata.v2.model import NAMESPACES
+from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
+    OrderbyOptionBuilder, OrderbyOption
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.mongos import MongoClient
@@ -22,7 +26,7 @@ from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
     ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
-    OPTION_DEL_PROB
+    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER
 
 
 class Manager(object):
@@ -39,9 +43,11 @@ class Manager(object):
             self._restrictions = None
 
     def start(self):
+        print('Initializing queryable entities...')
         builder = Builder(self._dispatcher, self._restrictions)
         entities = builder.build()
 
+        print('Starting fuzzing...')
         fuzzer = Fuzzer(self._dispatcher, entities, async=self._async)
         fuzzer.run()
 
@@ -52,6 +58,7 @@ class Fuzzer(object):
     def __init__(self, dispatcher, entities, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._stats = logging.getLogger(STATS_LOGGER)
+        self._filter = logging.getLogger(FILTER_LOGGER)
         self._stats.info('HTTP;Code;Message;EntitySet;Query')
 
         self._dispatcher = dispatcher
@@ -115,8 +122,9 @@ class Fuzzer(object):
     def _save_queries(self, queries):
         self._evaluate_queries(queries)
         self._save_to_database(queries)
-        self._print_tests_num()
-        self._log_stats(queries)
+        #self._log_stats(queries)
+        #self._log_filter()
+        print_tests_num()
 
     def _generate_multiple(self, queryable):
         queries = []
@@ -204,7 +212,7 @@ class Fuzzer(object):
             else:
                 self._mutate_filter_part(queryable, option_name, option_value)
         elif option_name == ORDERBY:
-            self._mutate_orderby_part()
+            self._mutate_orderby_part(option_value)
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
 
@@ -236,8 +244,11 @@ class Fuzzer(object):
                 .proprty(part['name'])
             part['operand'] = '\'' + proprty.mutate(part['operand'][1:-1]) + '\''
 
-    def _mutate_orderby_part(self):
-        pass
+    def _mutate_orderby_part(self, option_value):
+        proprties_num = len(option_value['proprties']) - 1
+        if proprties_num > 1 and random.random() < ORDERBY_DEL_PROB:
+            option_value['proprties'].pop(round(random.random() * proprties_num))
+        option_value['order'] = 'asc' if option_value['order'] == 'desc' else 'desc'
 
     def _mutate_value(self, mutator_class, value):
         mutators = self._get_mutators(mutator_class)
@@ -301,8 +312,7 @@ class Fuzzer(object):
     def _get_single_response(self, query):
         query.response = self._dispatcher.get(query.query_string + self._query_appendix)
         if query.response.status_code != 200:
-            with open('errors.txt', 'a', encoding='utf-8') as f:
-                f.write(str(query.response.status_code) + ':' + query.query_string + '\n')
+            self._set_error_attributes(query)
             Stats.fails_num += 1
 
     def _evaluate_queries(self, queries):
@@ -320,13 +330,69 @@ class Fuzzer(object):
             Stats.removed_num += number
             self._mongodb.remove_weak_queries(score_average, number)
 
-    def _print_tests_num(self):
-        sys.stdout.write('Generated tests: {} | Failed tests: {} \r'
-                         .format(Stats.tests_num, Stats.fails_num))
-        sys.stdout.flush()
+    def _set_error_attributes(self, query):
+        self._set_attribute_value(query, 'error_code', 'error', 'code')
+        self._set_attribute_value(query, 'error_message', 'error', 'message')
 
-    def _log_stats(self, queries):
-        pass
+    def _set_attribute_value(self, query, attr, *args):
+        try:
+            json = query.response.json()
+            value = self._get_attr_from_json(json, *args)
+        except ValueError:
+            value = self._get_attr_from_xml(query.response.content, *args)
+        self._logger.info('Setting attribute {} of value {} to query {}'.format(attr, value, query))
+        setattr(query.response, attr, value)
+
+    def _get_attr_from_json(self, json, *args):
+        for arg in args:
+            json = json[arg]
+        if 'value' in json:
+            json = json['value']
+        self._logger.info('Fetched \'{}\' from JSON'.format(json))
+        return json
+
+    def _get_attr_from_xml(self, content, *args):
+        parsed_etree = etree.parse(io.BytesIO(content))
+        xpath_string = build_xpath_format_string(*args)
+        value = parsed_etree.xpath(xpath_string, namespaces=NAMESPACES)[0]
+        self._logger.info('Fetched \'{}\' from XML'.format(value))
+        return value
+
+    def _log_stats(self, query):
+        query_proprties = query.proprties if query.proprties else ['']
+        for proprty in query_proprties:
+            self._stats.info('{HTTP};{Code};{Error};{EntitySet};{Property};{search};{top};'
+                             '{skip};{filter}'.format(
+                HTTP=query.response.status_code,
+                Code=getattr(query.response, 'error_code', ''),
+                Error=getattr(query.response, 'error_message', ''),
+                EntitySet=query.entity_set,
+                Property=none_to_str(proprty),
+                search=none_to_str(query.options['search']),
+                top=none_to_str(query.options['$top']),
+                skip=none_to_str(query.options['$skip']),
+                filter=none_to_str(query.options['$filter'])
+            ))
+
+    def _log_filter(self, query_dict):
+        filter_query = query_dict['EntitySet']['queries'][0]['filter']
+        if filter_query:
+            for logical in filter_query['logical'] or [{'string': None}]:
+                for part in filter_query['one_part']:
+                    for proprty in part['property']:
+                        self._filter_logger.info(
+                            '{HTTP};{Code};{Error};{EntitySet};{Property};{logical};{operator};'
+                            '{function};{operand}'.format(
+                                HTTP=query_dict['HTTP'],
+                                Code=none_to_str(query_dict['ErrorCode']),
+                                Error=none_to_str(query_dict['ErrorMessage']),
+                                EntitySet=query_dict['EntitySet']['name'],
+                                Property=proprty,
+                                logical=none_to_str(logical['string']),
+                                operator=part['operator'],
+                                function=none_to_str(part['function']),
+                                operand=part['operand']
+                            ))
 
 
 class Selector(object):
@@ -495,6 +561,8 @@ class FitnessEvaluator(object):
 
     @staticmethod
     def eval_http_response_time(response):
+        if not response.headers.get('content-length'):
+            return 0
         if int(response.headers['content-length']) > CONTENT_LEN_SIZE:
             return -10
         total_seconds = response.elapsed.total_seconds()
@@ -595,6 +663,10 @@ class Query(object):
                 filter_data = deepcopy(self._options[option_name[1:]])
                 replace_forbidden_characters(filter_data['parts'])
                 option_string = build_filter_string(filter_data)
+            elif option_name.endswith('orderby'):
+                orderby_data = self._options[option_name[1:]]
+                orderby_option = OrderbyOption(orderby_data['proprties'], orderby_data['order'])
+                option_string = OrderbyOptionBuilder(orderby_option).build()
             else:
                 option_string = self._options[option_name[1:]]
             self._query_string += option_name[1:] + '=' + option_string + '&'
@@ -650,6 +722,7 @@ class Dispatcher(object):
         try:
             response = self._session.request(method, url, **kwargs)
         except requests.exceptions.RequestException as requests_ex:
+            self._logger.info('An exception {} was raised'.format(requests_ex))
             raise DispatcherError('An exception was raised while sending HTTP {}: {}'
                                   .format(method, requests_ex))
         self._logger.info('Received HTTP {} response from {}'.format(response.status_code, url))
@@ -714,3 +787,23 @@ def replace(replacing_string):
     replacing_string = replacing_string.replace('/', '%2F')
     replacing_string = replacing_string.replace('\'', '\'\'')
     return replacing_string
+
+
+def build_xpath_format_string(*args):
+    xpath_string = ''
+    for arg in args:
+        xpath_string += '/m:{}'.format(arg)
+    xpath_string += '/text()'
+    return xpath_string
+
+
+def print_tests_num():
+    sys.stdout.write('Generated tests: {} | Failed tests: {} \r'
+                     .format(Stats.tests_num, Stats.fails_num))
+    sys.stdout.flush()
+
+
+def none_to_str(string):
+    if string is None:
+        return ''
+    return str(string)

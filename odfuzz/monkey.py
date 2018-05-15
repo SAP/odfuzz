@@ -78,8 +78,8 @@ def patch_proprty_mutator(proprty):
 
 
 def set_mutator_methods(proprty, mutators_class):
-    func_mutators = [{func_name: func_obj} for func_name, func_obj in mutators_class.__dict__.items()
-                  if not func_name.startswith('_')]
+    func_mutators = [{func_name: func_obj} for func_name, func_obj
+                     in mutators_class.__dict__.items() if not func_name.startswith('_')]
     for mutator in func_mutators:
 
         for name, obj in mutator.items():
@@ -91,10 +91,6 @@ def string_mutator(self, value):
                                if not func_name.startswith('_')])
     mutated_value = getattr(self, func_name)(self, value)
     return mutated_value
-
-
-def int_mutator(value):
-    pass
 
 
 def patch_proprty_operator(proprty):
