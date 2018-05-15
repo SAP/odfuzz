@@ -244,19 +244,24 @@ class TopQuery(QueryOption):
     def __init__(self, entity, restrictions, dispatcher):
         super(TopQuery, self).__init__(entity, TOP, '$', restrictions)
         self._dispatcher = dispatcher
-        self._max_range_prob = {2147483647: 0.01}
-        self._set_max_range()
+        self._max_range_prob = {2147483646: 1.0}
+        self.apply_restrictions()
 
     def apply_restrictions(self):
-        pass
+        self._set_max_range()
 
-    def generate(self):
+    def generate(self, dependent_option=None):
         option = TopOption()
-        max_range = weighted_random(self._max_range_prob.items())
-        option.option_string = str(random.randrange(0, max_range))
+        selected_value = weighted_random(self._max_range_prob.items())
+        if dependent_option and int(dependent_option) + selected_value > 2147483646:
+            max_range = 2147483646 - int(dependent_option)
+        else:
+            max_range = selected_value
+        option.option_string = str(round(random.random() * max_range))
         return option
 
     def _set_max_range(self):
+        self._max_range_prob.update({2147483646: 0.01})
         max_values = self.restrictions.include.get(self.entity_set.name)
         if max_values:
             total_entities = int(max_values[0])
@@ -276,14 +281,32 @@ class SkipQuery(QueryOption):
     def __init__(self, entity, restrictions, dispatcher):
         super(SkipQuery, self).__init__(entity, SKIP, '$', restrictions)
         self._dispatcher = dispatcher
+        self._max_range_prob = {2147483646: 1.0}
+        self.apply_restrictions()
 
     def apply_restrictions(self):
-        pass
+        self._set_max_range()
 
-    def generate(self):
+    def generate(self, dependent_option=None):
         option = SkipOption()
-        option.option_string = '1'
+        selected_value = weighted_random(self._max_range_prob.items())
+        if dependent_option and int(dependent_option) + selected_value > 2147483646:
+            max_range = 2147483646 - int(dependent_option)
+        else:
+            max_range = selected_value
+        option.option_string = str(round(random.random() * max_range))
         return option
+
+    def _set_max_range(self):
+        self._max_range_prob.update({2147483646: 0.01})
+        max_values = self.restrictions.include.get(self.entity_set.name)
+        if max_values:
+            total_entities = int(max_values[0])
+        else:
+            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT)
+            total_entities = int(response.text)
+
+        self._max_range_prob[total_entities] = 0.99
 
 
 class FilterQuery(QueryOption):

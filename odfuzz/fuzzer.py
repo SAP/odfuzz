@@ -21,7 +21,8 @@ from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
-    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE
+    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
+    OPTION_DEL_PROB
 
 
 class Manager(object):
@@ -142,7 +143,12 @@ class Fuzzer(object):
 
     def _generate_options(self, queryable, query):
         for option in queryable.random_options():
-            generated_option = option.generate()
+            if option.name == SKIP:
+                generated_option = option.generate(query.options.get(TOP))
+            elif option.name == TOP:
+                generated_option = option.generate(query.options.get(SKIP))
+            else:
+                generated_option = option.generate()
             query.add_option(option.name, generated_option.data)
             query.query_string += option.name + '=' \
                                   + generated_option.option_string + '&'
@@ -183,6 +189,13 @@ class Fuzzer(object):
 
     def _mutate_query(self, query, queryable):
         option_name, option_value = random.choice(list(query.options.items()))
+        if random.random() < OPTION_DEL_PROB:
+            query.delete_option(option_name)
+        else:
+            self._mutate_option(queryable, query, option_name, option_value)
+        Stats.created_by_mutation += 1
+
+    def _mutate_option(self, queryable, query, option_name, option_value):
         if option_name == FILTER:
             if random.random() < FILTER_DEL_PROB:
                 status = self._remove_logical_part(option_value)
@@ -194,7 +207,6 @@ class Fuzzer(object):
             self._mutate_orderby_part()
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
-        Stats.created_by_mutation += 1
 
     def _remove_logical_part(self, option_value):
         if not option_value['logicals']:
@@ -568,6 +580,10 @@ class Query(object):
     def add_option(self, name, option):
         self._options[name] = option
         self._order.append('_' + name)
+
+    def delete_option(self, name):
+        self._options[name] = None
+        self._order.remove('_' + name)
 
     def add_predecessor(self, predecessor_id):
         self._predecessors.append(predecessor_id)
