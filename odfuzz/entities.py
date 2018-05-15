@@ -30,7 +30,7 @@ class Builder(object):
     def build(self):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
-            query_group = QueryGroup(entity_set, self._restrictions)
+            query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher)
             if query_group.query_options():
                 self._queryable.add(query_group)
         return self._queryable
@@ -77,13 +77,14 @@ class QueryableEntities(object):
 class QueryGroup(object):
     """A group of query options applicable to one entity set."""
 
-    def __init__(self, entity_set, restrictions):
+    def __init__(self, entity_set, restrictions, dispatcher):
         self._entity_set = entity_set
         self._restrictions = restrictions
+        self._dispatcher = dispatcher
         self._query_options = {}
 
         self._query_options_list = []
-        self._query_filter_required = []
+        self._required_options = []
         self._init_group()
 
     @property
@@ -103,21 +104,28 @@ class QueryGroup(object):
         else:
             sample_length = round(random.random() * (list_length - 1)) + 1
         sample_options = random.sample(self._query_options_list, sample_length)
-        return sample_options + self._query_filter_required
+        selected_options = sample_options + self._required_options
+        random.shuffle(selected_options)
+        return selected_options
 
     def _init_group(self):
         self._init_filter_query()
         self._init_orderby_query()
-        self._init_query_type(TOP, 'topable', TopQuery)
-        self._init_query_type(SKIP, 'pageable', SkipQuery)
+        self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher)
+        self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher)
 
-    def _init_query_type(self, option_name, metadata_attr, query_object):
+    def _init_query_type(self, option_name, metadata_attr, query_object, dispatcher):
         option_restr = self._get_restrictions(option_name)
         is_queryable = getattr(self._entity_set, metadata_attr)
 
         if is_queryable and option_restr.is_not_restricted:
-            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr)
-            self._query_options_list.append(self._query_options[option_name])
+            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr,
+                                                            dispatcher)
+            include_restrictions = option_restr.restr.include
+            if include_restrictions and include_restrictions.get(self._entity_set.name):
+                self._required_options.append(self._query_options[option_name])
+            else:
+                self._query_options_list.append(self._query_options[option_name])
 
     def _init_filter_query(self):
         option_restr = self._get_restrictions(FILTER)
@@ -153,7 +161,7 @@ class QueryGroup(object):
 
     def _add_filter_option_to_list(self, entity_set):
         if entity_set.requires_filter:
-            self._query_filter_required.append(self._query_options[FILTER])
+            self._required_options.append(self._query_options[FILTER])
         else:
             self._query_options_list.append(self._query_options[FILTER])
 
@@ -233,23 +241,41 @@ class OrderbyQuery(QueryOption):
 class TopQuery(QueryOption):
     """The $top query option."""
 
-    def __init__(self, entity, restrictions):
+    def __init__(self, entity, restrictions, dispatcher):
         super(TopQuery, self).__init__(entity, TOP, '$', restrictions)
+        self._dispatcher = dispatcher
+        self._max_range_prob = {2147483647: 0.01}
+        self._set_max_range()
 
     def apply_restrictions(self):
         pass
 
     def generate(self):
         option = TopOption()
-        option.option_string = '10'
+        max_range = weighted_random(self._max_range_prob.items())
+        option.option_string = str(random.randrange(0, max_range))
         return option
+
+    def _set_max_range(self):
+        max_values = self.restrictions.include.get(self.entity_set.name)
+        if max_values:
+            total_entities = int(max_values[0])
+        else:
+            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT)
+            total_entities = int(response.text)
+
+        if total_entities > 1000:
+            self._max_range_prob[1000] = 0.99
+        else:
+            self._max_range_prob[total_entities] = 0.99
 
 
 class SkipQuery(QueryOption):
     """The $skip query option."""
 
-    def __init__(self, entity, restrictions):
+    def __init__(self, entity, restrictions, dispatcher):
         super(SkipQuery, self).__init__(entity, SKIP, '$', restrictions)
+        self._dispatcher = dispatcher
 
     def apply_restrictions(self):
         pass
