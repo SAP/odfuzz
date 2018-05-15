@@ -1,0 +1,25 @@
+"""PyOData exceptions hierarchy"""
+
+
+class PyODataException(Exception):
+    """Base class for all PyOData exceptions
+
+       Raised when an error is detected that does not fall in any of the other categories.
+    """
+
+
+class PyODataModelError(PyODataException):
+    """Raised when model error occurs"""
+
+
+class ExpressionError(PyODataException):
+    """Raise when runtime logical expression error occurs"""
+
+
+class HttpError(PyODataException):
+    """Raised when unexpected HTTP status code is received """
+
+    def __init__(self, message, response):
+        super(HttpError, self).__init__(message)
+
+        self.response = response
