@@ -105,12 +105,12 @@ class NumberMutator(object):
 
     @staticmethod
     def delete_digit(string_number):
-        if len(string_number) >= 1:
+        if not string_number:
+            return '0'
+        if len(string_number) > 1:
             index = round(random.random() * (len(string_number) - 1))
             generated_number = ''.join([string_number[:index], string_number[index + 1:]])
         else:
-            generated_number = string_number
-        if string_number == '':
             return '0'
         return generated_number
 
