@@ -328,7 +328,10 @@ class SkipQuery(QueryOption):
         else:
             total_entities = self._get_total_entities()
 
-        self._max_range_prob[total_entities] = 0.99
+        if total_entities == INT_MAX:
+            self._max_range_prob[total_entities] = 1
+        else:
+            self._max_range_prob[total_entities] = 0.99
 
     def _get_total_entities(self):
         try:

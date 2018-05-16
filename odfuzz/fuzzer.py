@@ -26,7 +26,7 @@ from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
     ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
-    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER
+    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV
 
 
 class Manager(object):
@@ -47,7 +47,7 @@ class Manager(object):
         builder = Builder(self._dispatcher, self._restrictions)
         entities = builder.build()
 
-        print('Starting fuzzing...')
+        print('Fuzzing...')
         fuzzer = Fuzzer(self._dispatcher, entities, async=self._async)
         fuzzer.run()
 
@@ -57,9 +57,10 @@ class Fuzzer(object):
 
     def __init__(self, dispatcher, entities, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
-        self._stats = logging.getLogger(STATS_LOGGER)
-        self._filter = logging.getLogger(FILTER_LOGGER)
-        self._stats.info('HTTP;Code;Message;EntitySet;Query')
+        self._stats_logger = logging.getLogger(STATS_LOGGER)
+        self._filter_logger = logging.getLogger(FILTER_LOGGER)
+        self._stats_logger.info(CSV)
+        self._filter_logger.info(CSV_FILTER)
 
         self._dispatcher = dispatcher
         self._entities = entities
@@ -120,10 +121,10 @@ class Fuzzer(object):
             self._slay_weak_individuals(selection.score_average, len(queries))
 
     def _save_queries(self, queries):
+        self._log_stats(queries)
+        self._log_filter(queries)
         self._evaluate_queries(queries)
         self._save_to_database(queries)
-        #self._log_stats(queries)
-        #self._log_filter()
         print_tests_num()
 
     def _generate_multiple(self, queryable):
@@ -352,47 +353,90 @@ class Fuzzer(object):
         return json
 
     def _get_attr_from_xml(self, content, *args):
-        parsed_etree = etree.parse(io.BytesIO(content))
+        try:
+            parsed_etree = etree.parse(io.BytesIO(content))
+        except etree.XMLSyntaxError as xml_ex:
+            self._logger.info('An exception was raised while parsing the XML: {}'.format(xml_ex))
+            return ''
         xpath_string = build_xpath_format_string(*args)
         value = parsed_etree.xpath(xpath_string, namespaces=NAMESPACES)[0]
         self._logger.info('Fetched \'{}\' from XML'.format(value))
         return value
 
-    def _log_stats(self, query):
-        query_proprties = query.proprties if query.proprties else ['']
-        for proprty in query_proprties:
-            self._stats.info('{HTTP};{Code};{Error};{EntitySet};{Property};{search};{top};'
-                             '{skip};{filter}'.format(
+    def _log_stats(self, queries):
+        for query in queries:
+            query_dict = query.dictionary
+            query_proprties = self._get_proprties(query_dict)
+            for proprty in query_proprties:
+                self._log_formatted_stats(query, query_dict, proprty)
+
+    def _log_formatted_stats(self, query, query_dict, proprty):
+        self._stats_logger.info(
+            '{HTTP};{Code};{Error};{EntitySet};{Property};{orderby};{top};'
+            '{skip};{filter}'.format(
                 HTTP=query.response.status_code,
                 Code=getattr(query.response, 'error_code', ''),
                 Error=getattr(query.response, 'error_message', ''),
-                EntitySet=query.entity_set,
+                EntitySet=query_dict['entity_set'],
                 Property=none_to_str(proprty),
-                search=none_to_str(query.options['search']),
-                top=none_to_str(query.options['$top']),
-                skip=none_to_str(query.options['$skip']),
-                filter=none_to_str(query.options['$filter'])
+                orderby=none_to_str(query.options_strings['$orderby']),
+                top=none_to_str(query.options_strings['$top']),
+                skip=none_to_str(query.options_strings['$skip']),
+                filter=none_to_str(query.options_strings['$filter'])
             ))
 
-    def _log_filter(self, query_dict):
-        filter_query = query_dict['EntitySet']['queries'][0]['filter']
-        if filter_query:
-            for logical in filter_query['logical'] or [{'string': None}]:
-                for part in filter_query['one_part']:
-                    for proprty in part['property']:
-                        self._filter_logger.info(
-                            '{HTTP};{Code};{Error};{EntitySet};{Property};{logical};{operator};'
-                            '{function};{operand}'.format(
-                                HTTP=query_dict['HTTP'],
-                                Code=none_to_str(query_dict['ErrorCode']),
-                                Error=none_to_str(query_dict['ErrorMessage']),
-                                EntitySet=query_dict['EntitySet']['name'],
-                                Property=proprty,
-                                logical=none_to_str(logical['string']),
-                                operator=part['operator'],
-                                function=none_to_str(part['function']),
-                                operand=part['operand']
-                            ))
+    def _get_proprties(self, query_dict):
+        proprties = set()
+        filter_option = query_dict.get('_$filter')
+        if filter_option:
+            self._get_filter_proprties(filter_option)
+        orderby_option = query_dict.get('_$orderby')
+        if orderby_option:
+            for proprty in orderby_option['proprties']:
+                proprties.update(proprty)
+        if len(proprties) == 0:
+            return ['']
+        else:
+            return list(proprties)
+
+    def _get_filter_proprties(self, filter_option):
+        proprties = set()
+        for part in filter_option['parts']:
+            if 'func' in part:
+                for proprty in part['proprties']:
+                    proprties.update(proprty)
+            else:
+                for proprty in part['name']:
+                    proprties.update(proprty)
+        return proprties
+
+    def _log_filter(self, queries):
+        for query in queries:
+            filter_option = query.dictionary.get('_$filter')
+            if filter_option:
+                for logical in filter_option['logicals'] or [{'name': None}]:
+                    for part in filter_option['parts']:
+                        if 'func' in part:
+                            for proprty in part['proprties']:
+                                self._log_formatted_filter(query, proprty, logical, part, part['func'])
+                        else:
+                            proprty = part['name']
+                            self._log_formatted_filter(query, proprty, logical, part, '')
+
+    def _log_formatted_filter(self, query, proprty, logical, part, func):
+        self._filter_logger.info(
+            '{http};{code};{error};{entityset};{property};{logical};{operator};'
+            '{function};{operand}'.format(
+                http=query.response.status_code,
+                code=getattr(query.response, 'error_code', ''),
+                error=getattr(query.response, 'error_message', ''),
+                entityset=query.dictionary['entity_set'],
+                property=none_to_str(proprty),
+                logical=none_to_str(logical['name']),
+                operator=part['operator'],
+                function=none_to_str(func),
+                operand=part['operand']
+            ))
 
 
 class Selector(object):
@@ -592,12 +636,13 @@ class Query(object):
         self._options = {}
         self._query_string = ''
         self._dict = None
-        self._score = {}
+        self._score = None
         self._predecessors = []
         self._order = []
         self._response = None
         self._parts = 0
         self._id = ObjectId()
+        self._options_strings = {'$orderby': None, '$filter': None, '$skip': None, '$top': None}
 
     @property
     def entity_name(self):
@@ -617,8 +662,7 @@ class Query(object):
 
     @property
     def dictionary(self):
-        if not self._dict:
-            self._create_dict()
+        self._create_dict()
         return self._dict
 
     @property
@@ -628,6 +672,10 @@ class Query(object):
     @property
     def query_id(self):
         return self._id
+
+    @property
+    def options_strings(self):
+        return self._options_strings
 
     @property
     def predecessors(self):
@@ -669,6 +717,7 @@ class Query(object):
                 option_string = OrderbyOptionBuilder(orderby_option).build()
             else:
                 option_string = self._options[option_name[1:]]
+            self._options_strings[option_name[1:]] = option_string
             self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
 
