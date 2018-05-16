@@ -272,7 +272,7 @@ class TopQuery(QueryOption):
         return option
 
     def _set_max_range(self):
-        self._max_range_prob.update({INT_MAX: 0.01})
+        self._max_range_prob.update({INT_MAX: 0.001})
         max_values = self.restrictions.include.get(self.entity_set.name)
         if max_values:
             total_entities = int(max_values[0])
@@ -280,9 +280,9 @@ class TopQuery(QueryOption):
             total_entities = self._get_total_entities()
 
         if total_entities > 1000:
-            self._max_range_prob[1000] = 0.99
+            self._max_range_prob[1000] = 0.999
         else:
-            self._max_range_prob[total_entities] = 0.99
+            self._max_range_prob[total_entities] = 0.999
 
     def _get_total_entities(self):
         try:
@@ -321,7 +321,7 @@ class SkipQuery(QueryOption):
         return option
 
     def _set_max_range(self):
-        self._max_range_prob.update({INT_MAX: 0.01})
+        self._max_range_prob.update({INT_MAX: 0.001})
         max_values = self.restrictions.include.get(self.entity_set.name)
         if max_values:
             total_entities = int(max_values[0])
@@ -331,7 +331,7 @@ class SkipQuery(QueryOption):
         if total_entities == INT_MAX:
             self._max_range_prob[total_entities] = 1
         else:
-            self._max_range_prob[total_entities] = 0.99
+            self._max_range_prob[total_entities] = 0.999
 
     def _get_total_entities(self):
         try:

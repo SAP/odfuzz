@@ -196,7 +196,7 @@ class Fuzzer(object):
 
     def _mutate_query(self, query, queryable):
         option_name, option_value = random.choice(list(query.options.items()))
-        if len(query.dictionary['order']) > 1 and  random.random() < OPTION_DEL_PROB:
+        if len(query.order) > 1 and  random.random() < OPTION_DEL_PROB:
             query.delete_option(option_name)
         else:
             self._mutate_option(queryable, query, option_name, option_value)
@@ -677,6 +677,10 @@ class Query(object):
     @property
     def predecessors(self):
         return self._predecessors
+
+    @property
+    def order(self):
+        return self._order
 
     @query_string.setter
     def query_string(self, value):

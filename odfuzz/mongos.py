@@ -1,6 +1,9 @@
 """This module contains a wrapper of mongoDB client."""
 
+import sys
+import logging
 import pymongo
+import pymongo.errors
 
 from odfuzz.constants import MONGODB_NAME, MONGODB_COLLECTION, PARTS_NUM
 
@@ -20,8 +23,11 @@ class MongoClient(object):
         self._collection.remove({})
 
     def save_document(self, query_dict):
-        if self._collection.find(query_dict).count() == 0:
-            self._collection.insert_one(query_dict)
+        try:
+            if self._collection.find(query_dict).count() == 0:
+                self._collection.insert_one(query_dict)
+        except pymongo.errors.DocumentTooLarge:
+            logging.info('The document is too large: {} bytes'.format(sys.getsizeof(query_dict)))
 
     def query_by_id(self, query_id):
         cursor = self._collection.find({'_id': query_id})
