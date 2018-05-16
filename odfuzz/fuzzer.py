@@ -159,9 +159,7 @@ class Fuzzer(object):
             else:
                 generated_option = option.generate()
             query.add_option(option.name, generated_option.data)
-            query.query_string += option.name + '=' \
-                                  + generated_option.option_string + '&'
-        query.query_string = query.query_string.rstrip('&')
+        query.build_string()
         self._logger.info('Generated query \'{}\''.format(query.query_string))
 
     def _crossover_multiple(self, crossable_selection, queryable):
@@ -198,7 +196,7 @@ class Fuzzer(object):
 
     def _mutate_query(self, query, queryable):
         option_name, option_value = random.choice(list(query.options.items()))
-        if random.random() < OPTION_DEL_PROB:
+        if len(query.dictionary['order']) > 1 and  random.random() < OPTION_DEL_PROB:
             query.delete_option(option_name)
         else:
             self._mutate_option(queryable, query, option_name, option_value)
@@ -389,11 +387,11 @@ class Fuzzer(object):
         proprties = set()
         filter_option = query_dict.get('_$filter')
         if filter_option:
-            self._get_filter_proprties(filter_option)
+            proprties.update(self._get_filter_proprties(filter_option))
         orderby_option = query_dict.get('_$orderby')
         if orderby_option:
             for proprty in orderby_option['proprties']:
-                proprties.update(proprty)
+                proprties.update([proprty])
         if len(proprties) == 0:
             return ['']
         else:
@@ -404,10 +402,9 @@ class Fuzzer(object):
         for part in filter_option['parts']:
             if 'func' in part:
                 for proprty in part['proprties']:
-                    proprties.update(proprty)
+                    proprties.update([proprty])
             else:
-                for proprty in part['name']:
-                    proprties.update(proprty)
+                proprties.update([part['name']])
         return proprties
 
     def _log_filter(self, queries):
