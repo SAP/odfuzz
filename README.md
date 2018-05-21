@@ -53,3 +53,4 @@ The fuzzer was developed for testing the SAP applications. These applications us
 
 #### Known bugs
 - While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
+- Logical parts are not correctly deleted from database.
