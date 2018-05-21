@@ -1,0 +1,35 @@
+Exclude
+	$filter
+		$F_ALL$
+			concat
+			trim
+			substring
+			toupper
+			length
+			tolower
+			replace
+			indexof
+		$E_ALL$
+			DefaultValueSet
+			PrintTypeSet
+			SupportedChannelSet
+		ValueHelpPrinters
+			OutputDevice
+	$skip
+		$E_ALL$
+			EmailPreviewTemplateCollection
+			ResultCollection
+	$top
+		$E_ALL$
+			EmailPreviewTemplateCollection
+			ResultCollection
+	$orderby
+		C_CorrespondenceCompanyCodeVH
+			CompanyCode
+Include
+	$skip
+		C_CorrespondenceCustomerVH
+			1000
+	$top
+		C_CorrespondenceCustomerVH
+			200

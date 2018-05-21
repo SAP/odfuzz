@@ -1,0 +1,14 @@
+Exclude
+	$filter
+		Categories
+			Description
+			Picture
+		Employees
+			Photo
+			HireDate
+		$F_ALL$
+			replace
+	$orderby
+		Categories
+			Picture
+			Description

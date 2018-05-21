@@ -1,0 +1,15 @@
+Exclude
+	$filter
+		$F_ALL$
+			concat
+			trim
+			toupper
+			length
+			tolower
+			replace
+			indexof
+			substring
+		$E_ALL$
+			DefaultValueSet
+			PrintTypeSet
+			SupportedChannelSet
