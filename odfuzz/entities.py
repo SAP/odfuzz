@@ -122,7 +122,7 @@ class QueryGroup(object):
         if is_queryable and option_restr.is_not_restricted:
             self._query_options[option_name] = query_object(self._entity_set, option_restr.restr,
                                                             dispatcher)
-            include_restrictions = option_restr.restr.include
+            include_restrictions = getattr(option_restr.restr, 'include', None)
             if include_restrictions and include_restrictions.get(self._entity_set.name):
                 self._required_options.append(self._query_options[option_name])
             else:
@@ -273,9 +273,13 @@ class TopQuery(QueryOption):
 
     def _set_max_range(self):
         self._max_range_prob.update({INT_MAX: 0.001})
-        max_values = self.restrictions.include.get(self.entity_set.name)
-        if max_values:
-            total_entities = int(max_values[0])
+        include_restr = getattr(self.restrictions, 'include', None)
+        if include_restr:
+            max_values = include_restr.get(self.entity_set.name)
+            if max_values:
+                total_entities = int(max_values[0])
+            else:
+                total_entities = self._get_total_entities()
         else:
             total_entities = self._get_total_entities()
 
@@ -322,9 +326,13 @@ class SkipQuery(QueryOption):
 
     def _set_max_range(self):
         self._max_range_prob.update({INT_MAX: 0.001})
-        max_values = self.restrictions.include.get(self.entity_set.name)
-        if max_values:
-            total_entities = int(max_values[0])
+        include_restr = getattr(self.restrictions, 'include', None)
+        if include_restr:
+            max_values = include_restr.get(self.entity_set.name)
+            if max_values:
+                total_entities = int(max_values[0])
+            else:
+                total_entities = self._get_total_entities()
         else:
             total_entities = self._get_total_entities()
 
@@ -922,10 +930,10 @@ class FilterFunctionsGroup(object):
         for proprty in filterable_proprties:
             if proprty.typ.name == 'Edm.String':
                 self._group.setdefault('String', StringFilterFunctions()).add_proprty(proprty)
-            elif proprty.typ.name == 'Edm.Date':
+            elif proprty.typ.name == 'Edm.DateTime':
                 self._group.setdefault('Date', DateFilterFunctions()).add_proprty(proprty)
             elif proprty.typ.name == 'Edm.Decimal':
-                self._group.setdefault('Math', DateFilterFunctions()).add_proprty(proprty)
+                self._group.setdefault('Math', MathFilterFunctions()).add_proprty(proprty)
 
     def _apply_restrictions(self, exclude_restrictions):
         if exclude_restrictions:

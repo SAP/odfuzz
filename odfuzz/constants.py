@@ -37,10 +37,12 @@ LOGICAL_OPERATORS = {'and': 0.5, 'or': 0.5}
 BOOLEAN_OPERATORS = {'eq': 0.5, 'ne': 0.5}
 EXPRESSION_OPERATORS = {'eq': 0.3, 'ne': 0.3, 'gt': 0.1, 'ge': 0.1, 'lt': 0.1, 'le': 0.1}
 
-FILTER_PROBABILITY = 0.8
-SEED_POPULATION = 60
+FILTER_CROSS_PROBABILITY = 0.8
+SEED_POPULATION = 50
 RECURSION_LIMIT = 3
-POOL_SIZE = 30
+
+# pool size may be limited on some OData services
+POOL_SIZE = 10
 STRING_THRESHOLD = 200
 ITERATIONS_THRESHOLD = 30
 SCORE_THRESHOLD = 1000
@@ -58,8 +60,9 @@ TOP_ENTITIES = 20
 OVERALL_FILE = 'overall.txt'
 
 # this requirement is used in various SAP applications due to system checks;
-# while testing the casual OData service, please leave the string empty as ''
-SPECIAL_FILTER_REQUIREMENT = 'IsActiveEntity eq true'
+# while testing the casual OData service, please, leave the string empty
+#SPECIAL_FILTER_REQUIREMENT = {}
+SPECIAL_FILTER_REQUIREMENT = {'C_CostCenter': ' and IsActiveEntity eq true'}
 
 CSV = 'HTTP;Code;Error;EntitySet;Property;orderby;top;skip;filter'
 CSV_FILTER = 'HTTP;Code;Error;EntitySet;Property;logical;operator;function;operand'

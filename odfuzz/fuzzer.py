@@ -25,8 +25,8 @@ from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
-    ORDERBY, STATS_LOGGER, FILTER_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
-    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV
+    ORDERBY, STATS_LOGGER, FILTER_CROSS_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
+    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV, SPECIAL_FILTER_REQUIREMENT
 
 
 class Manager(object):
@@ -92,6 +92,10 @@ class Fuzzer(object):
         self._mongodb.remove_collection()
 
         self.seed_population()
+        if self._mongodb.total_queries() == 0:
+            self._logger.info('OData service is empty.')
+            sys.stdout.write('OData service does not contain any entities. Exiting...\n')
+            sys.exit(0)
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
         self.evolve_population()
 
@@ -187,16 +191,16 @@ class Fuzzer(object):
         Stats.created_by_crossover += 1
         query = build_offspring(queryable.entity_set.name, offspring)
         self._mutate_query(query, queryable)
-        query.build_string()
         query.add_predecessor(query1['_id'])
         query.add_predecessor(query2['_id'])
+        query.build_string()
         self._logger.info('Generated {}'.format(query.query_string))
         Stats.tests_num += 1
         return query
 
     def _mutate_query(self, query, queryable):
         option_name, option_value = random.choice(list(query.options.items()))
-        if len(query.order) > 1 and  random.random() < OPTION_DEL_PROB:
+        if len(query.order) > 1 and random.random() < OPTION_DEL_PROB:
             query.delete_option(option_name)
         else:
             self._mutate_option(queryable, query, option_name, option_value)
@@ -234,14 +238,17 @@ class Fuzzer(object):
                 if part['return_type'] == 'Edm.Boolean':
                     part['operand'] = 'true' if part['operand'] == 'false' else 'false'
                 elif part['return_type'] == 'Edm.String':
-                    part['operand'] = self._mutate_value(StringMutator, part['operand'][1:-1])
+                    self_mock = type('', (), {'max_string_length': 5})
+                    part['operand'] = self._mutate_value(StringMutator, self_mock,
+                                                         part['operand'][1:-1])
                     part['operand'] = '\'' + part['operand'] + '\''
                 elif part['return_type'] == 'Edm.Int32':
                     part['operand'] = self._mutate_value(NumberMutator, part['operand'])
         else:
             proprty = queryable.query_option(option_name).entity_set.entity_type \
                 .proprty(part['name'])
-            part['operand'] = '\'' + proprty.mutate(part['operand'][1:-1]) + '\''
+            if getattr(proprty, 'mutate', None):
+                part['operand'] = '\'' + proprty.mutate(part['operand'][1:-1]) + '\''
 
     def _mutate_orderby_part(self, option_value):
         proprties_num = len(option_value['proprties']) - 1
@@ -249,10 +256,13 @@ class Fuzzer(object):
             option_value['proprties'].pop(round(random.random() * proprties_num))
         option_value['order'] = 'asc' if option_value['order'] == 'desc' else 'desc'
 
-    def _mutate_value(self, mutator_class, value):
+    def _mutate_value(self, mutator_class, value, string_value=None):
         mutators = self._get_mutators(mutator_class)
         mutator = random.choice(mutators)
-        mutated_value = getattr(mutator_class, mutator)(value)
+        if string_value is not None:
+            mutated_value = getattr(mutator_class, mutator)(value, string_value)
+        else:
+            mutated_value = getattr(mutator_class, mutator)(value)
         return mutated_value
 
     def _get_mutators(self, mutators_class):
@@ -415,7 +425,8 @@ class Fuzzer(object):
                     for part in filter_option['parts']:
                         if 'func' in part:
                             for proprty in part['proprties']:
-                                self._log_formatted_filter(query, proprty, logical, part, part['func'])
+                                self._log_formatted_filter(query, proprty, logical,
+                                                           part, part['func'])
                         else:
                             proprty = part['name']
                             self._log_formatted_filter(query, proprty, logical, part, '')
@@ -639,7 +650,10 @@ class Query(object):
         self._response = None
         self._parts = 0
         self._id = ObjectId()
+        self._special_filter = None
         self._options_strings = {'$orderby': None, '$filter': None, '$skip': None, '$top': None}
+
+        self._init_special_filter()
 
     @property
     def entity_name(self):
@@ -706,12 +720,12 @@ class Query(object):
         self._predecessors.append(predecessor_id)
 
     def build_string(self):
-        self._query_string += self._entity_name + '?'
+        self._query_string = self._entity_name + '?'
         for option_name in self._order:
             if option_name.endswith('filter'):
                 filter_data = deepcopy(self._options[option_name[1:]])
                 replace_forbidden_characters(filter_data['parts'])
-                option_string = build_filter_string(filter_data)
+                option_string = build_filter_string(filter_data) + self._special_filter
             elif option_name.endswith('orderby'):
                 orderby_data = self._options[option_name[1:]]
                 orderby_option = OrderbyOption(orderby_data['proprties'], orderby_data['order'])
@@ -743,6 +757,11 @@ class Query(object):
             '_$skip': self._options.get(SKIP),
             '_$filter': self._options.get(FILTER)
         }
+
+    def _init_special_filter(self):
+        self._special_filter = SPECIAL_FILTER_REQUIREMENT.get(self._entity_name)
+        if not self._special_filter:
+            self._special_filter = ''
 
 
 class Dispatcher(object):
@@ -798,7 +817,7 @@ def is_filter_crossable(query1, query2):
     crossable = False
     if query1['order'] and query2['order'] == ['_$filter']:
         crossable = True
-    if query1['_$filter'] and query2['_$filter'] and random.random() < FILTER_PROBABILITY:
+    if query1['_$filter'] and query2['_$filter'] and random.random() < FILTER_CROSS_PROBABILITY:
         crossable = True
     return crossable
 
@@ -823,9 +842,10 @@ def replace_forbidden_characters(parts):
         if data['operand'].startswith('\''):
             data['operand'] = '\'' + replace(data['operand'][1:-1]) + '\''
         if 'params' in data:
-            for index, param in enumerate(data['params']):
-                if param.startswith('\''):
-                    data['params'][index] = '\'' + replace(param[1:-1]) + '\''
+            if data['params']:
+                for index, param in enumerate(data['params']):
+                    if param.startswith('\''):
+                        data['params'][index] = '\'' + replace(param[1:-1]) + '\''
 
 
 def replace(replacing_string):
