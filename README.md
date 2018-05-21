@@ -6,6 +6,8 @@ Fuzzer for testing applications communicating via the OData protocol.
   - [Requests 2.18.4](http://docs.python-requests.org/en/master/)
   - [Gevent 1.3](http://www.gevent.org/)
   - [PyOData 1.1](https://github.wdf.sap.corp/FXUBRQ-QE/PyOData)
+  - [PyMongo 3.6.1](https://api.mongodb.com/python/3.6.1/)
+  - [lxml 3.7.3](https://github.com/lxml/lxml)
 - [mongoDB 3.6](https://www.mongodb.com/)
 - [PivotTable.js](https://pivottable.js.org/examples/)
 
@@ -42,5 +44,12 @@ With restrictions, a user is able to define rules which forbid a usage of some e
 ```
 Every line, except the first line, starts with a tab or set of tabs and should be properly aligned. At the moment, only entity, property and global function restrictions are implemented.
 
+Sample restrictions files can be found in the *sample* folder. Use *restrict_north.txt* file for running the fuzzer on [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
+
+#### Limitations
+At the moment, ODfuzz can mutate only values of types Edm.String and Edm.Int32. It is planned to support more types in the future.
+
+The fuzzer was developed for testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions.
+
 #### Known bugs
-While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
+- While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
