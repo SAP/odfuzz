@@ -942,12 +942,14 @@ class FilterFunctionsGroup(object):
                 self._delete_restricted_functions(restricted_functions)
 
     def _delete_restricted_functions(self, restricted_functions):
-        for functions_wrapper in self._group.values():
+        for key, functions_wrapper in list(self._group.items()):
             methods_dict = get_methods_dict(functions_wrapper)
             for restricted_function in restricted_functions:
                 method_name = 'func_' + restricted_function
                 if method_name in methods_dict:
                     delattr(functions_wrapper.__class__, method_name)
+            if not get_methods_dict(functions_wrapper.__class__).values():
+                self._group.pop(key)
 
 
 class DateFilterFunctions(object):
