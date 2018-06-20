@@ -58,3 +58,8 @@ The fuzzer was developed for testing the SAP applications. These applications us
 
 #### TODO
 - Change format of restrictions file to JSON.
+- Generate filter strings for complex types.
+- Add heuristics for generators based on associations.
+- Create  database of valid inputs, e.g. for 'Language', 'Location', etc. (may be defined in restrictions file).
+- Add custom headers for requests.
+- Add unit tests.
