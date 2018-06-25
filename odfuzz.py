@@ -28,7 +28,7 @@ import gevent
 from collections import namedtuple
 from datetime import datetime
 
-from odfuzz.arguments import ArgPaser
+from odfuzz.arguments import ArgParser
 from odfuzz.fuzzer import Manager
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers
@@ -36,19 +36,18 @@ from odfuzz.exceptions import ArgParserError, ODfuzzException
 
 
 def main():
-    gevent.signal(signal.SIGINT, signal_handler)
+    set_signal_handler()
 
-    arg_parser = ArgPaser()
+    arg_parser = ArgParser()
+    arguments = get_arguments()
     try:
-        arguments = arg_parser.parse()
-    except ArgParserError:
-        sys.exit(1)
+        parsed_arguments = arg_parser.parse(arguments)
+    except ArgParserError as argparser_error:
+        sys.exit(argparser_error)
 
-    directories = create_directories(arguments.logs, arguments.stats)
-    init_basic_stats(directories.stats)
-    init_loggers(directories.logs, directories.stats)
+    init_logging(parsed_arguments)
 
-    manager = Manager(arguments)
+    manager = Manager(parsed_arguments)
     try:
         manager.start()
     except ODfuzzException as fuzzer_ex:
@@ -56,9 +55,24 @@ def main():
         sys.exit(1)
 
 
+def set_signal_handler():
+    gevent.signal(signal.SIGINT, signal_handler)
+
+
+def get_arguments():
+    command_line_arguments = sys.argv[1:]
+    return command_line_arguments
+
+
+def init_logging(arguments):
+    directories = create_directories(arguments.logs, arguments.stats)
+    init_basic_stats(directories.stats)
+    init_loggers(directories.logs, directories.stats)
+
+
 def create_directories(logs_directory, stats_directory):
-    logs_path = directory_path(logs_directory)
-    stats_path = directory_path(stats_directory)
+    logs_path = build_directory_path(logs_directory)
+    stats_path = build_directory_path(stats_directory)
     make_directory(logs_path)
     make_directory(stats_path)
 
@@ -66,7 +80,7 @@ def create_directories(logs_directory, stats_directory):
     return directories(logs_path, stats_path)
 
 
-def directory_path(directory):
+def build_directory_path(directory):
     if directory is None:
         directory = os.getcwd()
 
