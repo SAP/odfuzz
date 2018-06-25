@@ -1,5 +1,5 @@
 # BP-ODfuzz
-Fuzzer for testing applications communicating via the OData protocol.
+Fuzzer for testing applications communicating via the OData protocol. ODfuzz sends valid requests, that contain random data, to the server and checks the responses.
 
 #### Requirements
 - [Python 3.6](https://www.python.org/downloads/)
@@ -21,7 +21,7 @@ The fuzzer will use these variables for a basic authentication.
 
 Run the fuzzer with:
 ```
-py odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs -s stats -r sample/restrict.txt
+py odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs -s stats -r restrictions/restrict.txt
 ```
 
 You can cancel the execution of the fuzzer by a keyboard interruption (CTRL+C).
