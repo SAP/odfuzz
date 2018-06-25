@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from odfuzz.exceptions import ArgParserError
 
 
-class ArgPaser(object):
+class ArgParser(object):
     """An argument parser wrapper."""
 
     def __init__(self):
@@ -14,12 +14,12 @@ class ArgPaser(object):
             description='Fuzzer for testing applications communicating via the OData protocol')
         self._add_arguments()
 
-    def parse(self):
+    def parse(self, arguments):
         try:
-            return self._parser.parse_args()
+            parsed_arguments = self._parser.parse_args(arguments)
         except SystemExit as system_exit:
-            raise ArgParserError(
-                'An exception was raised while parsing arguments: {}'.format(system_exit))
+            raise ArgParserError('ERROR {}: Cannot parse command line arguments'.format(system_exit))
+        return parsed_arguments
 
     def _add_arguments(self):
         self._parser.add_argument('service', type=str, help='An OData service URL')
