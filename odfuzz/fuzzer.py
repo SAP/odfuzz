@@ -148,8 +148,9 @@ class Fuzzer(object):
         return [query]
 
     def _generate_query(self, queryable):
+        accessible_entity = queryable.get_accessible_entity_set()
         query = Query(queryable.entity_set.name)
-        query.query_string += query.entity_name + '?'
+        query = Query(accessible_entity)
         self._generate_options(queryable, query)
         Stats.tests_num += 1
         return query
@@ -208,12 +209,12 @@ class Fuzzer(object):
 
     def _mutate_option(self, queryable, query, option_name, option_value):
         if option_name == FILTER:
-            if random.random() < FILTER_DEL_PROB:
-                status = self._remove_logical_part(option_value)
-                if not status:
-                    self._mutate_filter_part(queryable, option_name, option_value)
-            else:
-                self._mutate_filter_part(queryable, option_name, option_value)
+            #if random.random() < FILTER_DEL_PROB:
+            #    status = self._remove_logical_part(option_value)
+            #    if not status:
+            #        self._mutate_filter_part(queryable, option_name, option_value)
+            #else:
+            self._mutate_filter_part(queryable, option_name, option_value)
         elif option_name == ORDERBY:
             self._mutate_orderby_part(option_value)
         else:
@@ -720,6 +721,7 @@ class Query(object):
         self._predecessors.append(predecessor_id)
 
     def build_string(self):
+        accessible_entity_path = ERROR
         self._query_string = self._entity_name + '?'
         for option_name in self._order:
             if option_name.endswith('filter'):

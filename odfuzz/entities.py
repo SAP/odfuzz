@@ -17,7 +17,7 @@ from odfuzz.monkey import patch_proprties
 from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, ORDERBY, TOP, SKIP, STRING_FUNC_PROB, \
     MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
     BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB, GLOBAL_PROPRTY, \
-    INT_MAX
+    INT_MAX, ASSOCIATED_ENTITY_PROB, EMPTY_ENTITY_PROB
 
 
 class Builder(object):
@@ -49,6 +49,7 @@ class Builder(object):
         metadata_request = '$metadata?' + CLIENT
         try:
             metadata_response = self._dispatcher.get(metadata_request)
+        # TODO: catch Dispatcher exception
         except Exception as ex:
             raise BuilderError('An exception occurred while retrieving metadata: {}'
                                .format(ex))
@@ -83,14 +84,19 @@ class QueryGroup(object):
         self._restrictions = restrictions
         self._dispatcher = dispatcher
         self._query_options = {}
+        self._accessible_entity = None
 
         self._query_options_list = []
         self._required_options = []
         self._init_group()
+        self._init_accessible_entity_path()
 
     @property
     def entity_set(self):
         return self._entity_set
+
+    def get_accessible_entity_set(self):
+        return self._accessible_entity.get_queryable_entity()
 
     def query_options(self):
         return self._query_options.values()
@@ -190,6 +196,12 @@ class QueryGroup(object):
 
         return entity_set
 
+    def _init_accessible_entity_path(self):
+        if self._entity_set.addressable:
+            self._accessible_entity = AddressableEntity(self._entity_set)
+        else:
+            self._accessible_entity = NonAddressableEntity(self._entity_set)
+
 
 class QueryOption(metaclass=ABCMeta):
     """An abstract class for a query option."""
@@ -264,10 +276,10 @@ class TopQuery(QueryOption):
     def generate(self, dependent_option=None):
         option = TopOption()
         selected_value = weighted_random(self._max_range_prob.items())
-        if dependent_option and int(dependent_option) + selected_value > INT_MAX:
-            max_range = INT_MAX - int(dependent_option)
-        else:
-            max_range = selected_value
+        #if dependent_option and int(dependent_option) + selected_value > INT_MAX:
+        max_range = INT_MAX #- int(dependent_option)
+        #else:
+        #    max_range = selected_value
         option.option_string = str(round(random.random() * max_range))
         return option
 
@@ -289,6 +301,7 @@ class TopQuery(QueryOption):
             self._max_range_prob[total_entities] = 0.999
 
     def _get_total_entities(self):
+        # TODO: refactor method -- else block move out of the function
         try:
             response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT,
                                             timeout=3)
@@ -317,10 +330,10 @@ class SkipQuery(QueryOption):
     def generate(self, dependent_option=None):
         option = SkipOption()
         selected_value = weighted_random(self._max_range_prob.items())
-        if dependent_option and int(dependent_option) + selected_value > INT_MAX:
-            max_range = INT_MAX - int(dependent_option)
-        else:
-            max_range = selected_value
+        #if dependent_option and int(dependent_option) + selected_value > INT_MAX:
+        max_range = INT_MAX #- int(dependent_option)
+        #else:
+        #    max_range = selected_value
         option.option_string = str(round(random.random() * max_range))
         return option
 
@@ -1229,6 +1242,99 @@ class FilterFunction(object):
 
     def generate(self):
         return self._function_type.generate()
+
+
+class EntitySet(metaclass=ABCMeta):
+    def __init__(self, entity_set):
+        self._entity_set = entity_set
+
+    @abstractmethod
+    def get_queryable_entity(self):
+        pass
+
+
+class AddressableEntity(EntitySet):
+    def __init__(self, entity_set):
+        super(AddressableEntity, self).__init__(entity_set)
+
+    def get_queryable_entity(self):
+        accessible_entity = AccessibleEntity({}, self._entity_set)
+        return accessible_entity
+
+
+class NonAddressableEntity(EntitySet):
+    def __init__(self, entity_set):
+        super(NonAddressableEntity, self).__init__(entity_set)
+        patch_proprties(entity_set)
+
+        self._has_containing_entity = None
+
+    def get_queryable_entity(self):
+        if random.random() < EMPTY_ENTITY_PROB:
+            key_pairs = self.generate_accessible_entity_key_values()
+
+            has_containing_entity = self.check_containing_entity()
+            if has_containing_entity and random.random() < ASSOCIATED_ENTITY_PROB:
+                entity_path = self.generate_associated_entity()
+        else:
+            entity_path = self._entity_set.name
+
+        return entity_path
+
+    def generate_accessible_entity_key_values(self):
+        key_pairs = {}
+        for proprty in self._entity_set.entity_type.key_proprties:
+            key_pairs[proprty.name] = proprty.generate()
+        return key_pairs
+
+    def check_containing_entity(self):
+        if self._has_containing_entity is None:
+            pass
+        return self._has_containing_entity
+
+    def generate_associated_entity(self):
+        associated_entity_path = '/' + self._get_associated_entity()
+        return associated_entity_path
+
+    def _get_associated_entity(self):
+        return ''
+
+
+class AccessibleEntity(object):
+    def __init__(self, entity_set_name, key_pairs):
+        self._entity_set_name = entity_set_name
+        self._key_pairs = key_pairs
+        self._accessible_entity_path = ''
+
+    @property
+    def entity_set_name(self):
+        return self._entity_set_name
+
+    @property
+    def data(self):
+        return self._key_pairs
+
+    @property
+    def path(self):
+        self._build_entity_path()
+        return self._accessible_entity_path
+
+    @path.setter
+    def path(self, value):
+        self._accessible_entity_path = value
+
+    def _build_entity_path(self):
+        if self._key_pairs:
+            self._accessible_entity_path = '(' + self._generate_key_pairs() + ')'
+        else:
+            self._accessible_entity_path = self._entity_set_name
+
+    def _generate_key_pairs(self):
+        entity_path = ''
+        for proprty_name, proprty_value in self._key_pairs.items():
+            entity_path += proprty_name + '=' + proprty_value + ','
+        entity_path = entity_path[:-1]
+        return entity_path
 
 
 def is_method(obj):

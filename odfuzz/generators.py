@@ -6,7 +6,7 @@ import datetime
 
 HEX_BINARY = 'ABCDEFabcdef0123456789'
 BASE_CHARSET = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789~!$@^*()_+-–—=' \
-               '[]|:<>?,./‰¨œƒ…†‡Œ‘’´`“”•™¡¢£¤¥¦§©ª«¬®¯°±²³µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍ' \
+               '[]|:<>.‰¨œƒ…†‡Œ‘’´`“”•™¡¢£¤¥¦§©ª«¬®¯°±²³µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍ' \
                'ÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ{} '
 
 START_DATE = datetime.datetime(1900, 1, 1, 0, 0, 0)
@@ -23,6 +23,7 @@ class StringMutator(object):
         ord_char = ord(string[index])
         ord_char ^= 1 << round(random.random() * (ord_char.bit_length()))
         ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char
+        ord_char = replace_if_is_semicolon(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
         return generated_string.decode(errors='replace')
 
@@ -31,7 +32,9 @@ class StringMutator(object):
         if not string:
             return string
         index = round(random.random() * (len(string) - 1))
-        rand_char = chr(round(random.random() * 0x10ffff))
+        ord_char = round(random.random() * 0x10ffff)
+        ord_char = replace_if_is_semicolon(ord_char)
+        rand_char = chr(ord_char)
         generated_string = ''.join([string[:index], rand_char, string[index + 1:]]).encode(errors='surrogatepass')
         return generated_string.decode(errors='replace')
 
@@ -181,9 +184,8 @@ class RandomGenerator(object):
 
     @staticmethod
     def edm_time():
-        random_time = START_DATE + datetime.timedelta(hours=random.randrange(23),
-                                                      minutes=random.randrange(59),
-                                                      seconds=random.randrange(59))
+        random_time = START_DATE + datetime.timedelta(
+            hours=random.randrange(23), minutes=random.randrange(59), seconds=random.randrange(59))
         return 'time\'P{0}\''.format(datetime.datetime.strftime(random_time, 'T%IH%MM%SS'))
 
     @staticmethod
@@ -192,3 +194,9 @@ class RandomGenerator(object):
         formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
         offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
         return 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
+
+
+def replace_if_is_semicolon(hex_char):
+    if hex_char == 0x3B:
+        return hex_char - 1
+    return hex_char

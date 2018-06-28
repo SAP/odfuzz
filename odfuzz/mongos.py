@@ -85,6 +85,7 @@ class MongoClient(object):
             entities.append(entity['_id'])
         return entities
 
+    # TODO: change name of the method
     def sorted_queries_by_entity(self, entity_set_name, queries_num):
         cursor = self._collection.find({'entity_set': entity_set_name,
                                         'http': '500'}).sort([('score', -1)]).limit(queries_num)
