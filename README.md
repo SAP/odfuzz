@@ -57,7 +57,7 @@ With restrictions, a user is able to define rules which forbid a usage of some e
 ```
 Every line, except the first line, starts with a tab or set of tabs and should be properly aligned. At the moment, only entity, property and global function restrictions are implemented.
 
-Sample restrictions files can be found in the *sample* folder. Use *restrict_north.txt* file for running the fuzzer on [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
+Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.txt* file in order to run the fuzzer on [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
 
 #### Limitations
 At the moment, ODfuzz can mutate only values of types Edm.String and Edm.Int32. It is planned to support more types in the future.
