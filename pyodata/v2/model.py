@@ -884,17 +884,17 @@ class Schema(object):
                         'Association {} does not exist in namespace {}'
                         .format(assoc_set.association_type_name, assoc_set.association_type_namespace))
 
-                for key, value in list(assoc_set.end_roles.items()):
+                for end in assoc_set.ends:
                     # Check if entity set exists in current scheme
                     try:
-                        schema.entity_set(key, namespace)
+                        schema.entity_set(end.entity_set, namespace)
                     except KeyError:
                         raise PyODataModelError('EntitySet {} does not exist in Schema Namespace {}'
-                                                .format(key, namespace))
+                                                .format(end.entity_set, namespace))
                     # Check if role is defined in Association
-                    if assoc_set.association_type.end_by_role(value) is None:
+                    if assoc_set.association_type.end_by_role(end.role) is None:
                         raise PyODataModelError('Role {} is not defined in association {}'
-                                                .format(value, assoc_set.association_type_name))
+                                                .format(end.role, assoc_set.association_type_name))
 
                 decl.association_sets[assoc_set.name] = assoc_set
 
@@ -1251,7 +1251,7 @@ class StructTypeProperty(VariableDeclaration):
     def value_helper(self, value):
         # Value Help property must not be changed
         if self._value_helper is not None:
-            pass
+            raise RuntimeError('Cannot replace value helper {0} of {1} by {2}'.format(self._value_helper, self, value))
 
         self._value_helper = value
 
@@ -1395,6 +1395,30 @@ class EndRole(object):
         return EndRole(entity_type_info, multiplicity, role)
 
 
+class AssociationSetEnd(object):
+    def __init__(self, role, entity_set):
+        self._role = role
+        self._entity_set = entity_set
+
+    def __repr__(self):
+        return "{0}({1})".format(self.__class__.__name__, self.role)
+
+    @property
+    def role(self):
+        return self._role
+
+    @property
+    def entity_set(self):
+        return self._entity_set
+
+    @staticmethod
+    def from_etree(end_node):
+        role = end_node.get('Role')
+        entity_set = end_node.get('EntitySet')
+
+        return AssociationSetEnd(role, entity_set)
+
+
 class ReferentialConstraintRole(object):
     def __init__(self, name, property_names):
         self._name = name
@@ -1531,12 +1555,12 @@ class Association(object):
 
 
 class AssociationSet(object):
-    def __init__(self, name, association_type_name, association_type_namespace, end_roles):
+    def __init__(self, name, association_type_name, association_type_namespace, ends):
         self._name = name
         self._association_type_name = association_type_name
         self._association_type_namespace = association_type_namespace
         self._association_type = None
-        self._end_roles = end_roles
+        self._ends = ends
 
     def __str__(self):
         return "{0}({1})".format(self.__class__.__name__, self._name)
@@ -1558,8 +1582,8 @@ class AssociationSet(object):
         return self._association_type_namespace
 
     @property
-    def end_roles(self):
-        return self._end_roles
+    def ends(self):
+        return self._ends
 
     @association_type.setter
     def association_type(self, value):
@@ -1569,7 +1593,7 @@ class AssociationSet(object):
 
     @staticmethod
     def from_etree(association_set_node):
-        end_roles = {}
+        end_roles = list()
         name = association_set_node.get('Name')
         scheme_namespace, association_type_name = association_set_node.get('Association').split('.', 1)
 
@@ -1578,9 +1602,7 @@ class AssociationSet(object):
             raise PyODataModelError('Association {} cannot have more than 2 end roles'.format(name))
 
         for end_role in end_roles_list:
-            entity_set = end_role.get('EntitySet')
-            role = end_role.get('Role')
-            end_roles[entity_set] = role
+            end_roles.append(AssociationSetEnd.from_etree(end_role))
 
         return AssociationSet(name, association_type_name, scheme_namespace, end_roles)
 
