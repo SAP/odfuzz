@@ -66,5 +66,5 @@ OVERALL_FILE = 'overall.txt'
 #SPECIAL_FILTER_REQUIREMENT = {}
 SPECIAL_FILTER_REQUIREMENT = {'C_CostCenter': ' and IsActiveEntity eq true'}
 
-CSV = 'HTTP;Code;Error;EntitySet;Property;orderby;top;skip;filter'
+CSV = 'HTTP;Code;Error;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter'
 CSV_FILTER = 'HTTP;Code;Error;EntitySet;Property;logical;operator;function;operand'

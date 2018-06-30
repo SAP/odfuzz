@@ -97,7 +97,7 @@ class Fuzzer(object):
             sys.stdout.write('OData service does not contain any entities. Exiting...\n')
             sys.exit(0)
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
-        self.evolve_population()
+        #self.evolve_population()
 
     def seed_population(self):
         self._logger.info('Seeding population with requests...')
@@ -149,7 +149,6 @@ class Fuzzer(object):
 
     def _generate_query(self, queryable):
         accessible_entity = queryable.get_accessible_entity_set()
-        query = Query(queryable.entity_set.name)
         query = Query(accessible_entity)
         self._generate_options(queryable, query)
         Stats.tests_num += 1
@@ -381,12 +380,14 @@ class Fuzzer(object):
 
     def _log_formatted_stats(self, query, query_dict, proprty):
         self._stats_logger.info(
-            '{HTTP};{Code};{Error};{EntitySet};{Property};{orderby};{top};'
+            '{HTTP};{Code};{Error};{EntitySet};{AccessibleSet};{AccessibleKeys};{Property};{orderby};{top};'
             '{skip};{filter}'.format(
                 HTTP=query.response.status_code,
                 Code=getattr(query.response, 'error_code', ''),
                 Error=getattr(query.response, 'error_message', ''),
                 EntitySet=query_dict['entity_set'],
+                AccessibleSet=query_dict['accessible_set'],
+                AccessibleKeys=query_dict['accessible_keys'],
                 Property=none_to_str(proprty),
                 orderby=none_to_str(query.options_strings['$orderby']),
                 top=none_to_str(query.options_strings['$top']),
@@ -640,8 +641,8 @@ class SAPErrors(object):
 class Query(object):
     """A wrapper of a generated query."""
 
-    def __init__(self, entity_name):
-        self._entity_name = entity_name
+    def __init__(self, accessible_entity):
+        self._accessible_entity = accessible_entity
         self._options = {}
         self._query_string = ''
         self._dict = None
@@ -658,7 +659,7 @@ class Query(object):
 
     @property
     def entity_name(self):
-        return self._entity_name
+        return self._accessible_entity.entity_set_name
 
     @property
     def options(self):
@@ -697,6 +698,10 @@ class Query(object):
     def order(self):
         return self._order
 
+    @property
+    def accessible_entity(self):
+        return self._accessible_entity
+
     @query_string.setter
     def query_string(self, value):
         self._query_string = value
@@ -708,6 +713,10 @@ class Query(object):
     @score.setter
     def score(self, value):
         self._score = value
+
+    @accessible_entity.setter
+    def accessible_entity(self, value):
+        self._accessible_entity = value
 
     def add_option(self, name, option):
         self._options[name] = option
@@ -721,8 +730,7 @@ class Query(object):
         self._predecessors.append(predecessor_id)
 
     def build_string(self):
-        accessible_entity_path = ERROR
-        self._query_string = self._entity_name + '?'
+        self._query_string = self._accessible_entity.path + '?'
         for option_name in self._order:
             if option_name.endswith('filter'):
                 filter_data = deepcopy(self._options[option_name[1:]])
@@ -749,7 +757,9 @@ class Query(object):
             'http': str(self._response.status_code),
             'error_code': getattr(self._response, 'error_code', None),
             'error_message': getattr(self._response, 'error_message', None),
-            'entity_set': self._entity_name,
+            'entity_set': self._accessible_entity.entity_set_name,
+            'accessible_set': self._accessible_entity.containing_entity_name,
+            'accessible_keys': self._accessible_entity.data,
             'predecessors': self._predecessors,
             'string': self._query_string,
             'score': self._score,
@@ -761,7 +771,7 @@ class Query(object):
         }
 
     def _init_special_filter(self):
-        self._special_filter = SPECIAL_FILTER_REQUIREMENT.get(self._entity_name)
+        self._special_filter = SPECIAL_FILTER_REQUIREMENT.get(self._accessible_entity.entity_set_name)
         if not self._special_filter:
             self._special_filter = ''
 
