@@ -90,13 +90,14 @@ class Fuzzer(object):
         time_seed = datetime.now()
         random.seed(time_seed, version=1)
         self._logger.info('Seed is set to \'{}\''.format(time_seed))
-        self._mongodb.remove_collection()
 
+        self._mongodb.remove_collection()
         self.seed_population()
         if self._mongodb.total_queries() == 0:
             self._logger.info('OData service is empty.')
             sys.stdout.write('OData service does not contain any entities. Exiting...\n')
             sys.exit(0)
+
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
         self.evolve_population()
 
@@ -174,7 +175,9 @@ class Fuzzer(object):
             if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
                 entity_data_to_be_mutated = crossable_selection[0]
                 self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
-                children.append(build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated))
+                query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
+                query.build_string()
+                children.append(query)
             else:
                 query1, query2 = crossable_selection
                 offspring = self._crossover_queries(query1, query2, queryable)
@@ -198,7 +201,14 @@ class Fuzzer(object):
 
     def _crossover_single(self, crossable_selection, queryable):
         query1, query2 = crossable_selection
-        query = self._crossover_queries(query1, query2, queryable)
+        accessible_keys = crossable_selection[0].get('accessible_keys', None)
+        if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
+            entity_data_to_be_mutated = crossable_selection[0]
+            self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
+            query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
+            query.build_string()
+        else:
+            query = self._crossover_queries(query1, query2, queryable)
         self._get_single_response(query)
         return [query]
 
