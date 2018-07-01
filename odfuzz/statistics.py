@@ -36,8 +36,7 @@ class StatsPrinter(object):
             file_path = os.path.join(self._stats.directory, 'EntitySet_' + entity + '.txt')
             with open(file_path, 'a', encoding='utf-8') as entity_file:
                 for query in self._mongodb.sorted_queries_by_entity(entity, TOP_ENTITIES):
-                    info_line = query['http'] + ':' + query['string'] + ':' \
-                                              + str(query['score']) + '\n'
+                    info_line = query['http'] + ':' + query['error_code'] + ':' + query['string']
                     entity_file.write(info_line)
 
     def _write_overall_stats(self):

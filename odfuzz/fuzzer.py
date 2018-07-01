@@ -178,6 +178,8 @@ class Fuzzer(object):
                 query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
                 query.build_string()
                 children.append(query)
+                Stats.tests_num += 1
+                Stats.created_by_mutation += 1
             else:
                 query1, query2 = crossable_selection
                 offspring = self._crossover_queries(query1, query2, queryable)
@@ -207,6 +209,8 @@ class Fuzzer(object):
             self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
             query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
             query.build_string()
+            Stats.tests_num += 1
+            Stats.created_by_mutation += 1
         else:
             query = self._crossover_queries(query1, query2, queryable)
         self._get_single_response(query)
@@ -773,6 +777,7 @@ class Query(object):
             self._options_strings[option_name[1:]] = option_string
             self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
+        self._add_appendix()
 
     def _create_dict(self):
         # key fields cannot start with a dollar sign in mongoDB,
@@ -802,6 +807,12 @@ class Query(object):
         self._special_filter = SPECIAL_FILTER_REQUIREMENT.get(self._accessible_entity.entity_set_name)
         if not self._special_filter:
             self._special_filter = ''
+
+    def _add_appendix(self):
+        if CLIENT:
+            self._query_string += '&' + CLIENT
+        if FORMAT:
+            self._query_string += '&' + FORMAT
 
 
 class Dispatcher(object):
