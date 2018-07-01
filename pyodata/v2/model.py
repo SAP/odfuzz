@@ -1251,8 +1251,8 @@ class StructTypeProperty(VariableDeclaration):
     def value_helper(self, value):
         # Value Help property must not be changed
         if self._value_helper is not None:
-            raise RuntimeError('Cannot replace value helper {0} of {1} by {2}'.format(self._value_helper, self, value))
-
+            logging.error(RuntimeError('Cannot replace value helper {0} of {1} by {2}'
+                                       .format(self._value_helper, self, value)))
         self._value_helper = value
 
     @staticmethod
