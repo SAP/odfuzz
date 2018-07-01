@@ -26,7 +26,8 @@ from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
     ORDERBY, STATS_LOGGER, FILTER_CROSS_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
-    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV, SPECIAL_FILTER_REQUIREMENT
+    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV, SPECIAL_FILTER_REQUIREMENT, \
+    KEY_VALUES_MUTATION_PROB
 
 
 class Manager(object):
@@ -97,7 +98,7 @@ class Fuzzer(object):
             sys.stdout.write('OData service does not contain any entities. Exiting...\n')
             sys.exit(0)
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
-        #self.evolve_population()
+        self.evolve_population()
 
     def seed_population(self):
         self._logger.info('Seeding population with requests...')
@@ -169,13 +170,30 @@ class Fuzzer(object):
     def _crossover_multiple(self, crossable_selection, queryable):
         children = []
         for _ in range(POOL_SIZE):
-            query1, query2 = crossable_selection
-            offspring = self._crossover_queries(query1, query2, queryable)
-            if offspring:
-                children.append(offspring)
+            accessible_keys = crossable_selection[0].get('accessible_keys', None)
+            if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
+                self._mutate_accessible_keys(queryable, accessible_keys)
+                children.append(build_offspring(queryable.get_accessible_entity_set(), crossable_selection[0]))
+            else:
+                query1, query2 = crossable_selection
+                offspring = self._crossover_queries(query1, query2, queryable)
+                if offspring:
+                    children.append(offspring)
         if children:
             self._get_multiple_responses(children)
         return children
+
+    def _mutate_accessible_keys(self, queryable, accessible_keys):
+        keys_list = list(accessible_keys.items())
+        key_values = random.sample(keys_list, round((random.random() * (len(keys_list) - 1)) + 1))
+        if queryable.principal_entities:
+            accessible_entity = random.choice(queryable.principal_entities)
+        else:
+            accessible_entity = queryable.entity_set.entity_type
+
+        for proprty_name, value in key_values:
+            accessible_keys[proprty_name] = '\'' + accessible_entity.proprty(proprty_name) \
+                .mutate(value[1:-1]) + '\''
 
     def _crossover_single(self, crossable_selection, queryable):
         query1, query2 = crossable_selection
@@ -189,7 +207,7 @@ class Fuzzer(object):
         else:
             offspring = self._crossover_options(query1, query2)
         Stats.created_by_crossover += 1
-        query = build_offspring(queryable.entity_set.name, offspring)
+        query = build_offspring(queryable.get_accessible_entity_set(), offspring)
         self._mutate_query(query, queryable)
         query.add_predecessor(query1['_id'])
         query.add_predecessor(query2['_id'])
@@ -349,7 +367,6 @@ class Fuzzer(object):
             value = self._get_attr_from_json(json, *args)
         except ValueError:
             value = self._get_attr_from_xml(query.response.content, *args)
-        self._logger.info('Setting attribute {} of value {} to query {}'.format(attr, value, query))
         setattr(query.response, attr, value)
 
     def _get_attr_from_json(self, json, *args):
@@ -758,8 +775,8 @@ class Query(object):
             'error_code': getattr(self._response, 'error_code', None),
             'error_message': getattr(self._response, 'error_message', None),
             'entity_set': self._accessible_entity.entity_set_name,
-            'accessible_set': self._accessible_entity.containing_entity_name,
-            'accessible_keys': self._accessible_entity.data,
+            'accessible_set': self._accessible_entity.containing_entity_name or None,
+            'accessible_keys': self._accessible_entity.data or None,
             'predecessors': self._predecessors,
             'string': self._query_string,
             'score': self._score,
@@ -834,8 +851,8 @@ def is_filter_crossable(query1, query2):
     return crossable
 
 
-def build_offspring(entity_set_name, offspring):
-    query = Query(entity_set_name)
+def build_offspring(entity_set, offspring):
+    query = Query(entity_set)
     for option in offspring['order']:
         query.add_option(option[1:], offspring[option])
     return query

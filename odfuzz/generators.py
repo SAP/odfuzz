@@ -13,6 +13,12 @@ START_DATE = datetime.datetime(1900, 1, 1, 0, 0, 0)
 END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
 DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
 
+SEMICOLON = 0x3B
+APOSTROPHE = 0x27
+NEW_LINE = 0x0A
+FORBIDDEN_CHARS = (SEMICOLON, APOSTROPHE, NEW_LINE)
+GUID_DASH_INDEXES = (8, 13, 18, 23)
+
 
 class StringMutator(object):
     @staticmethod
@@ -21,7 +27,7 @@ class StringMutator(object):
             return string
         index = round(random.random() * (len(string) - 1))
         ord_char = ord(string[index])
-        ord_char ^= 1 << round(random.random() * (ord_char.bit_length()))
+        ord_char ^= 1 << round(random.random() * ord_char.bit_length()) + 1
         ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char
         ord_char = replace_if_is_semicolon(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
@@ -32,10 +38,9 @@ class StringMutator(object):
         if not string:
             return string
         index = round(random.random() * (len(string) - 1))
-        ord_char = round(random.random() * 0x10ffff)
+        ord_char = round(random.random() * (0x10ffff - 1) + 1)
         ord_char = replace_if_is_semicolon(ord_char)
-        rand_char = chr(ord_char)
-        generated_string = ''.join([string[:index], rand_char, string[index + 1:]]).encode(errors='surrogatepass')
+        generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
         return generated_string.decode(errors='replace')
 
     @staticmethod
@@ -118,6 +123,18 @@ class NumberMutator(object):
         return generated_number
 
 
+class GuidMutator(object):
+    @staticmethod
+    def replace_char(string_guid):
+        without_dashes = string_guid
+        index = round(random.random() * (len(string_guid) - 1))
+        if index in GUID_DASH_INDEXES:
+            index -= 1
+        rand_hex_char = HEX_BINARY[round(random.random() * (len(HEX_BINARY) - 1))]
+        without_dashes = ''.join([without_dashes[:index], rand_hex_char, without_dashes[index + 1:]])
+        return without_dashes
+
+
 class RandomGenerator(object):
     @staticmethod
     def edm_binary():
@@ -158,7 +175,7 @@ class RandomGenerator(object):
 
     @staticmethod
     def edm_guid():
-        return 'guid\'{0}\''.format(str(uuid.UUID(int=random.getrandbits(128))))
+        return 'guid\'{0}\''.format(str(uuid.UUID(int=random.getrandbits(128), version=4)))
 
     @staticmethod
     def edm_int16():
@@ -197,6 +214,6 @@ class RandomGenerator(object):
 
 
 def replace_if_is_semicolon(hex_char):
-    if hex_char == 0x3B:
+    if hex_char in FORBIDDEN_CHARS:
         return hex_char - 1
     return hex_char

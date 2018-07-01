@@ -99,6 +99,10 @@ class QueryGroup(object):
     def entity_set(self):
         return self._entity_set
 
+    @property
+    def principal_entities(self):
+        return self._principal_entities
+
     def get_accessible_entity_set(self):
         return self._accessible_entity.get_queryable_entity()
 
