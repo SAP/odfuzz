@@ -103,6 +103,13 @@ class QueryGroup(object):
     def principal_entities(self):
         return self._principal_entities
 
+    def principal_entity(self, entity_set_name):
+        found_entity = None
+        for entity in self._principal_entities:
+            if entity.name == entity_set_name:
+                found_entity = entity
+        return found_entity
+
     def get_accessible_entity_set(self):
         return self._accessible_entity.get_queryable_entity()
 

@@ -172,8 +172,9 @@ class Fuzzer(object):
         for _ in range(POOL_SIZE):
             accessible_keys = crossable_selection[0].get('accessible_keys', None)
             if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
-                self._mutate_accessible_keys(queryable, accessible_keys)
-                children.append(build_offspring(queryable.get_accessible_entity_set(), crossable_selection[0]))
+                entity_data_to_be_mutated = crossable_selection[0]
+                self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
+                children.append(build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated))
             else:
                 query1, query2 = crossable_selection
                 offspring = self._crossover_queries(query1, query2, queryable)
@@ -183,11 +184,11 @@ class Fuzzer(object):
             self._get_multiple_responses(children)
         return children
 
-    def _mutate_accessible_keys(self, queryable, accessible_keys):
+    def _mutate_accessible_keys(self, queryable, accessible_keys, entity_data):
         keys_list = list(accessible_keys.items())
         key_values = random.sample(keys_list, round((random.random() * (len(keys_list) - 1)) + 1))
-        if queryable.principal_entities:
-            accessible_entity = random.choice(queryable.principal_entities)
+        if entity_data['accessible_set']:
+            accessible_entity = queryable.principal_entity(entity_data['accessible_set'])
         else:
             accessible_entity = queryable.entity_set.entity_type
 
