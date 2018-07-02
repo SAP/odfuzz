@@ -38,7 +38,10 @@ BOOLEAN_OPERATORS = {'eq': 0.5, 'ne': 0.5}
 EXPRESSION_OPERATORS = {'eq': 0.3, 'ne': 0.3, 'gt': 0.1, 'ge': 0.1, 'lt': 0.1, 'le': 0.1}
 
 FILTER_CROSS_PROBABILITY = 0.8
-SEED_POPULATION = 50
+EMPTY_ENTITY_PROB = 0.001
+KEY_VALUES_MUTATION_PROB = 0.05
+ASSOCIATED_ENTITY_PROB = 0.2
+SEED_POPULATION = 20
 RECURSION_LIMIT = 3
 
 # pool size may be limited on some OData services
@@ -64,5 +67,5 @@ OVERALL_FILE = 'overall.txt'
 #SPECIAL_FILTER_REQUIREMENT = {}
 SPECIAL_FILTER_REQUIREMENT = {'C_CostCenter': ' and IsActiveEntity eq true'}
 
-CSV = 'HTTP;Code;Error;EntitySet;Property;orderby;top;skip;filter'
+CSV = 'HTTP;Code;Error;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter'
 CSV_FILTER = 'HTTP;Code;Error;EntitySet;Property;logical;operator;function;operand'

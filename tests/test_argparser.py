@@ -1,11 +1,9 @@
 import pytest
 
-from odfuzz.arguments import ArgParser, ArgParserError
+from odfuzz.arguments import ArgParserError
 
 
-def test_argument_parsing():
-    argparser = ArgParser()
-
+def test_argument_parsing(argparser):
     parsed_arguments = argparser.parse(
         ['https://www.odata.org/', '-s', 'stats', '-l', 'logs', '-a', '-r', 'restrict'])
 
@@ -16,34 +14,31 @@ def test_argument_parsing():
     assert parsed_arguments.async
 
 
-def test_missing_url():
-    argparser = ArgParser()
-
+def test_missing_url(argparser):
     with pytest.raises(ArgParserError):
         argparser.parse(['-s', 'stats', '-l', 'logs'])
 
 
-def test_missing_log_directory():
-    argparser = ArgParser()
-
+def test_missing_log_directory(argparser):
     with pytest.raises(ArgParserError):
         argparser.parse(['https://www.odata.org/', '-s', 'stats', '-l'])
 
 
-def test_missing_stats_directory():
-    argparser = ArgParser()
-
+def test_missing_stats_directory(argparser):
     with pytest.raises(ArgParserError):
         argparser.parse(['https://www.odata.org/', '-l', 'logs', '-s'])
 
 
-def test_unrecognized_arguments():
-    argparser = ArgParser()
-
+def test_only_wrong_argument(argparser):
     with pytest.raises(ArgParserError):
         argparser.parse(['https://www.odata.org/', 'WRONG_ARGUMENT'])
+
+
+def test_wrong_argument_with_valid_arguments(argparser):
     with pytest.raises(ArgParserError):
         argparser.parse(['https://www.odata.org/', '-s', 'stats', '-l', 'logs', 'WRONG_ARGUMENT'])
+
+
+def test_wrong_option_with_valid_arguments(argparser):
     with pytest.raises(ArgParserError):
         argparser.parse(['https://www.odata.org/', '-a', '-r', 'restrict', '-WRONG_ARGUMENT'])
-

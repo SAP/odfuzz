@@ -26,7 +26,8 @@ from odfuzz.exceptions import DispatcherError
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
     ORDERBY, STATS_LOGGER, FILTER_CROSS_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
-    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV, SPECIAL_FILTER_REQUIREMENT
+    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV, SPECIAL_FILTER_REQUIREMENT, \
+    KEY_VALUES_MUTATION_PROB
 
 
 class Manager(object):
@@ -89,13 +90,14 @@ class Fuzzer(object):
         time_seed = datetime.now()
         random.seed(time_seed, version=1)
         self._logger.info('Seed is set to \'{}\''.format(time_seed))
-        self._mongodb.remove_collection()
 
+        self._mongodb.remove_collection()
         self.seed_population()
         if self._mongodb.total_queries() == 0:
             self._logger.info('OData service is empty.')
             sys.stdout.write('OData service does not contain any entities. Exiting...\n')
             sys.exit(0)
+
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
         self.evolve_population()
 
@@ -148,8 +150,8 @@ class Fuzzer(object):
         return [query]
 
     def _generate_query(self, queryable):
-        query = Query(queryable.entity_set.name)
-        query.query_string += query.entity_name + '?'
+        accessible_entity = queryable.get_accessible_entity_set()
+        query = Query(accessible_entity)
         self._generate_options(queryable, query)
         Stats.tests_num += 1
         return query
@@ -169,17 +171,48 @@ class Fuzzer(object):
     def _crossover_multiple(self, crossable_selection, queryable):
         children = []
         for _ in range(POOL_SIZE):
-            query1, query2 = crossable_selection
-            offspring = self._crossover_queries(query1, query2, queryable)
-            if offspring:
-                children.append(offspring)
+            accessible_keys = crossable_selection[0].get('accessible_keys', None)
+            if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
+                entity_data_to_be_mutated = crossable_selection[0]
+                self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
+                query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
+                query.build_string()
+                children.append(query)
+                Stats.tests_num += 1
+                Stats.created_by_mutation += 1
+            else:
+                query1, query2 = crossable_selection
+                offspring = self._crossover_queries(query1, query2, queryable)
+                if offspring:
+                    children.append(offspring)
         if children:
             self._get_multiple_responses(children)
         return children
 
+    def _mutate_accessible_keys(self, queryable, accessible_keys, entity_data):
+        keys_list = list(accessible_keys.items())
+        key_values = random.sample(keys_list, round((random.random() * (len(keys_list) - 1)) + 1))
+        if entity_data['accessible_set']:
+            accessible_entity = queryable.principal_entity(entity_data['accessible_set'])
+        else:
+            accessible_entity = queryable.entity_set.entity_type
+
+        for proprty_name, value in key_values:
+            accessible_keys[proprty_name] = '\'' + accessible_entity.proprty(proprty_name) \
+                .mutate(value[1:-1]) + '\''
+
     def _crossover_single(self, crossable_selection, queryable):
         query1, query2 = crossable_selection
-        query = self._crossover_queries(query1, query2, queryable)
+        accessible_keys = crossable_selection[0].get('accessible_keys', None)
+        if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
+            entity_data_to_be_mutated = crossable_selection[0]
+            self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
+            query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
+            query.build_string()
+            Stats.tests_num += 1
+            Stats.created_by_mutation += 1
+        else:
+            query = self._crossover_queries(query1, query2, queryable)
         self._get_single_response(query)
         return [query]
 
@@ -189,7 +222,7 @@ class Fuzzer(object):
         else:
             offspring = self._crossover_options(query1, query2)
         Stats.created_by_crossover += 1
-        query = build_offspring(queryable.entity_set.name, offspring)
+        query = build_offspring(queryable.get_accessible_entity_set(), offspring)
         self._mutate_query(query, queryable)
         query.add_predecessor(query1['_id'])
         query.add_predecessor(query2['_id'])
@@ -208,12 +241,12 @@ class Fuzzer(object):
 
     def _mutate_option(self, queryable, query, option_name, option_value):
         if option_name == FILTER:
-            if random.random() < FILTER_DEL_PROB:
-                status = self._remove_logical_part(option_value)
-                if not status:
-                    self._mutate_filter_part(queryable, option_name, option_value)
-            else:
-                self._mutate_filter_part(queryable, option_name, option_value)
+            #if random.random() < FILTER_DEL_PROB:
+            #    status = self._remove_logical_part(option_value)
+            #    if not status:
+            #        self._mutate_filter_part(queryable, option_name, option_value)
+            #else:
+            self._mutate_filter_part(queryable, option_name, option_value)
         elif option_name == ORDERBY:
             self._mutate_orderby_part(option_value)
         else:
@@ -349,7 +382,6 @@ class Fuzzer(object):
             value = self._get_attr_from_json(json, *args)
         except ValueError:
             value = self._get_attr_from_xml(query.response.content, *args)
-        self._logger.info('Setting attribute {} of value {} to query {}'.format(attr, value, query))
         setattr(query.response, attr, value)
 
     def _get_attr_from_json(self, json, *args):
@@ -380,12 +412,14 @@ class Fuzzer(object):
 
     def _log_formatted_stats(self, query, query_dict, proprty):
         self._stats_logger.info(
-            '{HTTP};{Code};{Error};{EntitySet};{Property};{orderby};{top};'
+            '{HTTP};{Code};{Error};{EntitySet};{AccessibleSet};{AccessibleKeys};{Property};{orderby};{top};'
             '{skip};{filter}'.format(
                 HTTP=query.response.status_code,
                 Code=getattr(query.response, 'error_code', ''),
                 Error=getattr(query.response, 'error_message', ''),
                 EntitySet=query_dict['entity_set'],
+                AccessibleSet=query_dict['accessible_set'],
+                AccessibleKeys=query_dict['accessible_keys'],
                 Property=none_to_str(proprty),
                 orderby=none_to_str(query.options_strings['$orderby']),
                 top=none_to_str(query.options_strings['$top']),
@@ -639,8 +673,8 @@ class SAPErrors(object):
 class Query(object):
     """A wrapper of a generated query."""
 
-    def __init__(self, entity_name):
-        self._entity_name = entity_name
+    def __init__(self, accessible_entity):
+        self._accessible_entity = accessible_entity
         self._options = {}
         self._query_string = ''
         self._dict = None
@@ -657,7 +691,7 @@ class Query(object):
 
     @property
     def entity_name(self):
-        return self._entity_name
+        return self._accessible_entity.entity_set_name
 
     @property
     def options(self):
@@ -696,6 +730,10 @@ class Query(object):
     def order(self):
         return self._order
 
+    @property
+    def accessible_entity(self):
+        return self._accessible_entity
+
     @query_string.setter
     def query_string(self, value):
         self._query_string = value
@@ -707,6 +745,10 @@ class Query(object):
     @score.setter
     def score(self, value):
         self._score = value
+
+    @accessible_entity.setter
+    def accessible_entity(self, value):
+        self._accessible_entity = value
 
     def add_option(self, name, option):
         self._options[name] = option
@@ -720,7 +762,7 @@ class Query(object):
         self._predecessors.append(predecessor_id)
 
     def build_string(self):
-        self._query_string = self._entity_name + '?'
+        self._query_string = self._accessible_entity.path + '?'
         for option_name in self._order:
             if option_name.endswith('filter'):
                 filter_data = deepcopy(self._options[option_name[1:]])
@@ -735,6 +777,7 @@ class Query(object):
             self._options_strings[option_name[1:]] = option_string
             self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
+        self._add_appendix()
 
     def _create_dict(self):
         # key fields cannot start with a dollar sign in mongoDB,
@@ -747,7 +790,9 @@ class Query(object):
             'http': str(self._response.status_code),
             'error_code': getattr(self._response, 'error_code', None),
             'error_message': getattr(self._response, 'error_message', None),
-            'entity_set': self._entity_name,
+            'entity_set': self._accessible_entity.entity_set_name,
+            'accessible_set': self._accessible_entity.containing_entity_name or None,
+            'accessible_keys': self._accessible_entity.data or None,
             'predecessors': self._predecessors,
             'string': self._query_string,
             'score': self._score,
@@ -759,9 +804,15 @@ class Query(object):
         }
 
     def _init_special_filter(self):
-        self._special_filter = SPECIAL_FILTER_REQUIREMENT.get(self._entity_name)
+        self._special_filter = SPECIAL_FILTER_REQUIREMENT.get(self._accessible_entity.entity_set_name)
         if not self._special_filter:
             self._special_filter = ''
+
+    def _add_appendix(self):
+        if CLIENT:
+            self._query_string += '&' + CLIENT
+        if FORMAT:
+            self._query_string += '&' + FORMAT
 
 
 class Dispatcher(object):
@@ -822,8 +873,8 @@ def is_filter_crossable(query1, query2):
     return crossable
 
 
-def build_offspring(entity_set_name, offspring):
-    query = Query(entity_set_name)
+def build_offspring(entity_set, offspring):
+    query = Query(entity_set)
     for option in offspring['order']:
         query.add_option(option[1:], offspring[option])
     return query

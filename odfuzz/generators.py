@@ -6,12 +6,18 @@ import datetime
 
 HEX_BINARY = 'ABCDEFabcdef0123456789'
 BASE_CHARSET = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789~!$@^*()_+-–—=' \
-               '[]|:<>?,./‰¨œƒ…†‡Œ‘’´`“”•™¡¢£¤¥¦§©ª«¬®¯°±²³µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍ' \
+               '[]|:<>.‰¨œƒ…†‡Œ‘’´`“”•™¡¢£¤¥¦§©ª«¬®¯°±²³µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍ' \
                'ÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ{} '
 
 START_DATE = datetime.datetime(1900, 1, 1, 0, 0, 0)
 END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
 DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
+
+SEMICOLON = 0x3B
+APOSTROPHE = 0x27
+NEW_LINE = 0x0A
+FORBIDDEN_CHARS = (SEMICOLON, APOSTROPHE, NEW_LINE)
+GUID_DASH_INDEXES = (8, 13, 18, 23)
 
 
 class StringMutator(object):
@@ -21,8 +27,9 @@ class StringMutator(object):
             return string
         index = round(random.random() * (len(string) - 1))
         ord_char = ord(string[index])
-        ord_char ^= 1 << round(random.random() * (ord_char.bit_length()))
+        ord_char ^= 1 << round(random.random() * ord_char.bit_length()) + 1
         ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char
+        ord_char = replace_if_is_semicolon(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
         return generated_string.decode(errors='replace')
 
@@ -31,8 +38,9 @@ class StringMutator(object):
         if not string:
             return string
         index = round(random.random() * (len(string) - 1))
-        rand_char = chr(round(random.random() * 0x10ffff))
-        generated_string = ''.join([string[:index], rand_char, string[index + 1:]]).encode(errors='surrogatepass')
+        ord_char = round(random.random() * (0x10ffff - 1) + 1)
+        ord_char = replace_if_is_semicolon(ord_char)
+        generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
         return generated_string.decode(errors='replace')
 
     @staticmethod
@@ -115,6 +123,18 @@ class NumberMutator(object):
         return generated_number
 
 
+class GuidMutator(object):
+    @staticmethod
+    def replace_char(string_guid):
+        without_dashes = string_guid
+        index = round(random.random() * (len(string_guid) - 1))
+        if index in GUID_DASH_INDEXES:
+            index -= 1
+        rand_hex_char = HEX_BINARY[round(random.random() * (len(HEX_BINARY) - 1))]
+        without_dashes = ''.join([without_dashes[:index], rand_hex_char, without_dashes[index + 1:]])
+        return without_dashes
+
+
 class RandomGenerator(object):
     @staticmethod
     def edm_binary():
@@ -155,7 +175,7 @@ class RandomGenerator(object):
 
     @staticmethod
     def edm_guid():
-        return 'guid\'{0}\''.format(str(uuid.UUID(int=random.getrandbits(128))))
+        return 'guid\'{0}\''.format(str(uuid.UUID(int=random.getrandbits(128), version=4)))
 
     @staticmethod
     def edm_int16():
@@ -181,9 +201,8 @@ class RandomGenerator(object):
 
     @staticmethod
     def edm_time():
-        random_time = START_DATE + datetime.timedelta(hours=random.randrange(23),
-                                                      minutes=random.randrange(59),
-                                                      seconds=random.randrange(59))
+        random_time = START_DATE + datetime.timedelta(
+            hours=random.randrange(23), minutes=random.randrange(59), seconds=random.randrange(59))
         return 'time\'P{0}\''.format(datetime.datetime.strftime(random_time, 'T%IH%MM%SS'))
 
     @staticmethod
@@ -192,3 +211,9 @@ class RandomGenerator(object):
         formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
         offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
         return 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
+
+
+def replace_if_is_semicolon(hex_char):
+    if hex_char in FORBIDDEN_CHARS:
+        return hex_char - 1
+    return hex_char

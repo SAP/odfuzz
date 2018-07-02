@@ -17,7 +17,9 @@ from odfuzz.monkey import patch_proprties
 from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, ORDERBY, TOP, SKIP, STRING_FUNC_PROB, \
     MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
     BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB, GLOBAL_PROPRTY, \
-    INT_MAX
+    INT_MAX, ASSOCIATED_ENTITY_PROB, EMPTY_ENTITY_PROB
+
+NullEntity = namedtuple('NullEntity', 'name')
 
 
 class Builder(object):
@@ -31,7 +33,8 @@ class Builder(object):
     def build(self):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
-            query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher)
+            principal_entities = get_principal_entities(data_model, entity_set)
+            query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher, principal_entities)
             if query_group.query_options():
                 self._queryable.add(query_group)
         return self._queryable
@@ -49,6 +52,7 @@ class Builder(object):
         metadata_request = '$metadata?' + CLIENT
         try:
             metadata_response = self._dispatcher.get(metadata_request)
+        # TODO: catch Dispatcher exception
         except Exception as ex:
             raise BuilderError('An exception occurred while retrieving metadata: {}'
                                .format(ex))
@@ -78,19 +82,36 @@ class QueryableEntities(object):
 class QueryGroup(object):
     """A group of query options applicable to one entity set."""
 
-    def __init__(self, entity_set, restrictions, dispatcher):
+    def __init__(self, entity_set, restrictions, dispatcher, principal_entities):
         self._entity_set = entity_set
         self._restrictions = restrictions
         self._dispatcher = dispatcher
+        self._principal_entities = principal_entities
         self._query_options = {}
+        self._accessible_entity = None
 
         self._query_options_list = []
         self._required_options = []
         self._init_group()
+        self._init_accessible_entity_path()
 
     @property
     def entity_set(self):
         return self._entity_set
+
+    @property
+    def principal_entities(self):
+        return self._principal_entities
+
+    def principal_entity(self, entity_set_name):
+        found_entity = None
+        for entity in self._principal_entities:
+            if entity.name == entity_set_name:
+                found_entity = entity
+        return found_entity
+
+    def get_accessible_entity_set(self):
+        return self._accessible_entity.get_queryable_entity()
 
     def query_options(self):
         return self._query_options.values()
@@ -189,6 +210,12 @@ class QueryGroup(object):
                 del entity_set.entity_type._properties[proprty.name]
 
         return entity_set
+
+    def _init_accessible_entity_path(self):
+        if self._entity_set.addressable:
+            self._accessible_entity = AddressableEntity(self._entity_set, self._principal_entities)
+        else:
+            self._accessible_entity = NonAddressableEntity(self._entity_set, self._principal_entities)
 
 
 class QueryOption(metaclass=ABCMeta):
@@ -289,6 +316,7 @@ class TopQuery(QueryOption):
             self._max_range_prob[total_entities] = 0.999
 
     def _get_total_entities(self):
+        # TODO: refactor method -- else block move out of the function
         try:
             response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT,
                                             timeout=3)
@@ -1231,6 +1259,98 @@ class FilterFunction(object):
         return self._function_type.generate()
 
 
+class EntitySet(metaclass=ABCMeta):
+    def __init__(self, entity_set, principal_entities):
+        self._entity_set = entity_set
+        self._principal_entities = principal_entities
+
+    @abstractmethod
+    def get_queryable_entity(self):
+        pass
+
+
+class AddressableEntity(EntitySet):
+    def __init__(self, entity_set, principal_entities):
+        super(AddressableEntity, self).__init__(entity_set, principal_entities)
+
+    def get_queryable_entity(self):
+        accessible_entity = AccessibleEntity(self._entity_set.name, {}, '')
+        return accessible_entity
+
+
+class NonAddressableEntity(EntitySet):
+    def __init__(self, entity_set, principal_entities):
+        super(NonAddressableEntity, self).__init__(entity_set, principal_entities)
+        patch_proprties(entity_set)
+
+    def get_queryable_entity(self):
+        if random.random() > EMPTY_ENTITY_PROB:
+            if self.has_containing_entities() and random.random() < ASSOCIATED_ENTITY_PROB:
+                containing_entity = random.choice(self._principal_entities)
+                principal_entity = containing_entity
+            else:
+                containing_entity = self._entity_set.entity_type
+                principal_entity = NullEntity('')
+            key_pairs = generate_accessible_entity_key_values(containing_entity)
+        else:
+            principal_entity = NullEntity('')
+            key_pairs = {}
+
+        accessible_entity = AccessibleEntity(self._entity_set.name, key_pairs, principal_entity.name)
+        return accessible_entity
+
+    def has_containing_entities(self):
+        if self._principal_entities:
+            return True
+        else:
+            return False
+
+
+class AccessibleEntity(object):
+    def __init__(self, entity_set_name, key_pairs, containing_entity_name):
+        self._entity_set_name = entity_set_name
+        self._key_pairs = key_pairs
+        self._containing_entity_name = containing_entity_name
+        self._accessible_entity_path = ''
+
+    @property
+    def entity_set_name(self):
+        return self._entity_set_name
+
+    @property
+    def containing_entity_name(self):
+        return self._containing_entity_name
+
+    @property
+    def data(self):
+        return self._key_pairs
+
+    @property
+    def path(self):
+        self._build_entity_path()
+        return self._accessible_entity_path
+
+    def _build_entity_path(self):
+        if self._key_pairs:
+            self._accessible_entity_path = self._generate_addressable_path()
+        else:
+            self._accessible_entity_path = self._entity_set_name
+
+    def _generate_addressable_path(self):
+        if self._containing_entity_name:
+            path = self._containing_entity_name + '(' + self._generate_key_pairs() + ')' + '/' + self._entity_set_name
+        else:
+            path = self._entity_set_name + '(' + self._generate_key_pairs() + ')'
+        return path
+
+    def _generate_key_pairs(self):
+        entity_path = ''
+        for proprty_name, proprty_value in self._key_pairs.items():
+            entity_path += proprty_name + '=' + proprty_value + ','
+        entity_path = entity_path[:-1]
+        return entity_path
+
+
 def is_method(obj):
     return inspect.isfunction(obj) or inspect.ismethod(obj)
 
@@ -1281,3 +1401,22 @@ def remove_logical_from_group(option_value, group_id, logical_id):
         group['logicals'].remove(logical_id)
     except ValueError:
         pass
+
+
+def get_principal_entities(data_model, entity_set):
+    principal_entities = []
+    for association in data_model.associations:
+        for end in association.end_roles:
+            if end.entity_type_info == entity_set.entity_type_info:
+                principal = getattr(association.referential_constraint, 'principal', None)
+                if principal:
+                    principal_entities.append(association.end_by_role(principal.name).entity_type)
+    return principal_entities
+
+
+def generate_accessible_entity_key_values(containing_entity):
+    key_pairs = {}
+    for proprty in containing_entity.key_proprties:
+        key_pairs[proprty.name] = proprty.generate()
+    return key_pairs
+
