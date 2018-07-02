@@ -76,4 +76,3 @@ The fuzzer was developed for testing the SAP applications. These applications us
 - Create  database of valid inputs, e.g. for 'Language', 'Location', etc. (may be defined in restrictions file).
 - Add custom headers for requests.
 - Add unit tests. (30% done)
-- Support non-addressable entities. (75% done)
