@@ -23,6 +23,7 @@ from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.mongos import MongoClient
 from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
+from odfuzz.loggers import LogFormatter
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
     ORDERBY, STATS_LOGGER, FILTER_CROSS_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
@@ -62,6 +63,7 @@ class Fuzzer(object):
         self._filter_logger = logging.getLogger(FILTER_LOGGER)
         self._stats_logger.info(CSV)
         self._filter_logger.info(CSV_FILTER)
+        self._log_formatter = LogFormatter()
 
         self._dispatcher = dispatcher
         self._entities = entities
@@ -411,21 +413,21 @@ class Fuzzer(object):
                 self._log_formatted_stats(query, query_dict, proprty)
 
     def _log_formatted_stats(self, query, query_dict, proprty):
-        self._stats_logger.info(
-            '{HTTP};{Code};{Error};{EntitySet};{AccessibleSet};{AccessibleKeys};{Property};{orderby};{top};'
-            '{skip};{filter}'.format(
-                HTTP=query.response.status_code,
-                Code=getattr(query.response, 'error_code', ''),
-                Error=getattr(query.response, 'error_message', ''),
-                EntitySet=query_dict['entity_set'],
-                AccessibleSet=query_dict['accessible_set'],
-                AccessibleKeys=query_dict['accessible_keys'],
-                Property=none_to_str(proprty),
-                orderby=none_to_str(query.options_strings['$orderby']),
-                top=none_to_str(query.options_strings['$top']),
-                skip=none_to_str(query.options_strings['$skip']),
-                filter=none_to_str(query.options_strings['$filter'])
-            ))
+        self._stats_logger.info(self._log_formatter.format(
+            '{HTTP};{Code};{Error};{EntitySet};{AccessibleSet:n};{AccessibleKeys:n};'
+            '{Property:n};{orderby:n};{top:n};{skip:n};{filter:n}',
+            HTTP=query.response.status_code,
+            Code=getattr(query.response, 'error_code', ''),
+            Error=getattr(query.response, 'error_message', ''),
+            EntitySet=query_dict['entity_set'],
+            AccessibleSet=query_dict['accessible_set'],
+            AccessibleKeys=query_dict['accessible_keys'],
+            Property=proprty,
+            orderby=query.options_strings['$orderby'],
+            top=query.options_strings['$top'],
+            skip=query.options_strings['$skip'],
+            filter=query.options_strings['$filter']
+        ))
 
     def _get_proprties(self, query_dict):
         proprties = set()
@@ -466,19 +468,19 @@ class Fuzzer(object):
                             self._log_formatted_filter(query, proprty, logical, part, '')
 
     def _log_formatted_filter(self, query, proprty, logical, part, func):
-        self._filter_logger.info(
-            '{http};{code};{error};{entityset};{property};{logical};{operator};'
-            '{function};{operand}'.format(
-                http=query.response.status_code,
-                code=getattr(query.response, 'error_code', ''),
-                error=getattr(query.response, 'error_message', ''),
-                entityset=query.dictionary['entity_set'],
-                property=none_to_str(proprty),
-                logical=none_to_str(logical['name']),
-                operator=part['operator'],
-                function=none_to_str(func),
-                operand=part['operand']
-            ))
+        self._filter_logger.info(self._log_formatter.format(
+            '{http};{code};{error};{entityset};{property:n};{logical:n};'
+            '{operator};{function:n};{operand}',
+            http=query.response.status_code,
+            code=getattr(query.response, 'error_code', ''),
+            error=getattr(query.response, 'error_message', ''),
+            entityset=query.dictionary['entity_set'],
+            property=proprty,
+            logical=logical['name'],
+            operator=part['operator'],
+            function=func,
+            operand=part['operand']
+        ))
 
 
 class Selector(object):
@@ -922,9 +924,3 @@ def print_tests_num():
     sys.stdout.write('Generated tests: {} | Failed tests: {} \r'
                      .format(Stats.tests_num, Stats.fails_num))
     sys.stdout.flush()
-
-
-def none_to_str(string):
-    if string is None:
-        return ''
-    return str(string)

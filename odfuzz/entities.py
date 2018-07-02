@@ -1338,10 +1338,14 @@ class AccessibleEntity(object):
 
     def _generate_addressable_path(self):
         if self._containing_entity_name:
-            path = self._containing_entity_name + '(' + self._generate_key_pairs() + ')' + '/' + self._entity_set_name
+            path = self._containing_entity_name + self._build_key_values() + '/' + self._entity_set_name
         else:
-            path = self._entity_set_name + '(' + self._generate_key_pairs() + ')'
+            path = self._entity_set_name + self._build_key_values()
         return path
+
+    def _build_key_values(self):
+        key_values = '(' + self._generate_key_pairs() + ')'
+        return key_values
 
     def _generate_key_pairs(self):
         entity_path = ''

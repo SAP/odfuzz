@@ -1,10 +1,28 @@
 """This module contains functions for initializing loggers"""
 
 import os
+import string
 import logging.config
 
-
 from odfuzz.constants import FUZZER_LOGGER, STATS_LOGGER, FILTER_LOGGER, CONFIG_PATH
+
+NONE_TYPE_POSSIBLE = 'n'
+
+
+class LogFormatter(string.Formatter):
+    def format_field(self, value, format_spec):
+        if format_spec == NONE_TYPE_POSSIBLE:
+            normalized_value = none_to_str(value)
+            return normalized_value
+        else:
+            return super().format_field(value, format_spec)
+
+
+def none_to_str(value):
+    if value is None:
+        return ''
+    else:
+        return str(value)
 
 
 def init_loggers(logs_directory, stats_directory):
