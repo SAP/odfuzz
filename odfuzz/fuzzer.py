@@ -11,6 +11,7 @@ import requests.adapters
 
 from copy import deepcopy
 from datetime import datetime
+from abc import ABCMeta, abstractmethod
 from lxml import etree
 from gevent.pool import Pool
 from bson.objectid import ObjectId
@@ -113,6 +114,7 @@ class Fuzzer(object):
                               .format(queryable.entity_set.name, seed_range))
             for _ in range(seed_range):
                 queries = self._generate(queryable)
+                self._analyze_queries(queries)
                 self._save_queries(queries)
 
     def evolve_population(self):
@@ -122,16 +124,18 @@ class Fuzzer(object):
             if selection.crossable:
                 self._logger.info('Crossing parents...')
                 queries = self._crossover(selection.crossable, selection.queryable)
+                analyzed_queries = self._analyze_queries(queries)
+                self._remove_weak_queries(analyzed_queries, queries)
             else:
                 self._logger.info('Generating new queries...')
                 queries = self._generate(selection.queryable)
+                self._analyze_queries(queries)
+                self._slay_weakest_individuals(len(queries))
             self._save_queries(queries)
-            self._slay_weak_individuals(selection.score_average, len(queries))
 
     def _save_queries(self, queries):
         self._log_stats(queries)
         self._log_filter(queries)
-        self._evaluate_queries(queries)
         self._save_to_database(queries)
         print_tests_num()
 
@@ -178,6 +182,7 @@ class Fuzzer(object):
                 entity_data_to_be_mutated = crossable_selection[0]
                 self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
                 query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
+                query.add_predecessor(entity_data_to_be_mutated['_id'])
                 query.build_string()
                 children.append(query)
                 Stats.tests_num += 1
@@ -210,6 +215,7 @@ class Fuzzer(object):
             entity_data_to_be_mutated = crossable_selection[0]
             self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
             query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
+            query.add_predecessor(entity_data_to_be_mutated['_id'])
             query.build_string()
             Stats.tests_num += 1
             Stats.created_by_mutation += 1
@@ -359,20 +365,22 @@ class Fuzzer(object):
             self._set_error_attributes(query)
             Stats.fails_num += 1
 
-    def _evaluate_queries(self, queries):
-        for query in queries[:]:
-            analysis = self._analyzer.analyze(query)
-            if analysis.killable:
-                queries.remove(query)
+    def _analyze_queries(self, queries):
+        analyzed_offsprings = []
+        for query in queries:
+            analyzed_offsprings.append(self._analyzer.analyze(query))
+        return analyzed_offsprings
+
+    def _remove_weak_queries(self, analyzed_offsprings, queries):
+        for offspring in analyzed_offsprings:
+            offspring.slay_weak_individual(self._mongodb, queries)
+
+    def _slay_weakest_individuals(self, number_of_individuals):
+        self._mongodb.remove_weakest_queries(number_of_individuals)
 
     def _save_to_database(self, queries):
         for query in queries:
             self._mongodb.save_document(query.dictionary)
-
-    def _slay_weak_individuals(self, score_average, number):
-        if number:
-            Stats.removed_num += number
-            self._mongodb.remove_weak_queries(score_average, number)
 
     def _set_error_attributes(self, query):
         self._set_attribute_value(query, 'error_code', 'error', 'code')
@@ -585,17 +593,18 @@ class Analyzer(object):
         new_score = FitnessEvaluator.evaluate(query)
         query.score = new_score
         self._update_population_score(new_score)
-        if not self._has_offspring_good_score(query.dictionary['predecessors'], new_score):
-            return AnalysisInfo(new_score, True, self._population_score)
-        return AnalysisInfo(new_score, False, self._population_score)
+        predecessors_ids = query.dictionary['predecessors']
+        if predecessors_ids:
+            offspring = self._build_offspring_by_score(predecessors_ids, query, new_score)
+        else:
+            offspring = EmptyOffspring()
+        return offspring
 
-    def _has_offspring_good_score(self, predecessors_id, new_score):
-        if predecessors_id:
-            for predecessor_id in predecessors_id:
-                if self._mongodb.query_by_id(predecessor_id)['score'] < new_score:
-                    return True
-            return False
-        return True
+    def _build_offspring_by_score(self, predecessors_id, query, new_score):
+        for predecessor_id in predecessors_id:
+            if self._mongodb.query_by_id(predecessor_id)['score'] < new_score:
+                return BetterOffspring(predecessor_id)
+        return WorseOffspring(query)
 
     def _update_population_score(self, query_score):
         if self._population_score == 0:
@@ -604,25 +613,50 @@ class Analyzer(object):
             self._population_score += query_score
 
 
-class AnalysisInfo(object):
-    """A set of basic information about performed analysis."""
+class Offspring(metaclass=ABCMeta):
+    @abstractmethod
+    def slay_weak_individual(self, mongodb, queries):
+        pass
 
-    def __init__(self, score, killable, population_score):
-        self._score = score
-        self._killable = killable
-        self._population_score = population_score
+    @abstractmethod
+    def get_number_of_slayed(self):
+        pass
 
-    @property
-    def score(self):
-        return self._score
 
-    @property
-    def killable(self):
-        return self._killable
+class BetterOffspring(Offspring):
+    def __init__(self, worse_predecessor_id):
+        self._worse_predecessor_id = worse_predecessor_id
+        self._slayed = 0
 
-    @property
-    def population_score(self):
-        return self._population_score
+    def slay_weak_individual(self, mongodb, queries):
+        deleted_num = mongodb.remove_by_id(self._worse_predecessor_id)
+        if deleted_num == 0:
+            mongodb.remove_weakest_queries(1)
+        self._slayed = 1
+
+    def get_number_of_slayed(self):
+        return self._slayed
+
+
+class WorseOffspring(Offspring):
+    def __init__(self, offspring):
+        self._offspring = offspring
+        self._slayed = 0
+
+    def slay_weak_individual(self, mongodb, queries):
+        queries.remove(self._offspring)
+        self._slayed = 1
+
+    def get_number_of_slayed(self):
+        return self._slayed
+
+
+class EmptyOffspring(Offspring):
+    def slay_weak_individual(self, mongodb, queries):
+        mongodb.remove_weakest_queries(1)
+
+    def get_number_of_slayed(self):
+        return 1
 
 
 class FitnessEvaluator(object):

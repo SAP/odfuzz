@@ -73,6 +73,14 @@ class MongoClient(object):
         for query in cursor:
             self._collection.remove({'_id': query['_id']})
 
+    def remove_weakest_queries(self, number):
+        cursor = self._collection.find().sort('score', pymongo.ASCENDING).limit(number)
+
+        ids_to_remove = []
+        for query in cursor:
+            ids_to_remove.append(query['_id'])
+        self._collection.delete_many({'_id': {'$in': ids_to_remove}})
+
     def existing_entities(self):
         cursor = self._collection.aggregate(
             [
@@ -90,3 +98,7 @@ class MongoClient(object):
         cursor = self._collection.find({'entity_set': entity_set_name,
                                         'http': '500'}).sort([('score', -1)]).limit(queries_num)
         return list(cursor)
+
+    def remove_by_id(self, query_id):
+        result = self._collection.delete_one({'_id': query_id})
+        return result.deleted_count
