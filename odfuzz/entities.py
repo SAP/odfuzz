@@ -1286,17 +1286,17 @@ class NonAddressableEntity(EntitySet):
     def get_queryable_entity(self):
         if random.random() > EMPTY_ENTITY_PROB:
             if self.has_containing_entities() and random.random() < ASSOCIATED_ENTITY_PROB:
-                containing_entity = random.choice(self._principal_entities)
-                principal_entity = containing_entity
+                containing_entity_set = random.choice(self._principal_entities)
+                principal_entity_set = containing_entity_set
             else:
-                containing_entity = self._entity_set.entity_type
-                principal_entity = NullEntity('')
-            key_pairs = generate_accessible_entity_key_values(containing_entity)
+                containing_entity_set = self._entity_set
+                principal_entity_set = NullEntity('')
+            key_pairs = generate_accessible_entity_key_values(containing_entity_set)
         else:
-            principal_entity = NullEntity('')
+            principal_entity_set = NullEntity('')
             key_pairs = {}
 
-        accessible_entity = AccessibleEntity(self._entity_set.name, key_pairs, principal_entity.name)
+        accessible_entity = AccessibleEntity(self._entity_set.name, key_pairs, principal_entity_set.name)
         return accessible_entity
 
     def has_containing_entities(self):
@@ -1409,18 +1409,19 @@ def remove_logical_from_group(option_value, group_id, logical_id):
 
 def get_principal_entities(data_model, entity_set):
     principal_entities = []
-    for association in data_model.associations:
-        for end in association.end_roles:
-            if end.entity_type_info == entity_set.entity_type_info:
-                principal = getattr(association.referential_constraint, 'principal', None)
+    for association_set in data_model.association_sets:
+        for end in association_set.ends:
+            if end.entity_set.name == entity_set.name:
+                association_type = association_set.association_type
+                principal = getattr(association_type.referential_constraint, 'principal', None)
                 if principal:
-                    principal_entities.append(association.end_by_role(principal.name).entity_type)
+                    principal_entities.append(end.entity_set)
     return principal_entities
 
 
-def generate_accessible_entity_key_values(containing_entity):
+def generate_accessible_entity_key_values(containing_entity_set):
     key_pairs = {}
-    for proprty in containing_entity.key_proprties:
+    for proprty in containing_entity_set.entity_type.key_proprties:
         key_pairs[proprty.name] = proprty.generate()
     return key_pairs
 

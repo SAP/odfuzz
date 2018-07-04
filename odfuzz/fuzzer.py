@@ -194,12 +194,12 @@ class Fuzzer(object):
         keys_list = list(accessible_keys.items())
         key_values = random.sample(keys_list, round((random.random() * (len(keys_list) - 1)) + 1))
         if entity_data['accessible_set']:
-            accessible_entity = queryable.principal_entity(entity_data['accessible_set'])
+            accessible_entity_set = queryable.principal_entity(entity_data['accessible_set'])
         else:
-            accessible_entity = queryable.entity_set.entity_type
+            accessible_entity_set = queryable.entity_set
 
         for proprty_name, value in key_values:
-            accessible_keys[proprty_name] = '\'' + accessible_entity.proprty(proprty_name) \
+            accessible_keys[proprty_name] = '\'' + accessible_entity_set.entity_type.proprty(proprty_name) \
                 .mutate(value[1:-1]) + '\''
 
     def _crossover_single(self, crossable_selection, queryable):
