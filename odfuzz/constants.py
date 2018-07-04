@@ -1,9 +1,16 @@
 """This module contains global constants."""
 
-FUZZER_LOGGER = 'odfuzz'
+FUZZER_LOGS_NAME = 'logs'
+STATS_LOGS_NAME = 'stats_overall'
+FILTER_LOGS_NAME = 'stats_filter'
+RUNTIME_FILE_NAME = 'runtime_info.txt'
+CONFIG_PATH = 'config/logging/logging.conf'
+
+# this set of constants must be equal to the corresponding
+# logger keys defined in the CONFIG_PATH
+FUZZER_LOGGER = 'fuzzer'
 STATS_LOGGER = 'stats'
 FILTER_LOGGER = 'filter'
-CONFIG_PATH = 'config/logging/logging.conf'
 
 MONGODB_NAME = 'odfuzz'
 MONGODB_COLLECTION = 'entities'
@@ -43,7 +50,7 @@ KEY_VALUES_MUTATION_PROB = 0.05
 ASSOCIATED_ENTITY_PROB = 0.2
 RECURSION_LIMIT = 3
 
-SEED_POPULATION = 100
+SEED_POPULATION = 10
 # pool size may be limited on some OData services
 # and should be a factor of seed population size
 POOL_SIZE = 10
@@ -59,9 +66,7 @@ ELITE_PROB = 0.7
 FILTER_DEL_PROB = 0.3
 ORDERBY_DEL_PROB = 0.1
 OPTION_DEL_PROB = 0.1
-
 TOP_ENTITIES = 20
-OVERALL_FILE = 'overall.txt'
 
 # this requirement is used in various SAP applications due to system checks;
 # while testing the casual OData service, please, leave the string empty

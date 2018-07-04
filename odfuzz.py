@@ -34,6 +34,8 @@ from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers
 from odfuzz.exceptions import ArgParserError, ODfuzzException
 
+Directories = namedtuple('directories', 'logs stats')
+
 
 def main():
     set_signal_handler()
@@ -72,12 +74,15 @@ def init_logging(arguments):
 
 def create_directories(logs_directory, stats_directory):
     logs_path = build_directory_path(logs_directory)
-    stats_path = build_directory_path(stats_directory)
     make_directory(logs_path)
-    make_directory(stats_path)
 
-    directories = namedtuple('directories', 'logs stats')
-    return directories(logs_path, stats_path)
+    if logs_directory == stats_directory:
+        stats_path = logs_path
+    else:
+        stats_path = build_directory_path(stats_directory)
+        make_directory(stats_path)
+
+    return Directories(logs_path, stats_path)
 
 
 def build_directory_path(directory):

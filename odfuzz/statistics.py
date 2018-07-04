@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 
 from odfuzz.mongos import MongoClient
-from odfuzz.constants import TOP_ENTITIES, OVERALL_FILE
+from odfuzz.constants import TOP_ENTITIES, RUNTIME_FILE_NAME
 
 
 class Stats(object):
@@ -28,7 +28,7 @@ class StatsPrinter(object):
 
     def write(self):
         self._write_sorted_entities()
-        self._write_overall_stats()
+        self._write_runtime_stats()
 
     def _write_sorted_entities(self):
         for entity in self._mongodb.existing_entities():
@@ -38,8 +38,8 @@ class StatsPrinter(object):
                     info_line = query['http'] + ':' + query['error_code'] + ':' + query['string'] + '\n'
                     entity_file.write(info_line)
 
-    def _write_overall_stats(self):
-        file_path = os.path.join(self._stats.directory, OVERALL_FILE)
+    def _write_runtime_stats(self):
+        file_path = os.path.join(self._stats.directory, RUNTIME_FILE_NAME)
         formatted_output = (
             'Generated tests: ' + str(self._stats.tests_num) + '\n'
             'Failed tests: ' + str(self._stats.fails_num) + '\n'
