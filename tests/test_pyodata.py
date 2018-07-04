@@ -68,8 +68,11 @@ def test_master_to_data_association_set_parsing(schema):
     association_set_end_roles = [end.role for end in master_to_data_association_set.ends]
     assert set(association_set_end_roles) == {'FromRole_toDataEntity', 'ToRole_toDataEntity'}
 
-    association_set_end_entity_sets = [end.entity_set for end in master_to_data_association_set.ends]
+    association_set_end_entity_sets = [end.entity_set_name for end in master_to_data_association_set.ends]
     assert set(association_set_end_entity_sets) == {'MasterSet', 'DataSet'}
+
+    entity_set_references = [end.entity_set.name for end in master_to_data_association_set.ends]
+    assert set(entity_set_references) == {'MasterSet', 'DataSet'}
 
 
 def test_master_to_master_association_set_parsing(schema):
@@ -78,5 +81,8 @@ def test_master_to_master_association_set_parsing(schema):
     association_set_end_roles = [end.role for end in master_to_master_association_set.ends]
     assert set(association_set_end_roles) == {'FromRole_toMasterEntity', 'ToRole_toMasterEntity'}
 
-    association_set_end_entity_sets = [end.entity_set for end in master_to_master_association_set.ends]
+    association_set_end_entity_sets = [end.entity_set_name for end in master_to_master_association_set.ends]
     assert set(association_set_end_entity_sets) == {'MasterSet', 'MasterSet'}
+
+    entity_set_references = [end.entity_set.name for end in master_to_master_association_set.ends]
+    assert set(entity_set_references) == {'MasterSet', 'MasterSet'}

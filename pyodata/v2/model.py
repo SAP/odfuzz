@@ -887,10 +887,10 @@ class Schema(object):
                 for end in assoc_set.ends:
                     # Check if entity set exists in current scheme
                     try:
-                        schema.entity_set(end.entity_set, namespace)
+                        end.entity_set = schema.entity_set(end.entity_set_name, namespace)
                     except KeyError:
                         raise PyODataModelError('EntitySet {} does not exist in Schema Namespace {}'
-                                                .format(end.entity_set, namespace))
+                                                .format(end.entity_set_name, namespace))
                     # Check if role is defined in Association
                     if assoc_set.association_type.end_by_role(end.role) is None:
                         raise PyODataModelError('Role {} is not defined in association {}'
@@ -1396,9 +1396,10 @@ class EndRole(object):
 
 
 class AssociationSetEnd(object):
-    def __init__(self, role, entity_set):
+    def __init__(self, role, entity_set_name):
         self._role = role
-        self._entity_set = entity_set
+        self._entity_set_name = entity_set_name
+        self._entity_set = None
 
     def __repr__(self):
         return "{0}({1})".format(self.__class__.__name__, self.role)
@@ -1408,8 +1409,18 @@ class AssociationSetEnd(object):
         return self._role
 
     @property
+    def entity_set_name(self):
+        return self._entity_set_name
+
+    @property
     def entity_set(self):
         return self._entity_set
+
+    @entity_set.setter
+    def entity_set(self, value):
+        if self._entity_set:
+            raise PyODataModelError('Cannot replace {0} of {1} to {2}'.format(self._entity_set, self, value))
+        self._entity_set = value
 
     @staticmethod
     def from_etree(end_node):
