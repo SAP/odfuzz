@@ -83,12 +83,6 @@ class Fuzzer(object):
         Stats.tests_num = 0
         Stats.fails_num = 0
 
-        self._query_appendix = ''
-        if CLIENT:
-            self._query_appendix += '&' + CLIENT
-        if FORMAT:
-            self._query_appendix += '&' + FORMAT
-
     def run(self):
         time_seed = datetime.now()
         random.seed(time_seed, version=1)
@@ -360,7 +354,7 @@ class Fuzzer(object):
             sys.exit(0)
 
     def _get_single_response(self, query):
-        query.response = self._dispatcher.get(query.query_string + self._query_appendix)
+        query.response = self._dispatcher.get(query.query_string)
         if query.response.status_code != 200:
             self._set_error_attributes(query)
             Stats.fails_num += 1
