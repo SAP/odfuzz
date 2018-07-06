@@ -1410,13 +1410,39 @@ def remove_logical_from_group(option_value, group_id, logical_id):
 def get_principal_entities(data_model, entity_set):
     principal_entities = []
     for association_set in data_model.association_sets:
+        principal_entity = get_principal_from_ends(association_set, entity_set)
+        if principal_entity:
+            principal_entities.append(principal_entity)
+    return principal_entities
+
+
+def get_principal_from_ends(association_set, entity_set):
+    principal_entity = None
+    if may_contain_principal_entity(association_set):
+        index = 0
         for end in association_set.ends:
             if end.entity_set.name == entity_set.name:
-                association_type = association_set.association_type
-                principal = getattr(association_type.referential_constraint, 'principal', None)
-                if principal:
-                    principal_entities.append(end.entity_set)
-    return principal_entities
+                principal_entity_index = index ^ 1
+                principal_entity = get_principal_entity_set(association_set, principal_entity_index)
+                break
+            index += 1
+    return principal_entity
+
+
+def may_contain_principal_entity(association_set):
+    if len(association_set.ends) == 2:
+        return True
+    else:
+        return False
+
+
+def get_principal_entity_set(association_set, index):
+    principal_entity = None
+    principal_end = association_set.ends[index]
+    principal = getattr(association_set.association_type.referential_constraint, 'principal', None)
+    if principal and principal.name == principal_end.role:
+        principal_entity = principal_end.entity_set
+    return principal_entity
 
 
 def generate_accessible_entity_key_values(containing_entity_set):
