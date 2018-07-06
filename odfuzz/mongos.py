@@ -2,18 +2,36 @@
 
 import sys
 import logging
+import random
+import uuid
 import pymongo
 import pymongo.errors
 
-from odfuzz.constants import MONGODB_NAME, MONGODB_COLLECTION, PARTS_NUM
+from odfuzz.constants import MONGODB_NAME, PARTS_NUM
+
+
+class CollectionCreator(object):
+    def __init__(self, service_name):
+        self._service_name = service_name
+        self._collection_name = None
+
+    def create(self):
+        random_uuid = str(uuid.UUID(int=random.getrandbits(128), version=4))
+        self._collection_name = '{}-{}'.format(self._service_name, random_uuid)
+        return self._collection_name
+
+    def get_cached(self):
+        return self._collection_name
 
 
 class MongoClient(object):
     """A NoSQL database client."""
 
-    def __init__(self):
+    def __init__(self, collection_name):
         self._mongodb = pymongo.MongoClient()
-        self._collection = self._mongodb[MONGODB_NAME][MONGODB_COLLECTION]
+
+        logging.info('mongoDB collection set to {}'.format(collection_name))
+        self._collection = self._mongodb[MONGODB_NAME][collection_name]
 
     @property
     def collection(self):

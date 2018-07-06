@@ -4,6 +4,7 @@ import random
 import io
 import os
 import sys
+import uuid
 import logging
 import operator
 import requests
@@ -35,7 +36,7 @@ from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER
 class Manager(object):
     """A class for managing the fuzzer runtime."""
 
-    def __init__(self, arguments):
+    def __init__(self, arguments, collection_name):
         self._dispatcher = Dispatcher(arguments.service)
         self._async = getattr(arguments, 'async')
 
@@ -45,20 +46,22 @@ class Manager(object):
         else:
             self._restrictions = None
 
+        self._collection_name = collection_name
+
     def start(self):
         print('Initializing queryable entities...')
         builder = Builder(self._dispatcher, self._restrictions)
         entities = builder.build()
 
         print('Fuzzing...')
-        fuzzer = Fuzzer(self._dispatcher, entities, async=self._async)
+        fuzzer = Fuzzer(self._dispatcher, entities, self._collection_name, async=self._async)
         fuzzer.run()
 
 
 class Fuzzer(object):
     """A main class that initiates a fuzzing process."""
 
-    def __init__(self, dispatcher, entities, **kwargs):
+    def __init__(self, dispatcher, entities, collection_name, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._stats_logger = logging.getLogger(STATS_LOGGER)
         self._filter_logger = logging.getLogger(FILTER_LOGGER)
@@ -68,7 +71,8 @@ class Fuzzer(object):
 
         self._dispatcher = dispatcher
         self._entities = entities
-        self._mongodb = MongoClient()
+        self._collection_name = collection_name
+        self._mongodb = MongoClient(collection_name)
         self._analyzer = Analyzer(self._mongodb)
         self._selector = Selector(self._mongodb, self._entities)
 
@@ -349,9 +353,9 @@ class Fuzzer(object):
         try:
             pool.join(raise_error=True)
         except Exception:
-            stats = StatsPrinter()
+            stats = StatsPrinter(self._collection_name)
             stats.write()
-            sys.exit(0)
+            sys.exit(1)
 
     def _get_single_response(self, query):
         query.response = self._dispatcher.get(query.query_string)

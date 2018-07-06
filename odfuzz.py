@@ -20,26 +20,20 @@ monkey.patch_all()
 import sys
 import signal
 import logging
-import uuid
-import os
-import errno
 import gevent
 
-from collections import namedtuple
 from datetime import datetime
+from functools import partial
 
 from odfuzz.arguments import ArgParser
 from odfuzz.fuzzer import Manager
 from odfuzz.statistics import Stats, StatsPrinter
-from odfuzz.loggers import init_loggers
+from odfuzz.loggers import init_loggers, DirectoriesCreator
+from odfuzz.mongos import CollectionCreator
 from odfuzz.exceptions import ArgParserError, ODfuzzException
-
-Directories = namedtuple('directories', 'logs stats')
 
 
 def main():
-    set_signal_handler()
-
     arg_parser = ArgParser()
     arguments = get_arguments()
     try:
@@ -49,16 +43,15 @@ def main():
 
     init_logging(parsed_arguments)
 
-    manager = Manager(parsed_arguments)
+    collection_name = create_collection_name(parsed_arguments)
+    set_signal_handler(collection_name)
+
+    manager = Manager(parsed_arguments, collection_name)
     try:
         manager.start()
     except ODfuzzException as fuzzer_ex:
         sys.stderr.write(str(fuzzer_ex))
         sys.exit(1)
-
-
-def set_signal_handler():
-    gevent.signal(signal.SIGINT, signal_handler)
 
 
 def get_arguments():
@@ -67,41 +60,10 @@ def get_arguments():
 
 
 def init_logging(arguments):
-    directories = create_directories(arguments.logs, arguments.stats)
+    directories_creator = DirectoriesCreator(arguments.logs, arguments.stats)
+    directories = directories_creator.create()
     init_basic_stats(directories.stats)
     init_loggers(directories.logs, directories.stats)
-
-
-def create_directories(logs_directory, stats_directory):
-    logs_path = build_directory_path(logs_directory)
-    make_directory(logs_path)
-
-    if logs_directory == stats_directory:
-        stats_path = logs_path
-    else:
-        stats_path = build_directory_path(stats_directory)
-        make_directory(stats_path)
-
-    return Directories(logs_path, stats_path)
-
-
-def build_directory_path(directory):
-    if directory is None:
-        directory = os.getcwd()
-
-    subdirectory = '{}_{}'.format(datetime.now().strftime('%Y-%m-%dT%H-%M-%S'), str(uuid.uuid1()))
-    result_directory = os.path.join(directory, subdirectory)
-    if os.name == 'nt':
-        result_directory = str(result_directory).replace('\\', '\\\\')
-    return result_directory
-
-
-def make_directory(directory):
-    try:
-        os.makedirs(directory)
-    except OSError as os_ex:
-        if os_ex != errno.EEXIST:
-            raise RuntimeError('Cannot create directory \'{}\''.format(directory))
 
 
 def init_basic_stats(stats_directory):
@@ -109,9 +71,20 @@ def init_basic_stats(stats_directory):
     Stats.start_datetime = datetime.now()
 
 
-def signal_handler():
+def create_collection_name(parsed_arguments):
+    service_name = parsed_arguments.service.rstrip('/').rsplit('/', 1)[1]
+    collection_creator = CollectionCreator(service_name)
+    collection_name = collection_creator.create()
+    return collection_name
+
+
+def set_signal_handler(db_collection_name):
+    gevent.signal(signal.SIGINT, partial(signal_handler, db_collection_name))
+
+
+def signal_handler(db_collection_name):
     logging.info('Program interrupted with SIGINT. Exiting...')
-    stats = StatsPrinter()
+    stats = StatsPrinter(db_collection_name)
     stats.write()
     sys.exit(0)
 

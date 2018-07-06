@@ -13,7 +13,6 @@ STATS_LOGGER = 'stats'
 FILTER_LOGGER = 'filter'
 
 MONGODB_NAME = 'odfuzz'
-MONGODB_COLLECTION = 'entities'
 
 CLIENT = 'sap-client=500'
 FORMAT = '$format=json'
@@ -50,7 +49,7 @@ KEY_VALUES_MUTATION_PROB = 0.05
 ASSOCIATED_ENTITY_PROB = 0.2
 RECURSION_LIMIT = 3
 
-SEED_POPULATION = 10
+SEED_POPULATION = 100
 # pool size may be limited on some OData services
 # and should be a factor of seed population size
 POOL_SIZE = 10

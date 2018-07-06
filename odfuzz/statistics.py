@@ -22,8 +22,8 @@ class Stats(object):
 class StatsPrinter(object):
     """A printer that writes all statistics to the defined output."""
 
-    def __init__(self):
-        self._mongodb = MongoClient()
+    def __init__(self, collection_name):
+        self._mongodb = MongoClient(collection_name)
         self._stats = Stats()
 
     def write(self):
