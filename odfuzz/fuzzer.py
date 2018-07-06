@@ -4,7 +4,6 @@ import random
 import io
 import os
 import sys
-import uuid
 import logging
 import operator
 import requests
@@ -239,7 +238,7 @@ class Fuzzer(object):
 
     def _mutate_query(self, query, queryable):
         option_name, option_value = random.choice(list(query.options.items()))
-        if len(query.order) > 1 and random.random() < OPTION_DEL_PROB:
+        if query.is_option_deletable(option_name) and len(query.order) > 1 and random.random() < OPTION_DEL_PROB:
             query.delete_option(option_name)
         else:
             self._mutate_option(queryable, query, option_name, option_value)
@@ -783,6 +782,12 @@ class Query(object):
     @accessible_entity.setter
     def accessible_entity(self, value):
         self._accessible_entity = value
+
+    def is_option_deletable(self, name):
+        if name == FILTER and self._special_filter:
+            return False
+        else:
+            return True
 
     def add_option(self, name, option):
         self._options[name] = option
