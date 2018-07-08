@@ -18,8 +18,6 @@ Exclude
 			round
 			floor
 			ceiling
-		$E_ALL$
-			FileForRecognitionSet
 		C_IncomingPaymentFile
 			mimeType
 	$orderby

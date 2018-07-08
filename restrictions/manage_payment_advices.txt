@@ -1,0 +1,32 @@
+Exclude
+	$filter
+		$F_ALL$
+			concat
+			length
+			tolower
+			toupper
+			trim
+			replace
+			indexof
+			substring
+			day
+			hour
+			minute
+			month
+			second
+			year
+			round
+			floor
+			ceiling
+		$P_ALL$
+			Language
+		C_PaymentAdviceItem
+			FiscalYear
+Include
+	$DRAFT$
+		C_PaymentAdvice
+			IsActiveEntity
+		C_PaymentAdviceItem
+			IsActiveEntity
+		C_PaymentAdviceSubItem
+			IsActiveEntity
