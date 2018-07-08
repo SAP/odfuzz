@@ -17,7 +17,7 @@ from odfuzz.monkey import patch_proprties
 from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, ORDERBY, TOP, SKIP, STRING_FUNC_PROB, \
     MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
     BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB, GLOBAL_PROPRTY, \
-    INT_MAX, ASSOCIATED_ENTITY_PROB, EMPTY_ENTITY_PROB
+    INT_MAX, ASSOCIATED_ENTITY_PROB, EMPTY_ENTITY_PROB, DRAFT_OBJECTS
 
 NullEntity = namedtuple('NullEntity', 'name')
 
@@ -152,21 +152,29 @@ class QueryGroup(object):
     def _init_filter_query(self):
         option_restr = self._get_restrictions(FILTER)
         if option_restr.restr:
-            entity_set = self._delete_restricted_proprties(option_restr.restr.exclude, 'filterable')
+            exclude_restrictions = option_restr.restr.exclude
+            draft_restrictions = self._restrictions.restriction(DRAFT_OBJECTS)
+            draft_properties = get_draft_properties(self._entity_set.name, draft_restrictions)
+            needs_filter = True
         else:
-            entity_set = self._entity_set
+            exclude_restrictions = []
+            draft_properties = []
+            needs_filter = self._entity_set.requires_filter
+        entity_set = self._delete_restricted_proprties(exclude_restrictions, 'filterable', draft_properties)
+        self._entity_set.req_filter = entity_set._req_filter = needs_filter
 
-        if option_restr.is_not_restricted and entity_set.entity_type.proprties():
+        if option_restr.is_not_restricted and entity_set.entity_type.proprties() or draft_properties:
             patch_proprties(entity_set)
-            self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr)
+            self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr, draft_properties)
             self._add_filter_option_to_list(entity_set)
 
     def _init_orderby_query(self):
         option_restr = self._get_restrictions(ORDERBY)
         if option_restr.restr:
-            entity_set = self._delete_restricted_proprties(option_restr.restr.exclude, 'sortable')
+            exclude_restrictions = option_restr.restr.exclude
         else:
-            entity_set = self._entity_set
+            exclude_restrictions = []
+        entity_set = self._delete_restricted_proprties(exclude_restrictions, 'sortable', [])
 
         if option_restr.is_not_restricted and entity_set.entity_type.proprties():
             self._query_options[ORDERBY] = OrderbyQuery(entity_set, option_restr.restr)
@@ -197,7 +205,7 @@ class QueryGroup(object):
                 return False
         return True
 
-    def _delete_restricted_proprties(self, exclude_restr, attribute):
+    def _delete_restricted_proprties(self, exclude_restr, attribute, draft_proprties):
         entity_set = copy.deepcopy(self._entity_set)
         if exclude_restr:
             restr_proprty_list = exclude_restr.get(self._entity_set.name, [])
@@ -206,7 +214,8 @@ class QueryGroup(object):
             restr_proprty_list = []
 
         for proprty in self._entity_set.entity_type.proprties():
-            if proprty.name in restr_proprty_list or not getattr(proprty, attribute):
+            if (proprty.name in restr_proprty_list or not getattr(proprty, attribute)) \
+                    and proprty.name not in draft_proprties:
                 del entity_set.entity_type._properties[proprty.name]
 
         return entity_set
@@ -386,7 +395,7 @@ class SkipQuery(QueryOption):
 class FilterQuery(QueryOption):
     """The $filter query option."""
 
-    def __init__(self, entity, restrictions):
+    def __init__(self, entity, restrictions, draft_properties):
         super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions)
         self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions)
 
@@ -399,6 +408,16 @@ class FilterQuery(QueryOption):
         self._filterable_proprties = None
         self._restricted_proprties = None
 
+        if draft_properties:
+            self._generate_draft = self._generate_property_for_draft_first
+            self._draft_proprty = self.entity_set.entity_type.proprty(draft_properties[0])
+            # only 'eq' operator is allowed for fetching draft entities,
+            # otherwise the GETWA_NOT_ASSIGNED runtime error is raised
+            self._draft_proprty.operators['ne'] = 0.0
+            self._draft_proprty.operators['eq'] = 1.0
+        else:
+            self._generate_draft = self._generate_normal_string
+
     def apply_restrictions(self):
         pass
 
@@ -409,12 +428,7 @@ class FilterQuery(QueryOption):
             self._filterable_proprties = self._restricted_proprties
             self._generate_element()
         else:
-            if len(self._restricted_proprties) >= 1 and random.random() < SINGLE_VALUE_PROB:
-                self._option.add_part()
-                self._generate_proprty()
-            else:
-                self._delete_restricted_proprties()
-                self._noterm_expression()
+            self._generate_draft()
 
         self._option.reverse_logicals()
         self._option.option_string = self._option_string
@@ -436,7 +450,7 @@ class FilterQuery(QueryOption):
 
     def _delete_restricted_proprties(self):
         self._filterable_proprties[:] = [proprty for proprty in self._filterable_proprties
-                                      if proprty.filter_restriction != 'single-value']
+                                         if proprty.filter_restriction != 'single-value']
 
     def _has_single_restricted(self):
         for filterable_proprty in self._filterable_proprties:
@@ -568,6 +582,28 @@ class FilterQuery(QueryOption):
         if last_group:
             last_group['logicals'].append(last_logical['id'])
             last_logical['group_id'] = last_group['id']
+
+    def _generate_property_for_draft_first(self):
+        self._option.add_part()
+        self._option.last_part['replaceable'] = False
+
+        operand = self._draft_proprty.generate()
+        operator = weighted_random(self._draft_proprty.operators.items())
+        self._option_string += self._draft_proprty.name + ' ' + operator + ' ' + operand
+        self._update_proprty_part(self._draft_proprty.name, operator, operand)
+
+        self._delete_restricted_proprties()
+        if self._filterable_proprties:
+            self._noterm_logical()
+            self._noterm_parent()
+
+    def _generate_normal_string(self):
+        if len(self._restricted_proprties) >= 1 and random.random() < SINGLE_VALUE_PROB:
+            self._option.add_part()
+            self._generate_proprty()
+        else:
+            self._delete_restricted_proprties()
+            self._noterm_expression()
 
 
 class Option(metaclass=ABCMeta):
@@ -1274,7 +1310,7 @@ class AddressableEntity(EntitySet):
         super(AddressableEntity, self).__init__(entity_set, principal_entities)
 
     def get_queryable_entity(self):
-        accessible_entity = AccessibleEntity(self._entity_set.name, {}, '')
+        accessible_entity = AccessibleEntity(self._entity_set, {}, '')
         return accessible_entity
 
 
@@ -1296,7 +1332,7 @@ class NonAddressableEntity(EntitySet):
             principal_entity_set = NullEntity('')
             key_pairs = {}
 
-        accessible_entity = AccessibleEntity(self._entity_set.name, key_pairs, principal_entity_set.name)
+        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set.name)
         return accessible_entity
 
     def has_containing_entities(self):
@@ -1307,15 +1343,19 @@ class NonAddressableEntity(EntitySet):
 
 
 class AccessibleEntity(object):
-    def __init__(self, entity_set_name, key_pairs, containing_entity_name):
-        self._entity_set_name = entity_set_name
+    def __init__(self, entity_set, key_pairs, containing_entity_name):
+        self._entity_set = entity_set
         self._key_pairs = key_pairs
         self._containing_entity_name = containing_entity_name
         self._accessible_entity_path = ''
 
     @property
+    def entity_set(self):
+        return self._entity_set
+
+    @property
     def entity_set_name(self):
-        return self._entity_set_name
+        return self._entity_set.name
 
     @property
     def containing_entity_name(self):
@@ -1334,13 +1374,13 @@ class AccessibleEntity(object):
         if self._key_pairs:
             self._accessible_entity_path = self._generate_addressable_path()
         else:
-            self._accessible_entity_path = self._entity_set_name
+            self._accessible_entity_path = self._entity_set.name
 
     def _generate_addressable_path(self):
         if self._containing_entity_name:
-            path = self._containing_entity_name + self._build_key_values() + '/' + self._entity_set_name
+            path = self._containing_entity_name + self._build_key_values() + '/' + self._entity_set.name
         else:
-            path = self._entity_set_name + self._build_key_values()
+            path = self._entity_set.name + self._build_key_values()
         return path
 
     def _build_key_values(self):
@@ -1451,3 +1491,9 @@ def generate_accessible_entity_key_values(containing_entity_set):
         key_pairs[proprty.name] = proprty.generate()
     return key_pairs
 
+
+def get_draft_properties(entity_set_name, draft_objects):
+    draft_properties = []
+    if draft_objects:
+        draft_properties = draft_objects.get(entity_set_name, [])
+    return draft_properties

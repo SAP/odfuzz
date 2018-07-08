@@ -1,7 +1,7 @@
 """This module contains classes that convert restrictions to manageable objects."""
 
 from odfuzz.exceptions import RestrictionsError
-from odfuzz.constants import EXCLUDE, INCLUDE, QUERY_OPTIONS
+from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS
 
 
 class RestrictionsGroup(object):
@@ -9,6 +9,7 @@ class RestrictionsGroup(object):
 
     def __init__(self, restrictions_file):
         self._restrictions_file = restrictions_file
+        self._draft = {}
         self._restrictions = {}
         self._parse_restrictions()
 
@@ -46,6 +47,12 @@ class RestrictionsGroup(object):
             self._restrictions[query_option] = QueryRestrictions(
                 query_exclude_restr, query_include_restr
             )
+
+        self._init_draft_objects(include_restr)
+
+    def _init_draft_objects(self, include_restr):
+        if include_restr:
+            self._restrictions[DRAFT_OBJECTS] = include_restr.get(DRAFT_OBJECTS, {})
 
 
 class QueryRestrictions(object):

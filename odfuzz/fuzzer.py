@@ -48,6 +48,7 @@ class Manager(object):
         self._collection_name = collection_name
 
     def start(self):
+        print('Collection: {}'.format(self._collection_name))
         print('Initializing queryable entities...')
         builder = Builder(self._dispatcher, self._restrictions)
         entities = builder.build()
@@ -323,7 +324,9 @@ class Fuzzer(object):
         filter_option1 = query1['_$filter']
         filter_option2 = query2['_$filter']
 
-        part_to_replace = random.choice(filter_option1['parts'])
+        # properties that are not required for draft entities are replaceable by default
+        replaceable_parts = [part for part in filter_option1['parts'] if part.get('replaceable', True)]
+        part_to_replace = random.choice(replaceable_parts)
         replacing_part = random.choice(filter_option2['parts'])
 
         if 'func' in replacing_part:
@@ -784,7 +787,7 @@ class Query(object):
         self._accessible_entity = value
 
     def is_option_deletable(self, name):
-        if name == FILTER and self._special_filter:
+        if name == FILTER and self._special_filter or self._accessible_entity.entity_set.requires_filter:
             return False
         else:
             return True
