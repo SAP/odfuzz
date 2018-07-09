@@ -153,7 +153,7 @@ class QueryGroup(object):
         option_restr = self._get_restrictions(FILTER)
         if option_restr.restr:
             exclude_restrictions = option_restr.restr.exclude
-            draft_restrictions = self._restrictions.restriction(DRAFT_OBJECTS)
+            draft_restrictions = self._get_draft_restrictions()
             draft_properties = get_draft_properties(self._entity_set.name, draft_restrictions)
             needs_filter = True
         else:
@@ -161,12 +161,19 @@ class QueryGroup(object):
             draft_properties = []
             needs_filter = self._entity_set.requires_filter
         entity_set = self._delete_restricted_proprties(exclude_restrictions, 'filterable', draft_properties)
-        self._entity_set.req_filter = entity_set._req_filter = needs_filter
+        self._entity_set._req_filter = entity_set._req_filter = needs_filter
 
         if option_restr.is_not_restricted and entity_set.entity_type.proprties() or draft_properties:
             patch_proprties(entity_set)
             self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr, draft_properties)
             self._add_filter_option_to_list(entity_set)
+
+    def _get_draft_restrictions(self):
+        try:
+            draft_restrictions = self._restrictions.restriction(DRAFT_OBJECTS)
+        except KeyError:
+            draft_restrictions = None
+        return draft_restrictions
 
     def _init_orderby_query(self):
         option_restr = self._get_restrictions(ORDERBY)
