@@ -45,7 +45,7 @@ class Manager(object):
         else:
             self._restrictions = None
 
-        self._collection_name = collection_name
+        self._collection_name = 'FAR_MANAGE_PAYMENT_ADVICES_SRV-5bfc132e-0858-498a-8842-010457551d90'
 
     def start(self):
         print('Collection: {}'.format(self._collection_name))
@@ -71,6 +71,8 @@ class Fuzzer(object):
 
         self._dispatcher = dispatcher
         self._entities = entities
+
+        self._logger.info('mongoDB collection set to {}'.format(collection_name))
         self._collection_name = collection_name
         self._mongodb = MongoClient(collection_name)
         self._analyzer = Analyzer(self._mongodb)
@@ -281,7 +283,7 @@ class Fuzzer(object):
                     part['operand'] = self._mutate_value(StringMutator, self_mock,
                                                          part['operand'][1:-1])
                     part['operand'] = '\'' + part['operand'] + '\''
-                elif part['return_type'] == 'Edm.Int32':
+                elif part['return_type'].startswith('Edm.Int'):
                     part['operand'] = self._mutate_value(NumberMutator, part['operand'])
         else:
             proprty = queryable.query_option(option_name).entity_set.entity_type \
@@ -301,7 +303,7 @@ class Fuzzer(object):
         if string_value is not None:
             mutated_value = getattr(mutator_class, mutator)(value, string_value)
         else:
-            mutated_value = getattr(mutator_class, mutator)(value)
+            mutated_value = getattr(mutator_class, mutator)(None, value)
         return mutated_value
 
     def _get_mutators(self, mutators_class):

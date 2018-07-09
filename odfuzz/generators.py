@@ -90,13 +90,13 @@ class StringMutator(object):
 
 class NumberMutator(object):
     @staticmethod
-    def increment_value(string_number):
+    def increment_value(self, string_number):
         if not string_number:
             string_number = '0'
         return str(int(string_number) + 1)
 
     @staticmethod
-    def decrement_value(string_number):
+    def decrement_value(self, string_number):
         if not string_number:
             string_number = '0'
         value = int(string_number) - 1
@@ -105,14 +105,14 @@ class NumberMutator(object):
         return str(value)
 
     @staticmethod
-    def add_digit(string_number):
+    def add_digit(self, string_number):
         digit = round(random.random() * 9)
         position = round(random.random() * len(string_number))
         string_number = ''.join([string_number[:position], str(digit), string_number[position:]])
         return string_number
 
     @staticmethod
-    def delete_digit(string_number):
+    def delete_digit(self, string_number):
         if not string_number:
             return '0'
         if len(string_number) > 1:
