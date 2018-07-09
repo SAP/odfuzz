@@ -28,8 +28,7 @@ from odfuzz.loggers import LogFormatter
 from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
     STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
     ORDERBY, STATS_LOGGER, FILTER_CROSS_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
-    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV, SPECIAL_FILTER_REQUIREMENT, \
-    KEY_VALUES_MUTATION_PROB
+    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV, KEY_VALUES_MUTATION_PROB
 
 
 class Manager(object):
@@ -45,7 +44,7 @@ class Manager(object):
         else:
             self._restrictions = None
 
-        self._collection_name = 'FAR_MANAGE_PAYMENT_ADVICES_SRV-5bfc132e-0858-498a-8842-010457551d90'
+        self._collection_name = collection_name
 
     def start(self):
         print('Collection: {}'.format(self._collection_name))
@@ -722,10 +721,7 @@ class Query(object):
         self._response = None
         self._parts = 0
         self._id = ObjectId()
-        self._special_filter = None
         self._options_strings = {'$orderby': None, '$filter': None, '$skip': None, '$top': None}
-
-        self._init_special_filter()
 
     @property
     def entity_name(self):
@@ -789,7 +785,7 @@ class Query(object):
         self._accessible_entity = value
 
     def is_option_deletable(self, name):
-        if name == FILTER and self._special_filter or self._accessible_entity.entity_set.requires_filter:
+        if self._accessible_entity.entity_set.requires_filter:
             return False
         else:
             return True
@@ -811,7 +807,7 @@ class Query(object):
             if option_name.endswith('filter'):
                 filter_data = deepcopy(self._options[option_name[1:]])
                 replace_forbidden_characters(filter_data['parts'])
-                option_string = build_filter_string(filter_data) + self._special_filter
+                option_string = build_filter_string(filter_data)
             elif option_name.endswith('orderby'):
                 orderby_data = self._options[option_name[1:]]
                 orderby_option = OrderbyOption(orderby_data['proprties'], orderby_data['order'])
@@ -846,11 +842,6 @@ class Query(object):
             '_$skip': self._options.get(SKIP),
             '_$filter': self._options.get(FILTER)
         }
-
-    def _init_special_filter(self):
-        self._special_filter = SPECIAL_FILTER_REQUIREMENT.get(self._accessible_entity.entity_set_name)
-        if not self._special_filter:
-            self._special_filter = ''
 
     def _add_appendix(self):
         if CLIENT:

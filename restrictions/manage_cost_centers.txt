@@ -24,3 +24,7 @@ Exclude
 			Language
 		I_Language
 			Language
+Include
+	$DRAFT$
+		C_CostCenter
+			IsActiveEntity

@@ -50,10 +50,10 @@ KEY_VALUES_MUTATION_PROB = 0.05
 ASSOCIATED_ENTITY_PROB = 0.2
 RECURSION_LIMIT = 3
 
-SEED_POPULATION = 5
+SEED_POPULATION = 100
 # pool size may be limited on some OData services
 # and should be a factor of seed population size
-POOL_SIZE = 5
+POOL_SIZE = 20
 STRING_THRESHOLD = 200
 ITERATIONS_THRESHOLD = 30
 SCORE_THRESHOLD = 1000
@@ -67,11 +67,6 @@ FILTER_DEL_PROB = 0.3
 ORDERBY_DEL_PROB = 0.1
 OPTION_DEL_PROB = 0.1
 TOP_ENTITIES = 20
-
-# this requirement is used in various SAP applications due to system checks;
-# while testing the casual OData service, please, leave the string empty
-#SPECIAL_FILTER_REQUIREMENT = {}
-SPECIAL_FILTER_REQUIREMENT = {'C_CostCenter': ' and IsActiveEntity eq true'}
 
 CSV = 'HTTP;Code;Error;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter'
 CSV_FILTER = 'HTTP;Code;Error;EntitySet;Property;logical;operator;function;operand'
