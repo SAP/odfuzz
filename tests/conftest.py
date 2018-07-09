@@ -17,10 +17,13 @@ def metadata():
             <Key>
              <PropertyRef Name="Key"/>
             </Key>
-            <Property Name="Key" Type="Edm.String" Nullable="false" sap:unicode="false" sap:label="Key" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:value-list="standard"/>
+            <Property Name="Key" Type="Edm.String" MaxLength="5" Nullable="false" sap:unicode="false" sap:label="Key" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:value-list="standard"/>
             <Property Name="DataType" Type="Edm.String" Nullable="false" sap:unicode="false" sap:label="Key" sap:creatable="false" sap:updatable="false" sap:sortable="false"/>
             <Property Name="Data" Type="Edm.String" MaxLength="Max" Nullable="false" sap:unicode="false" sap:label="Data" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false" sap:text="DataName"/>
             <Property Name="DataName" Type="Edm.String" Nullable="false" sap:unicode="false" sap:label="Data" sap:creatable="false" sap:updatable="false" sap:sortable="false" sap:filterable="false"/>
+            <Property Name="FiscalYear" Type="Edm.Int32" sap:creatable="false" sap:updatable="false"/>
+            <Property Name="TotalCount" Type="Edm.Int32" sap:creatable="false" sap:updatable="false"/>
+            <Property Name="IsActiveEntity" Type="Edm.Boolean" Nullable="false" sap:sortable="false" sap:filterable="false"/>
            </EntityType>
            <EntityType Name="DataEntity" sap:content-version="1" sap:value-list="true" sap:label="Data entities">
             <Key>
@@ -69,6 +72,12 @@ def metadata():
 def schema(metadata):
     parsed_schema = Edmx.parse(metadata)
     return parsed_schema
+
+
+@pytest.fixture
+def master_entity_type(schema):
+    entity_type = schema.entity_type('MasterEntity')
+    return entity_type
 
 
 @pytest.fixture
