@@ -3,8 +3,11 @@
 import random
 import logging
 
+from pyodata.v2.model import VariableDeclaration
 from odfuzz.generators import RandomGenerator, StringMutator, NumberMutator, GuidMutator
 from odfuzz.constants import BOOLEAN_OPERATORS, EXPRESSION_OPERATORS
+
+MAX_STRING_LENGTH = 100
 
 
 def patch_proprties(entity_set):
@@ -22,8 +25,8 @@ def patch_proprty_max_length(proprty):
 
 
 def max_string_length(max_length):
-    if not max_length:
-        return 100
+    if not max_length or max_length == VariableDeclaration.MAXIMUM_LENGTH:
+        return MAX_STRING_LENGTH
     return max_length
 
 
@@ -68,10 +71,10 @@ def patch_proprty_mutator(proprty):
     proprty_type = proprty.typ.name
     if proprty_type == 'Edm.String':
         set_mutator_methods(proprty, StringMutator)
-        proprty.mutate = get_mutator_method.__get__(proprty, None)
+        proprty.mutate = get_string_mutator_method.__get__(proprty, None)
     elif proprty_type.startswith('Edm.Int'):
         set_mutator_methods(proprty, NumberMutator)
-        proprty.mutate = get_mutator_method.__get__(proprty, None)
+        proprty.mutate = get_num_mutator_method.__get__(proprty, None)
     elif proprty_type == 'Edm.Guid':
         proprty.mutate = GuidMutator.replace_char
     else:
@@ -86,8 +89,15 @@ def set_mutator_methods(proprty, mutators_class):
             setattr(proprty, name, obj.__get__(proprty, None))
 
 
-def get_mutator_method(self, value):
+def get_string_mutator_method(self, value):
     func_name = random.choice([func_name for func_name in StringMutator.__dict__.keys()
+                               if not func_name.startswith('_')])
+    mutated_value = getattr(self, func_name)(self, value)
+    return mutated_value
+
+
+def get_num_mutator_method(self, value):
+    func_name = random.choice([func_name for func_name in NumberMutator.__dict__.keys()
                                if not func_name.startswith('_')])
     mutated_value = getattr(self, func_name)(self, value)
     return mutated_value

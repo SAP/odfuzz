@@ -455,9 +455,10 @@ class FilterQuery(QueryOption):
         self._restricted_proprties = [proprty for proprty in self._filterable_proprties
                                       if proprty.filter_restriction == 'single-value']
 
-    def _delete_restricted_proprties(self):
+    def _delete_restricted_proprties(self, draft_proprty):
         self._filterable_proprties[:] = [proprty for proprty in self._filterable_proprties
-                                         if proprty.filter_restriction != 'single-value']
+                                         if proprty.filter_restriction != 'single-value'
+                                         and proprty.name != draft_proprty]
 
     def _has_single_restricted(self):
         for filterable_proprty in self._filterable_proprties:
@@ -599,7 +600,7 @@ class FilterQuery(QueryOption):
         self._option_string += self._draft_proprty.name + ' ' + operator + ' ' + operand
         self._update_proprty_part(self._draft_proprty.name, operator, operand)
 
-        self._delete_restricted_proprties()
+        self._delete_restricted_proprties(self._draft_proprty.name)
         if self._filterable_proprties:
             self._noterm_logical()
             self._noterm_parent()
@@ -609,7 +610,7 @@ class FilterQuery(QueryOption):
             self._option.add_part()
             self._generate_proprty()
         else:
-            self._delete_restricted_proprties()
+            self._delete_restricted_proprties('')
             self._noterm_expression()
 
 
