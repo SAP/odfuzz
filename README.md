@@ -64,6 +64,8 @@ At the moment, ODfuzz can mutate only values of types Edm.String and Edm.Int32. 
 
 The fuzzer was developed for testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions. The same rule applies for functions that can be implemented in two different ways, like the function substring() which can take 2 or 3 parameters.
 
+ODfuzz creates a new collection in the database at each run. Run the command `db.getCollection("COLLECTION-NAME")` in the mongoDB shell in order to access a particular collection. To delete all collections, run the command `db.dropDatabase()`. 
+
 #### Known bugs
 - While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
 - Logical parts are not correctly deleted from database.
