@@ -229,7 +229,7 @@ class Fuzzer(object):
         else:
             offspring = self._crossover_options(query1, query2)
         Stats.created_by_crossover += 1
-        query = build_offspring(queryable.get_accessible_entity_set(), offspring)
+        query = build_offspring(queryable.get_accessible_entity_set(), deepcopy(offspring))
         self._mutate_query(query, queryable)
         query.add_predecessor(query1['_id'])
         query.add_predecessor(query2['_id'])
@@ -248,24 +248,19 @@ class Fuzzer(object):
 
     def _mutate_option(self, queryable, query, option_name, option_value):
         if option_name == FILTER:
-            #if random.random() < FILTER_DEL_PROB:
-            #    status = self._remove_logical_part(option_value)
-            #    if not status:
-            #        self._mutate_filter_part(queryable, option_name, option_value)
-            #else:
-            self._mutate_filter_part(queryable, option_name, option_value)
+            if option_value['logicals'] and random.random() < FILTER_DEL_PROB:
+                self._remove_logical_part(option_value)
+            else:
+                self._mutate_filter_part(queryable, option_name, option_value)
         elif option_name == ORDERBY:
             self._mutate_orderby_part(option_value)
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
 
     def _remove_logical_part(self, option_value):
-        if not option_value['logicals']:
-            return False
         index = round(random.random() * (len(option_value['logicals']) - 1))
         logical = option_value['logicals'].pop(index)
         FilterOptionDeleter(option_value, logical).remove_adjacent()
-        return True
 
     def _mutate_filter_part(self, queryable, option_name, option_value):
         part = random.choice(option_value['parts'])

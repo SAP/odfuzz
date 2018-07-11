@@ -68,8 +68,6 @@ ODfuzz creates a new collection in the database at each run. Run the command `db
 
 #### Known bugs
 - While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
-- Logical parts are not correctly deleted from database.
-
 
 #### TODO
 - Change format of restrictions file to JSON.
