@@ -77,3 +77,4 @@ ODfuzz creates a new collection in the database at each run. Run the command `db
 - Add custom headers for requests.
 - Add unit tests. (30% done)
 - Use RotatingFileHandler instead of FileHandler in logging
+- Add support for the sap:display-format attribute. This attribute helps to determine whether a property is a type of integer or a string. For example, property FiscalPeriod is type of Edm.String with attributes MaxLength="3" and sap:display-format="NonNegative". This means that the property holds a non-negative integer value which is converted to the string.
