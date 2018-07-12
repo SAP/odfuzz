@@ -14,10 +14,7 @@ from pyodata.exceptions import PyODataException
 from odfuzz.exceptions import BuilderError, DispatcherError
 from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
-from odfuzz.constants import CLIENT, GLOBAL_ENTITY, FILTER, ORDERBY, TOP, SKIP, STRING_FUNC_PROB, \
-    MATH_FUNC_PROB, DATE_FUNC_PROB, GLOBAL_FUNCTION, FUNCTION_WEIGHT, EXPRESSION_OPERATORS, \
-    BOOLEAN_OPERATORS, LOGICAL_OPERATORS, RECURSION_LIMIT, SINGLE_VALUE_PROB, GLOBAL_PROPRTY, \
-    INT_MAX, ASSOCIATED_ENTITY_PROB, EMPTY_ENTITY_PROB, DRAFT_OBJECTS
+from odfuzz.constants import *
 
 NullEntity = namedtuple('NullEntity', 'name')
 

@@ -25,10 +25,7 @@ from odfuzz.mongos import MongoClient
 from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.loggers import LogFormatter
-from odfuzz.constants import ENV_USERNAME, ENV_PASSWORD, SEED_POPULATION, FILTER, POOL_SIZE, \
-    STRING_THRESHOLD, SCORE_EPS, ITERATIONS_THRESHOLD, FUZZER_LOGGER, CLIENT, FORMAT, TOP, SKIP, \
-    ORDERBY, STATS_LOGGER, FILTER_CROSS_PROBABILITY, ADAPTER, FILTER_DEL_PROB, CONTENT_LEN_SIZE, \
-    OPTION_DEL_PROB, ORDERBY_DEL_PROB, FILTER_LOGGER, CSV_FILTER, CSV, KEY_VALUES_MUTATION_PROB
+from odfuzz.constants import *
 
 
 class Manager(object):
