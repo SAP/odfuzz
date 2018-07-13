@@ -482,6 +482,9 @@ class FilterQuery(QueryOption):
 
     def _noterm_child(self):
         self._noterm_parent()
+        self._generate_rest()
+
+    def _generate_rest(self):
         if self._filterable_proprties:
             self._noterm_logical()
             self._noterm_parent()
@@ -546,7 +549,7 @@ class FilterQuery(QueryOption):
         random_index = self._get_random_index_to_proprties()
         proprty = self._filterable_proprties[random_index]
         self._delete_filterable_if_restricted(proprty.filter_restriction, random_index)
-        operator = weighted_random(proprty.operators.items())
+        operator = weighted_random(proprty.get_operators().items())
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
         self._update_proprty_part(proprty.name, operator, operand)
@@ -582,13 +585,11 @@ class FilterQuery(QueryOption):
         self._option.last_part['replaceable'] = False
 
         operand = self._draft_proprty.generate()
-        operator = weighted_random(self._draft_proprty.operators.items())
+        operator = weighted_random(self._draft_proprty.get_operators().items())
         self._option_string += self._draft_proprty.name + ' ' + operator + ' ' + operand
         self._update_proprty_part(self._draft_proprty.name, operator, operand)
 
-        if self._filterable_proprties:
-            self._noterm_logical()
-            self._noterm_parent()
+        self._generate_rest()
 
     def _generate_normal_string(self):
         if random.random() < SINGLE_VALUE_PROB:

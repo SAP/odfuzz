@@ -42,6 +42,7 @@ SINGLE_VALUE_PROB = 0.2
 
 LOGICAL_OPERATORS = {'and': 0.5, 'or': 0.5}
 BOOLEAN_OPERATORS = {'eq': 0.5, 'ne': 0.5}
+INTERVAL_OPERATORS = {'le': 0.5, 'ge': 0.5}
 EXPRESSION_OPERATORS = {'eq': 0.3, 'ne': 0.3, 'gt': 0.1, 'ge': 0.1, 'lt': 0.1, 'le': 0.1}
 
 FILTER_CROSS_PROBABILITY = 0.8

@@ -5,7 +5,7 @@ import logging
 
 from pyodata.v2.model import VariableDeclaration
 from odfuzz.generators import RandomGenerator, StringMutator, NumberMutator, GuidMutator
-from odfuzz.constants import BOOLEAN_OPERATORS, EXPRESSION_OPERATORS
+from odfuzz.constants import BOOLEAN_OPERATORS, EXPRESSION_OPERATORS, INTERVAL_OPERATORS
 
 MAX_STRING_LENGTH = 100
 
@@ -105,7 +105,24 @@ def get_num_mutator_method(self, value):
 
 def patch_proprty_operator(proprty):
     proprty_type = proprty.typ.name
-    if proprty_type == 'Edm.Boolean':
+    if proprty.filter_restriction in ('single-value', 'multi-value'):
+        proprty.operators = {'eq': 1.0}
+        proprty.get_operators = get_operators.__get__(proprty, None)
+    elif proprty.filter_restriction == 'interval':
+        proprty.operators = (INTERVAL_OPERATORS, {'eq': 1.0})
+        proprty.get_operators = get_interval_operators.__get__(proprty, None)
+    elif proprty_type == 'Edm.Boolean':
         proprty.operators = BOOLEAN_OPERATORS
+        proprty.get_operators = get_operators.__get__(proprty, None)
     else:
         proprty.operators = EXPRESSION_OPERATORS
+        proprty.get_operators = get_operators.__get__(proprty, None)
+
+
+def get_operators(self):
+    return self.operators
+
+
+def get_interval_operators(self):
+    selected_operators = random.choice(self.operators)
+    return selected_operators
