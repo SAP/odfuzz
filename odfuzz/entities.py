@@ -410,7 +410,6 @@ class FilterQuery(QueryOption):
         self._groups_stack = None
         self._option_string = ''
         self._filterable_proprties = None
-        self._restricted_proprties = None
 
         if draft_properties:
             self._generate_draft = self._generate_property_for_draft_first
@@ -427,12 +426,7 @@ class FilterQuery(QueryOption):
 
     def generate(self):
         self._init_variables()
-        self._append_restricted_proprties()
-        if len(self._restricted_proprties) == len(self._filterable_proprties):
-            self._filterable_proprties = self._restricted_proprties
-            self._generate_element()
-        else:
-            self._generate_draft()
+        self._generate_draft()
 
         self._option.reverse_logicals()
         self._option.option_string = self._option_string
@@ -446,22 +440,6 @@ class FilterQuery(QueryOption):
         self._groups_stack = Stack()
         self._option_string = ''
         self._filterable_proprties = list(self._entity_set.entity_type.proprties())
-        self._restricted_proprties = []
-
-    def _append_restricted_proprties(self):
-        self._restricted_proprties = [proprty for proprty in self._filterable_proprties
-                                      if proprty.filter_restriction == 'single-value']
-
-    def _delete_restricted_proprties(self, draft_proprty):
-        self._filterable_proprties[:] = [proprty for proprty in self._filterable_proprties
-                                         if proprty.filter_restriction != 'single-value'
-                                         and proprty.name != draft_proprty]
-
-    def _has_single_restricted(self):
-        for filterable_proprty in self._filterable_proprties:
-            if filterable_proprty.filter_restriction == 'single-value':
-                return True
-        return False
 
     def _noterm_expression(self):
         self._recursion_depth += 1
@@ -504,8 +482,9 @@ class FilterQuery(QueryOption):
 
     def _noterm_child(self):
         self._noterm_parent()
-        self._noterm_logical()
-        self._noterm_parent()
+        if self._filterable_proprties:
+            self._noterm_logical()
+            self._noterm_parent()
 
     def _noterm_logical(self):
         operator = weighted_random(LOGICAL_OPERATORS.items())
@@ -564,11 +543,21 @@ class FilterQuery(QueryOption):
         last_part['return_type'] = generated_function.function_type.return_type
 
     def _generate_proprty(self):
-        proprty = random.choice(self._filterable_proprties)
+        random_index = self._get_random_index_to_proprties()
+        proprty = self._filterable_proprties[random_index]
+        self._delete_filterable_if_restricted(proprty.filter_restriction, random_index)
         operator = weighted_random(proprty.operators.items())
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
         self._update_proprty_part(proprty.name, operator, operand)
+
+    def _get_random_index_to_proprties(self):
+        random_index = round(random.random() * (len(self._filterable_proprties) - 1))
+        return random_index
+
+    def _delete_filterable_if_restricted(self, filter_restriction, index):
+        if filter_restriction == 'single-value':
+            del self._filterable_proprties[index]
 
     def _update_proprty_part(self, proprty_name, operator, operand):
         last_part = self._option.last_part
@@ -597,17 +586,15 @@ class FilterQuery(QueryOption):
         self._option_string += self._draft_proprty.name + ' ' + operator + ' ' + operand
         self._update_proprty_part(self._draft_proprty.name, operator, operand)
 
-        self._delete_restricted_proprties(self._draft_proprty.name)
         if self._filterable_proprties:
             self._noterm_logical()
             self._noterm_parent()
 
     def _generate_normal_string(self):
-        if len(self._restricted_proprties) >= 1 and random.random() < SINGLE_VALUE_PROB:
+        if random.random() < SINGLE_VALUE_PROB:
             self._option.add_part()
             self._generate_proprty()
         else:
-            self._delete_restricted_proprties('')
             self._noterm_expression()
 
 
