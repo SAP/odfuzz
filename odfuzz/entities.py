@@ -401,7 +401,12 @@ class FilterQuery(QueryOption):
 
     def __init__(self, entity, restrictions, draft_properties):
         super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions)
+
         self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions)
+        if not self._functions.group:
+            self._noterm_function = self._generate_proprty
+        else:
+            self._noterm_function = self._generate_function
 
         self._recursion_depth = 0
         self._finalizing_groups = 0
@@ -420,6 +425,8 @@ class FilterQuery(QueryOption):
             self._draft_proprty.operators['eq'] = 1.0
         else:
             self._generate_draft = self._generate_normal_string
+
+        self._set_generators_for_restricted_proprties()
 
     def apply_restrictions(self):
         pass
@@ -440,6 +447,40 @@ class FilterQuery(QueryOption):
         self._groups_stack = Stack()
         self._option_string = ''
         self._filterable_proprties = list(self._entity_set.entity_type.proprties())
+
+    def _set_generators_for_restricted_proprties(self):
+        for proprty in self._entity_set.entity_type.proprties():
+            if proprty.filter_restriction == 'interval':
+                proprty.generate_remaning_proprties = self._generate_interval_values
+            elif proprty.filter_restriction == 'mutli-value':
+                proprty.generate_remaning_proprties = self._generate_multi_values
+            else:
+                proprty.generate_remaning_proprties = lambda x, y: None
+
+    def _generate_interval_values(self, proprty, used_operator):
+        if used_operator != 'eq':
+            operator = 'ge' if used_operator == 'le' else 'le'
+            self._generate_next_interval_value(proprty, operator)
+
+    def _generate_next_interval_value(self, proprty, operator):
+        logical = 'and'
+        self._option_string += ' ' + logical + ' '
+
+        self._option.add_logical()
+        last_logical = self._option.last_logical
+        last_logical['name'] = logical
+
+        self._update_left_logical_references(last_logical)
+
+        self._option.add_part()
+        operand = proprty.generate()
+        self._option_string += proprty.name + ' ' + operator + ' ' + operand
+        self._update_proprty_part(proprty.name, operator, operand)
+
+        self._update_right_logical_references()
+
+    def _generate_multi_values(self, proprty, operator):
+        pass
 
     def _noterm_expression(self):
         self._recursion_depth += 1
@@ -516,13 +557,12 @@ class FilterQuery(QueryOption):
     def _generate_element(self):
         self._option.add_part()
         if random.random() < FUNCTION_WEIGHT:
-            self._generate_function()
+            self._noterm_function()
+            if self._right_part:
+                self._right_part = False
+                self._update_right_logical_references()
         else:
             self._generate_proprty()
-
-        if self._right_part:
-            self._right_part = False
-            self._update_right_logical_references()
 
     def _generate_function(self):
         functions_wrapper = random.choice(list(self._functions.group.values()))
@@ -553,6 +593,11 @@ class FilterQuery(QueryOption):
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
         self._update_proprty_part(proprty.name, operator, operand)
+
+        if self._right_part:
+            self._right_part = False
+            self._update_right_logical_references()
+        proprty.generate_remaning_proprties(proprty, operator)
 
     def _get_random_index_to_proprties(self):
         random_index = round(random.random() * (len(self._filterable_proprties) - 1))
@@ -985,6 +1030,8 @@ class FilterFunctionsGroup(object):
 
     def _init_functions_group(self, filterable_proprties):
         for proprty in filterable_proprties:
+            if proprty.filter_restriction:
+                continue
             if proprty.typ.name == 'Edm.String':
                 self._group.setdefault('String', StringFilterFunctions()).add_proprty(proprty)
             elif proprty.typ.name == 'Edm.DateTime':

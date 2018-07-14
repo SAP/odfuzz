@@ -913,8 +913,8 @@ class Schema(object):
                             annotation.entity_set = schema.entity_set(
                                 annotation.collection_path, namespace=annotation.element_namespace)
                         except KeyError:
-                            raise RuntimeError('Entity Set {0} for {1} does not exist'
-                                               .format(annotation.collection_path, annotation))
+                            logging.error('Entity Set {0} for {1} does not exist'
+                                          .format(annotation.collection_path, annotation))
 
                         try:
                             vh_type = schema.typ(
