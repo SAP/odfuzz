@@ -1,46 +1,90 @@
-# BP-ODfuzz
-Fuzzer for testing applications communicating via the OData protocol. ODfuzz sends valid requests, that contain random data, to the server and checks the responses. Learn more at [Excel@Fit 2018](http://excel.fit.vutbr.cz/submissions/2018/004/4.pdf).
+# ODfuzz
+The fuzzer for testing applications communicating via the OData protocol.
+
+ODfuzz randomly selects entities that are **queryable**, thus, the entities which can be used in query options $filter, $orderby, $skip, and $top. For each entity, there is generated a set of query options, and final result is dispatched to OData service. Responses from the OData service are stored in a database and used for the further analysis and generation. ODfuzz creates valid requests that contain **random data** at specific places. Learn more at [Excel@Fit 2018](http://excel.fit.vutbr.cz/submissions/2018/004/4.pdf).
+
+Example of generated queries:
+```
+ValueHelpPrinters?$filter=Location eq '~' and Location eq '>'&sap-client=500&$format=json
+C_PaymentAdviceSubItem?$orderby=Reference1IDByBusinessPartner asc&$filter=IsActiveEntity eq false or (PaytAdviceAccountTypeForEdit ge '' or ((substringof(PaymentDifferenceReasonName, '¾JÓaÉ—bÈ¢æû´Ò>«') eq true and PaymentAdviceItem ne 'Û') and substringof(PaymentDifferenceReasonName, 'Åª•õõÿOaÞ¯@Vþ') eq true or Currency ne '9') and PaytAdviceAccountTypeForEdit lt '' and PaymentAdviceSubItemForEdit lt '8') or GrossDeductionAmountInPaytCrcy ne 948074290.8m and endswith(PaytDifferenceReasonExtCode, '‰') eq false and PaymentAdviceAccountType lt ''&$skip=1957273783&sap-client=500&$format=json
+C_PaymentAdvice?$top=869&$filter=IsActiveEntity eq false or CashDiscountAmountInPaytCrcy eq 1919771231157915484160m&sap-client=500&$format=json
+SupportedChannelSet(Event='Øt',VariantId='V',CorrespondenceTypeId='M.õ')?$filter=CorrespondenceTypeId ge '¨·æ' and (CorrespondenceTypeId gt 'õZ' or CorrespondenceTypeId lt '§Å') or CorrespondenceTypeId ge 'Æ'&sap-client=500&$format=json
+CorrespondenceTypeSet(Event='SV',VariantId='',Id='×´Õ•')/SupportedChannelSet?$filter=(CorrespondenceTypeId eq '' and CorrespondenceTypeId ne 'ÿNœä' and CorrespondenceTypeId eq '£' or CorrespondenceTypeId ge 'ÏØà†' and CorrespondenceTypeId eq '¥C') and CorrespondenceTypeId ne 'À'&sap-client=500&$format=json
+C_Cpbupaemailvh?$top=81&$skip=245&sap-client=500&$format=json
+C_Cpbupaemailvh?$top=81&$filter=ContactPerson eq 'Ý¿â†' and (RelationshipCategory ne '' or RelationshipCategory eq ':7S6]') or ContactPerson lt 'Í' and RelationshipCategory ne '¹Ú•°¼m' or startswith(BusinessPartner, 'ù£f¨') eq false or ContactPerson le 'di©h¶'&$skip=245&sap-client=500&$format=json
+```
 
 #### Requirements
 - [Python 3.6](https://www.python.org/downloads/)
   - [Requests 2.18.4](http://docs.python-requests.org/en/master/)
   - [Gevent 1.2.2](http://www.gevent.org/)
-  - [PyOData 1.1](https://github.wdf.sap.corp/FXUBRQ-QE/PyOData)
   - [PyMongo 3.6.1](https://api.mongodb.com/python/3.6.1/)
   - [lxml 3.7.3](https://github.com/lxml/lxml)
+  - [PyOData](https://github.wdf.sap.corp/I342520/ODfuzz/tree/master/pyodata)
 - [mongoDB 3.6](https://www.mongodb.com/)
-- [PivotTable.js](https://pivottable.js.org/examples/)
+- [PivotTable](https://github.wdf.sap.corp/I342520/Pivot)
 
 ### Setup
 1. [Download](https://www.mongodb.com/download-center#community) and [install](https://docs.mongodb.com/manual/administration/install-community/) the mongoDB server on your local machine.
-2. [Download](https://github.wdf.sap.corp/I342520/BP/tree/master/sample/pivot_demo) custom implementation of the Pivot table.
+2. [Download](https://github.wdf.sap.corp/I342520/Pivot) or clone a custom implementation of the Pivot table:
+```
+$ git clone https://github.wdf.sap.corp/I342520/Pivot
+```
 3. Clone this repository:
 ```
-git clone git@github.wdf.sap.corp:I342520/BP-ODfuzz.git
+$ git clone https://github.wdf.sap.corp/I342520/ODfuzz
 ```
-4. Install all requirements with:
+4. Navigate to the cloned ODfuzz repository and install all python requirements:
 ```
-pip install -r requirements.txt
+$ pip install -r requirements.txt
 ```
 
 ### Run configuration
-To access OData services introduced in SAP, it is required to set the following environmental variables in your system. The fuzzer will use these variables for a basic authentication.
+To access OData services introduced in SAP, it is required to set the following **environmental variables** in your system. The fuzzer will use these variables for a **basic authentication**.
 ```
 SAP_USERNAME=Username
 SAP_PASSWORD=Password
 ```
 
-Run the fuzzer, for example, with:
+Command line arguments
+```
+$ py odfuzz.py --help
+positional arguments:
+  service               An OData service URL
+optional arguments:
+  -h, --help            show this help message and exit
+  -l LOGS, --logs LOGS  A logs directory
+  -s STATS, --stats STATS
+                        A statistics directory
+  -r RESTR, --restr RESTR
+                        A user defined restrictions
+  -a, --async           Allow ODfuzz to send HTTP requests asynchronously
+```
+
+#### Runtime
+ODfuzz runs in an **infinite loop**. You may cancel an execution of the fuzzer with a **keyboard interruption** (CTRL + C).
+
+### Output
+Output of the fuzzer is stored in the user defined directories (e.g. logs_directory, stats_directory) or in a working directory. ODfuzz is creating stats about performed experiments and tests:
+- Pivot
+    - These stats are continuously extended with the latest data while the fuzzer is running.
+    - Stats are loaded into CSV files and may be visualised by the javascript Pivot table. See [README](https://github.wdf.sap.corp/I342520/Pivot/blob/master/README.md) to learn more.
+- Simple
+    - Requests that triggered an internal server error (HTTP 500) are written into multiple *.txt files. Name of the file is the name of the corresponding entity set in which the error occurred.
+    - Runtime stats are saved to the *runtime_info.txt* file. This file contains various runtime information such as a number of generated tests (HTTP GET requests), number of failed tests (status code of the response is not equal to HTTP 200 OK), number of tests created by a crossover and number of tests created by a mutation.
+
+When a connection is forcibly closed by a host (e.g. user was disconnected from VPN), ODfuzz ends with an error message, but still creates all necessary stats files.
+
+### Usage
+1. Run the fuzzer, for example, as:
 ```
 py odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.txt
 ```
-
-You can cancel the execution of the fuzzer by a keyboard interruption (CTRL+C).
-
-### Output
-ODfuzz is creating multiple statistics about performed experiments and tests. The most interesting statistics are loaded to CSV files and may be visualised by the javascript Pivot table. Just open the CSV files in Pivot table app.
-
-Requests that triggered an internal server error (HTTP 500) are written into multiple *.txt files. Name of the file is the name of the corresponding entity set in which the error occurred.
+2. Let it run for a couple of hours (or minutes). Cancel execution of the fuzzer with CTRL + C.
+3. Browse overall stats, for example, by the following scenario:
+    - You want to discover what type of queries triggers undefined behaviour. Open the *stats_overall.csv* file via [Pivot](https://github.wdf.sap.corp/I342520/Pivot). Select entities you want to examine, select an HTTP status code you want to consider (e.g. 500), select names of Properties, etc. You may notice that the filter query option caused a lot of errors. Open the *stats_filter.csv* file again via [Pivot](https://github.wdf.sap.corp/I342520/Pivot) to discover what logical operators or operands caused an internal server error.
+    - Queries which produced the errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
+    - Open SAP Logon and browse errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
 
 #### Restrictions
 With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following format:
@@ -57,10 +101,10 @@ With restrictions, a user is able to define rules which forbid a usage of some e
 ```
 Every line, except the first line, starts with a tab or set of tabs and should be properly aligned. At the moment, only entity, property and global function restrictions are implemented.
 
-Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.txt* file in order to run the fuzzer on [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
+Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.txt* restrictions file for [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
 
-#### Limitations
-At the moment, ODfuzz can mutate only values of types Edm.String and Edm.Int32. It is planned to support more types in the future.
+### Limitations
+At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32 and Edm.Guid. It is planned to support more types in the future.
 
 The fuzzer was developed for testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions. The same rule applies for functions that can be implemented in two different ways, like the function substring() which can take 2 or 3 parameters.
 
