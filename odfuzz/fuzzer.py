@@ -415,11 +415,11 @@ class Fuzzer(object):
 
     def _log_formatted_stats(self, query, query_dict, proprty):
         self._stats_logger.info(self._log_formatter.format(
-            '{HTTP};{Code};{Error};{EntitySet};{AccessibleSet:n};{AccessibleKeys:n};'
+            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{AccessibleSet:n};{AccessibleKeys:n};'
             '{Property:n};{orderby:n};{top:n};{skip:n};{filter:n}',
-            HTTP=query.response.status_code,
-            Code=getattr(query.response, 'error_code', ''),
-            Error=getattr(query.response, 'error_message', ''),
+            StatusCode=query.response.status_code,
+            ErrorCode=getattr(query.response, 'error_code', ''),
+            ErrorMessage=getattr(query.response, 'error_message', ''),
             EntitySet=query_dict['entity_set'],
             AccessibleSet=query_dict['accessible_set'],
             AccessibleKeys=query_dict['accessible_keys'],
@@ -458,26 +458,35 @@ class Fuzzer(object):
         for query in queries:
             filter_option = query.dictionary.get('_$filter')
             if filter_option:
-                for logical in filter_option['logicals'] or [{'name': None}]:
-                    for part in filter_option['parts']:
-                        if 'func' in part:
-                            for proprty in part['proprties']:
-                                self._log_formatted_filter(query, proprty, logical,
-                                                           part, part['func'])
-                        else:
-                            proprty = part['name']
-                            self._log_formatted_filter(query, proprty, logical, part, '')
+                logical_names = set([logical['name'] for logical in filter_option['logicals']])
+                if 'and' in logical_names and 'or' in logical_names:
+                    logical = 'combination'
+                else:
+                    if filter_option['logicals']:
+                        logical = filter_option['logicals'][0]['name']
+                    else:
+                        logical = ''
+                self._log_filter_parts(filter_option, query, logical)
 
-    def _log_formatted_filter(self, query, proprty, logical, part, func):
+    def _log_filter_parts(self, filter_option, query, logical_name):
+        for part in filter_option['parts']:
+            if 'func' in part:
+                for proprty in part['proprties']:
+                    self._log_formatted_filter(query, proprty, logical_name, part, part['func'])
+            else:
+                proprty = part['name']
+                self._log_formatted_filter(query, proprty, logical_name, part, '')
+
+    def _log_formatted_filter(self, query, proprty, logical_name, part, func):
         self._filter_logger.info(self._log_formatter.format(
-            '{http};{code};{error};{entityset};{property:n};{logical:n};'
+            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{Property:n};{logical:n};'
             '{operator};{function:n};{operand}',
-            http=query.response.status_code,
-            code=getattr(query.response, 'error_code', ''),
-            error=getattr(query.response, 'error_message', ''),
-            entityset=query.dictionary['entity_set'],
-            property=proprty,
-            logical=logical['name'],
+            StatusCode=query.response.status_code,
+            ErrorCode=getattr(query.response, 'error_code', ''),
+            ErrorMessage=getattr(query.response, 'error_message', ''),
+            EntitySet=query.dictionary['entity_set'],
+            Property=proprty,
+            logical=logical_name,
             operator=part['operator'],
             function=func,
             operand=part['operand']

@@ -68,5 +68,5 @@ ORDERBY_DEL_PROB = 0.1
 OPTION_DEL_PROB = 0.1
 TOP_ENTITIES = 20
 
-CSV = 'HTTP;Code;Error;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter'
-CSV_FILTER = 'HTTP;Code;Error;EntitySet;Property;logical;operator;function;operand'
+CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter'
+CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'
