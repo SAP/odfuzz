@@ -72,7 +72,11 @@ def init_basic_stats(stats_directory):
 
 
 def create_collection_name(parsed_arguments):
-    service_name = parsed_arguments.service.rstrip('/').rsplit('/', 1)[1]
+    service_parts = parsed_arguments.service.rstrip('/').rsplit('/', 1)
+    if len(service_parts) == 1:
+        service_name = service_parts[0]
+    else:
+        service_name = service_parts[1]
     collection_creator = CollectionCreator(service_name)
     collection_name = collection_creator.create()
     return collection_name
