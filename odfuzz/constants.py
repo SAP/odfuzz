@@ -5,6 +5,7 @@ STATS_LOGS_NAME = 'stats_overall'
 FILTER_LOGS_NAME = 'stats_filter'
 RUNTIME_FILE_NAME = 'runtime_info.txt'
 CONFIG_PATH = 'config/logging/logging.conf'
+CERTIFICATE_PATH = '../config/security/ca_sap_root_base64.crt'
 
 # this set of constants must be equal to the corresponding
 # logger keys defined in the CONFIG_PATH
@@ -16,7 +17,7 @@ MONGODB_NAME = 'odfuzz'
 
 CLIENT = 'sap-client=500'
 FORMAT = '$format=json'
-ADAPTER = 'https://'
+ACCESS_PROTOCOL = 'https://'
 
 ENV_USERNAME = 'SAP_USERNAME'
 ENV_PASSWORD = 'SAP_PASSWORD'

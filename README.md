@@ -40,7 +40,7 @@ $ pip install -r requirements.txt
 ```
 
 ### Run configuration
-To access OData services introduced in SAP, it is required to set the following **environmental variables** in your system. The fuzzer will use these variables for a **basic authentication**.
+To access OData services introduced in SAP, it is required to set the following **environment variables** in your system. The fuzzer will use these variables for a **basic authentication**.
 ```
 SAP_USERNAME=Username
 SAP_PASSWORD=Password
@@ -109,6 +109,16 @@ At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32 and 
 The fuzzer was developed for testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions. The same rule applies for functions that can be implemented in two different ways, like the function substring() which can take 2 or 3 parameters.
 
 ODfuzz creates a new collection in the database at each run. Run the command `db.getCollection("COLLECTION-NAME")` in the mongoDB shell in order to access a particular collection. To delete all collections, run the command `db.dropDatabase()`. 
+
+ODfuzz may be used to test OData services outside the SAP network. There are two ways to enable ODfuzz to work on such services:
+1. You **do not know** a path to the particular HTTPS certificate:
+    - Change the **has_certificate** parameter at line [35](https://github.wdf.sap.corp/I342520/ODfuzz/blob/master/odfuzz/fuzzer.py#L35) to **False**. 
+    - Set the following environment variable to suppress warning messages (InsecureRequestWarning: Unverified HTTPS request is being made. Adding certificate verification is strongly advised.):
+        ```
+        PYTHONWARNINGS=ignore:Unverified HTTPS request
+        ```
+2. You **do know** the path of the HTTPS certificate:
+    - change line [8](https://github.wdf.sap.corp/I342520/ODfuzz/blob/master/odfuzz/constants.py#L8).
 
 #### Known bugs
 - While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.

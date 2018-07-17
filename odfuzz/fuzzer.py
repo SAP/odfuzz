@@ -32,7 +32,7 @@ class Manager(object):
     """A class for managing the fuzzer runtime."""
 
     def __init__(self, arguments, collection_name):
-        self._dispatcher = Dispatcher(arguments.service)
+        self._dispatcher = Dispatcher(arguments.service, has_certificate=True)
         self._async = getattr(arguments, 'async')
 
         restrictions_file = getattr(arguments, 'restr')
@@ -854,14 +854,14 @@ class Query(object):
 class Dispatcher(object):
     """A dispatcher for sending HTTP requests to the particular OData service."""
 
-    def __init__(self, service, sap_certificate=None):
+    def __init__(self, service, has_certificate=False):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._service = service.rstrip('/') + '/'
-        self._sap_certificate = sap_certificate
+        self._has_certificate = has_certificate
 
         self._session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(pool_connections=POOL_SIZE, pool_maxsize=POOL_SIZE)
-        self._session.mount(ADAPTER, adapter)
+        self._session.mount(ACCESS_PROTOCOL, adapter)
         self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
         self._session.verify = self._get_sap_certificate()
 
@@ -891,13 +891,14 @@ class Dispatcher(object):
         return self.send('POST', query, **kwargs)
 
     def _get_sap_certificate(self):
-        if not self._sap_certificate:
+        certificate_path = None
+        if self._has_certificate:
             self_dir = os.path.dirname(__file__)
-            candidate_path = os.path.join(self_dir, '../config/security/ca_sap_root_base64.crt')
+            candidate_path = os.path.join(self_dir, CERTIFICATE_PATH)
             if not os.path.isfile(candidate_path):
                 return None
-            self._sap_certificate = candidate_path
-        return self._sap_certificate
+            certificate_path = candidate_path
+        return certificate_path
 
 
 def is_filter_crossable(query1, query2):
