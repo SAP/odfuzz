@@ -503,14 +503,14 @@ class FilterQuery(QueryOption):
 
     def _noterm_expression(self):
         self._recursion_depth += 1
-        if (self._required_proprties and not self._proprties.has_remaining()) \
+        if (not self._proprties.has_remaining()) \
                 and (random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT):
             self._generate_element()
         else:
             self._noterm_child()
 
     def _noterm_parent(self):
-        if (self._required_proprties and not self._proprties.has_remaining()) \
+        if (not self._proprties.has_remaining()) \
                 and (random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT):
             self._noterm_expression()
         else:
@@ -653,9 +653,14 @@ class ProprtiesSelector(object):
         self._init_tuples()
 
         self._proprties = [self._non_required_tuple, self._required_tuple]
+        self._times_called_has_remaining = 0
 
     def has_remaining(self):
-        return self._has_remaining_proprties
+        self._times_called_has_remaining += 1
+        if self._times_called_has_remaining >= len(self._required_proprties):
+            return False
+        else:
+            return self._has_remaining_proprties
 
     def get_random_proprty(self):
         proprties_group = weighted_random(self._proprties)
@@ -667,8 +672,8 @@ class ProprtiesSelector(object):
         non_required_proprties = list(set(self._filterable_proprties) - set(self._required_proprties))
         if non_required_proprties:
             if self._required_proprties:
-                self._non_required_tuple = (NonRequiredProprties(non_required_proprties), 0.001)
-                self._required_tuple = (RequiredProprties(self._required_proprties), 0.999)
+                self._non_required_tuple = (NonRequiredProprties(non_required_proprties), 0.01)
+                self._required_tuple = (RequiredProprties(self._required_proprties), 0.99)
             else:
                 self._non_required_tuple = (NonRequiredProprties(non_required_proprties), 1.0)
                 self._required_tuple = (RequiredProprties([]), 0.0)
