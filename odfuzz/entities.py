@@ -448,6 +448,7 @@ class FilterQuery(QueryOption):
         self._generate_string()
 
         self._option.reverse_logicals()
+        self._option.delete_redundancies()
         self._option.option_string = self._option_string
         return self._option
 
@@ -494,7 +495,8 @@ class FilterQuery(QueryOption):
         self._option.add_part()
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
-        self._update_proprty_part(proprty.name, operator, operand)
+        replaceable = getattr(proprty, 'replaceable', True)
+        self._update_proprty_part(proprty.name, operator, operand, replaceable)
 
         self._set_right_logical_references()
 
@@ -547,7 +549,7 @@ class FilterQuery(QueryOption):
         self._generate_rest()
 
     def _generate_rest(self):
-        if self._proprties:
+        if self._proprties.has_filterable():
             self._noterm_logical()
             self._noterm_parent()
 
@@ -609,7 +611,8 @@ class FilterQuery(QueryOption):
         operator = weighted_random(proprty.get_operators().items())
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
-        self._update_proprty_part(proprty.name, operator, operand)
+        replaceable = getattr(proprty, 'replaceable', True)
+        self._update_proprty_part(proprty.name, operator, operand, replaceable)
 
         self._update_right_logical_references()
         proprty.generate_remaning_proprties(proprty, operator)
@@ -618,11 +621,12 @@ class FilterQuery(QueryOption):
         random_index = round(random.random() * (len(self._proprties) - 1))
         return random_index
 
-    def _update_proprty_part(self, proprty_name, operator, operand):
+    def _update_proprty_part(self, proprty_name, operator, operand, replaceable):
         last_part = self._option.last_part
         last_part['name'] = proprty_name
         last_part['operator'] = operator
         last_part['operand'] = operand
+        last_part['replaceable'] = replaceable
 
     def _update_right_logical_references(self):
         if self._right_part:
@@ -656,11 +660,14 @@ class ProprtiesSelector(object):
         self._times_called_has_remaining = 0
 
     def has_remaining(self):
-        self._times_called_has_remaining += 1
         if self._times_called_has_remaining >= len(self._required_proprties):
             return False
         else:
+            self._times_called_has_remaining += 1
             return self._has_remaining_proprties
+
+    def has_filterable(self):
+        return self._filterable_proprties
 
     def get_random_proprty(self):
         proprties_group = weighted_random(self._proprties)
@@ -672,10 +679,10 @@ class ProprtiesSelector(object):
         non_required_proprties = list(set(self._filterable_proprties) - set(self._required_proprties))
         if non_required_proprties:
             if self._required_proprties:
-                self._non_required_tuple = (NonRequiredProprties(non_required_proprties), 0.01)
+                self._non_required_tuple = (NonRequiredProprties(self._filterable_proprties), 0.01)
                 self._required_tuple = (RequiredProprties(self._required_proprties), 0.99)
             else:
-                self._non_required_tuple = (NonRequiredProprties(non_required_proprties), 1.0)
+                self._non_required_tuple = (NonRequiredProprties(self._filterable_proprties), 1.0)
                 self._required_tuple = (RequiredProprties([]), 0.0)
         else:
             self._non_required_tuple = (NonRequiredProprties([]), 0.0)
@@ -876,6 +883,21 @@ class FilterOption(Option):
     def reverse_logicals(self):
         self._logicals = list(reversed(self._logicals))
 
+    def delete_redundancies(self):
+        filtered_groups = []
+        redundant_groups_id = []
+
+        for group in self._groups:
+            if group['logicals'] and (group.get('right_id', None) or group.get('left_id', None)):
+                filtered_groups.append(group)
+            else:
+                redundant_groups_id.append(group['id'])
+        self._groups[:] = filtered_groups
+
+        for logical in self._logicals:
+            if logical.get('group_id', None) in redundant_groups_id:
+                logical.pop('group_id')
+
 
 class Stack(object):
     """An abstract stack data type."""
@@ -1014,9 +1036,9 @@ class FilterOptionDeleter(object):
         self._deleting_part = None
         self._remaining_part = None
 
-    def remove_adjacent(self):
+    def remove_adjacent(self, selected_id):
         self._remove_logical_in_group()
-        self._init_selection()
+        self._init_selection(selected_id)
         if self._deleting_part:
             self._option_value['parts'].remove(self._deleting_part)
             self._add_part_references()
@@ -1035,8 +1057,8 @@ class FilterOptionDeleter(object):
         if group_id:
             remove_logical_from_group(self._option_value, group_id, self._logical['id'])
 
-    def _init_selection(self):
-        self._selected_id = random.choice(['left_id', 'right_id'])
+    def _init_selection(self, selected_id):
+        self._selected_id = selected_id
         self._remained_id = 'left_id' if self._selected_id.startswith('right') else 'right_id'
         self._deleting_part = dict_by_id(self._option_value['parts'],
                                          self._logical[self._selected_id])
