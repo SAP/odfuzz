@@ -465,7 +465,7 @@ class FilterQuery(QueryOption):
         for proprty in self._entity_set.entity_type.proprties():
             if proprty.filter_restriction == 'interval':
                 proprty.generate_remaning_proprties = self._generate_interval_values
-            elif proprty.filter_restriction == 'mutli-value':
+            elif proprty.filter_restriction == 'multi-value':
                 proprty.generate_remaning_proprties = self._generate_multi_values
             else:
                 proprty.generate_remaning_proprties = lambda x, y: None
@@ -484,12 +484,22 @@ class FilterQuery(QueryOption):
 
     def _generate_next_interval_value(self, proprty, operator):
         logical = 'and'
-        self._option_string += ' ' + logical + ' '
+        self._generate_sap_restricted(proprty, logical, operator)
+        self._set_right_logical_references()
 
+    def _generate_multi_values(self, proprty, operator):
+        logical = 'or'
+        total_values = round(random.random() * (MAX_MULTI_VALUES - 1) + 1)
+        for _ in range(total_values):
+            self._generate_sap_restricted(proprty, logical, operator)
+            self._set_right_logical_references()
+
+    def _generate_sap_restricted(self, proprty, logical, operator):
+        self._option_string += ' ' + logical + ' '
         self._option.add_logical()
+
         last_logical = self._option.last_logical
         last_logical['name'] = logical
-
         self._update_left_logical_references(last_logical)
 
         self._option.add_part()
@@ -497,11 +507,6 @@ class FilterQuery(QueryOption):
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
         replaceable = getattr(proprty, 'replaceable', True)
         self._update_proprty_part(proprty.name, operator, operand, replaceable)
-
-        self._set_right_logical_references()
-
-    def _generate_multi_values(self, proprty, operator):
-        pass
 
     def _noterm_expression(self):
         self._recursion_depth += 1
