@@ -30,6 +30,7 @@ class Builder(object):
     def build(self):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
+            patch_proprties(entity_set)
             principal_entities = get_principal_entities(data_model, entity_set)
             query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher, principal_entities)
             if query_group.query_options():
@@ -161,7 +162,6 @@ class QueryGroup(object):
         self._entity_set._req_filter = entity_set._req_filter = needs_filter
 
         if option_restr.is_not_restricted and entity_set.entity_type.proprties() or draft_properties:
-            patch_proprties(entity_set)
             self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr, draft_properties)
             self._add_filter_option_to_list(entity_set)
 
