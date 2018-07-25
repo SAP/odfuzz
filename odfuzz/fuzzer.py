@@ -246,7 +246,13 @@ class Fuzzer(object):
     def _mutate_option(self, queryable, query, option_name, option_value):
         if option_name == FILTER:
             if option_value['logicals'] and random.random() < FILTER_DEL_PROB:
-                self._remove_logical_part(option_value)
+                logical_index = round(random.random() * (len(option_value['logicals']) - 1))
+                parts = self._get_removable_parts(option_value, logical_index)
+                if parts:
+                    random_part = random.choice(parts)
+                    self._remove_logical_part(option_value, logical_index, random_part)
+                else:
+                    self._mutate_filter_part(queryable, option_name, option_value)
             else:
                 self._mutate_filter_part(queryable, option_name, option_value)
         elif option_name == ORDERBY:
@@ -254,10 +260,19 @@ class Fuzzer(object):
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
 
-    def _remove_logical_part(self, option_value):
-        index = round(random.random() * (len(option_value['logicals']) - 1))
+    def _get_removable_parts(self, option_value, logical_index):
+        logical = option_value['logicals'][logical_index]
+        removable_ids = []
+        if is_removable(option_value, logical['left_id']):
+            removable_ids.append('left_id')
+        if is_removable(option_value, logical['right_id']):
+            removable_ids.append('right_id')
+        return removable_ids
+
+    def _remove_logical_part(self, option_value, index, adjacent_id):
+        # MAZE SA AJ TO, CO SA NEMA MAZAT (properties. ktore su required-in-filter)
         logical = option_value['logicals'].pop(index)
-        FilterOptionDeleter(option_value, logical).remove_adjacent()
+        FilterOptionDeleter(option_value, logical).remove_adjacent(adjacent_id)
 
     def _mutate_filter_part(self, queryable, option_name, option_value):
         part = random.choice(option_value['parts'])
@@ -550,7 +565,7 @@ class Selector(object):
         return parent1, parent2
 
     def _get_single_parent(self, entity_set_name, object_id):
-        queries_sample = self._mongodb.queries_sample_filter(entity_set_name, 10, object_id)
+        queries_sample = self._mongodb.queries_sample_filter(entity_set_name, FILTER_SAMPLE_SIZE, object_id)
         if not queries_sample:
             return None
         parent = self._get_best_query(queries_sample)
@@ -959,3 +974,21 @@ def print_tests_num():
     sys.stdout.write('Generated tests: {} | Failed tests: {} \r'
                      .format(Stats.tests_num, Stats.fails_num))
     sys.stdout.flush()
+
+
+def is_removable(option_value, part_id):
+    for part in option_value['parts']:
+        if part['id'] == part_id:
+            if not part.get('replaceable', True):
+                return False
+            else:
+                return True
+
+    for logical in option_value['logicals']:
+        if logical.get('group_id', '') == part_id:
+            left_id = is_removable(option_value, logical['left_id'])
+            right_id = is_removable(option_value, logical['right_id'])
+            if right_id and left_id:
+                return True
+            else:
+                return False

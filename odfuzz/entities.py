@@ -30,6 +30,7 @@ class Builder(object):
     def build(self):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
+            patch_proprties(entity_set)
             principal_entities = get_principal_entities(data_model, entity_set)
             query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher, principal_entities)
             if query_group.query_options():
@@ -161,7 +162,6 @@ class QueryGroup(object):
         self._entity_set._req_filter = entity_set._req_filter = needs_filter
 
         if option_restr.is_not_restricted and entity_set.entity_type.proprties() or draft_properties:
-            patch_proprties(entity_set)
             self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr, draft_properties)
             self._add_filter_option_to_list(entity_set)
 
@@ -401,7 +401,12 @@ class FilterQuery(QueryOption):
 
     def __init__(self, entity, restrictions, draft_properties):
         super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions)
+
         self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions)
+        if not self._functions.group:
+            self._noterm_function = self._generate_proprty
+        else:
+            self._noterm_function = self._generate_function
 
         self._recursion_depth = 0
         self._finalizing_groups = 0
@@ -409,32 +414,41 @@ class FilterQuery(QueryOption):
         self._option = None
         self._groups_stack = None
         self._option_string = ''
-        self._filterable_proprties = None
-        self._restricted_proprties = None
 
+        self._filterable_proprties = list(self._entity_set.entity_type.proprties())
         if draft_properties:
-            self._generate_draft = self._generate_property_for_draft_first
             self._draft_proprty = self.entity_set.entity_type.proprty(draft_properties[0])
             # only 'eq' operator is allowed for fetching draft entities,
             # otherwise the GETWA_NOT_ASSIGNED runtime error is raised
             self._draft_proprty.operators['ne'] = 0.0
             self._draft_proprty.operators['eq'] = 1.0
         else:
-            self._generate_draft = self._generate_normal_string
+            self._draft_proprty = None
+
+        self._proprties = None
+        self._required_proprties = []
+        self._init_required_proprties()
+
+        self._set_generators_for_restricted_proprties()
+
+    def _init_required_proprties(self):
+        for proprty in self._filterable_proprties:
+            if proprty.required_in_filter or self._draft_proprty and proprty.name == self._draft_proprty.name:
+                self._append_required_proprty(proprty, False)
+
+    def _append_required_proprty(self, proprty, is_reaplaceable):
+        setattr(proprty, 'replaceable', is_reaplaceable)
+        self._required_proprties.append(proprty)
 
     def apply_restrictions(self):
         pass
 
     def generate(self):
         self._init_variables()
-        self._append_restricted_proprties()
-        if len(self._restricted_proprties) == len(self._filterable_proprties):
-            self._filterable_proprties = self._restricted_proprties
-            self._generate_element()
-        else:
-            self._generate_draft()
+        self._generate_string()
 
         self._option.reverse_logicals()
+        self._option.delete_redundancies()
         self._option.option_string = self._option_string
         return self._option
 
@@ -445,33 +459,66 @@ class FilterQuery(QueryOption):
         self._option = FilterOption([], [], [])
         self._groups_stack = Stack()
         self._option_string = ''
-        self._filterable_proprties = list(self._entity_set.entity_type.proprties())
-        self._restricted_proprties = []
+        self._proprties = ProprtiesSelector(self._filterable_proprties.copy(), self._required_proprties.copy())
 
-    def _append_restricted_proprties(self):
-        self._restricted_proprties = [proprty for proprty in self._filterable_proprties
-                                      if proprty.filter_restriction == 'single-value']
+    def _set_generators_for_restricted_proprties(self):
+        for proprty in self._entity_set.entity_type.proprties():
+            if proprty.filter_restriction == 'interval':
+                proprty.generate_remaning_proprties = self._generate_interval_values
+            elif proprty.filter_restriction == 'multi-value':
+                proprty.generate_remaning_proprties = self._generate_multi_values
+            else:
+                proprty.generate_remaning_proprties = lambda x, y: None
 
-    def _delete_restricted_proprties(self, draft_proprty):
-        self._filterable_proprties[:] = [proprty for proprty in self._filterable_proprties
-                                         if proprty.filter_restriction != 'single-value'
-                                         and proprty.name != draft_proprty]
+    def _generate_string(self):
+        if not self._required_proprties and random.random() < SINGLE_VALUE_PROB:
+            self._option.add_part()
+            self._generate_proprty()
+        else:
+            self._noterm_expression()
 
-    def _has_single_restricted(self):
-        for filterable_proprty in self._filterable_proprties:
-            if filterable_proprty.filter_restriction == 'single-value':
-                return True
-        return False
+    def _generate_interval_values(self, proprty, used_operator):
+        if used_operator != 'eq':
+            operator = 'ge' if used_operator == 'le' else 'le'
+            self._generate_next_interval_value(proprty, operator)
+
+    def _generate_next_interval_value(self, proprty, operator):
+        logical = 'and'
+        self._generate_sap_restricted(proprty, logical, operator)
+        self._set_right_logical_references()
+
+    def _generate_multi_values(self, proprty, operator):
+        logical = 'or'
+        total_values = round(random.random() * (MAX_MULTI_VALUES - 1) + 1)
+        for _ in range(total_values):
+            self._generate_sap_restricted(proprty, logical, operator)
+            self._set_right_logical_references()
+
+    def _generate_sap_restricted(self, proprty, logical, operator):
+        self._option_string += ' ' + logical + ' '
+        self._option.add_logical()
+
+        last_logical = self._option.last_logical
+        last_logical['name'] = logical
+        self._update_left_logical_references(last_logical)
+
+        self._option.add_part()
+        operand = proprty.generate()
+        self._option_string += proprty.name + ' ' + operator + ' ' + operand
+        replaceable = getattr(proprty, 'replaceable', True)
+        self._update_proprty_part(proprty.name, operator, operand, replaceable)
 
     def _noterm_expression(self):
         self._recursion_depth += 1
-        if random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT:
+        if (not self._proprties.has_remaining()) \
+                and (random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT):
             self._generate_element()
         else:
             self._noterm_child()
 
     def _noterm_parent(self):
-        if random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT:
+        if (not self._proprties.has_remaining()) \
+                and (random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT):
             self._noterm_expression()
         else:
             self._generate_child()
@@ -504,8 +551,12 @@ class FilterQuery(QueryOption):
 
     def _noterm_child(self):
         self._noterm_parent()
-        self._noterm_logical()
-        self._noterm_parent()
+        self._generate_rest()
+
+    def _generate_rest(self):
+        if self._proprties.has_filterable():
+            self._noterm_logical()
+            self._noterm_parent()
 
     def _noterm_logical(self):
         operator = weighted_random(LOGICAL_OPERATORS.items())
@@ -534,13 +585,9 @@ class FilterQuery(QueryOption):
     def _generate_element(self):
         self._option.add_part()
         if random.random() < FUNCTION_WEIGHT:
-            self._generate_function()
+            self._noterm_function()
         else:
             self._generate_proprty()
-
-        if self._right_part:
-            self._right_part = False
-            self._update_right_logical_references()
 
     def _generate_function(self):
         functions_wrapper = random.choice(list(self._functions.group.values()))
@@ -552,6 +599,7 @@ class FilterQuery(QueryOption):
         operand = generated_function.generate()
         self._option_string += generated_function.generated_string + ' ' + operator + ' ' + operand
         self._update_function_part(generated_function, operator, operand)
+        self._update_right_logical_references()
 
     def _update_function_part(self, generated_function, operator, operand):
         last_part = self._option.last_part
@@ -564,19 +612,33 @@ class FilterQuery(QueryOption):
         last_part['return_type'] = generated_function.function_type.return_type
 
     def _generate_proprty(self):
-        proprty = random.choice(self._filterable_proprties)
-        operator = weighted_random(proprty.operators.items())
+        proprty = self._proprties.get_random_proprty()
+        operator = weighted_random(proprty.get_operators().items())
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
-        self._update_proprty_part(proprty.name, operator, operand)
+        replaceable = getattr(proprty, 'replaceable', True)
+        self._update_proprty_part(proprty.name, operator, operand, replaceable)
 
-    def _update_proprty_part(self, proprty_name, operator, operand):
+        self._update_right_logical_references()
+        proprty.generate_remaning_proprties(proprty, operator)
+
+    def _get_random_index_to_proprties(self):
+        random_index = round(random.random() * (len(self._proprties) - 1))
+        return random_index
+
+    def _update_proprty_part(self, proprty_name, operator, operand, replaceable):
         last_part = self._option.last_part
         last_part['name'] = proprty_name
         last_part['operator'] = operator
         last_part['operand'] = operand
+        last_part['replaceable'] = replaceable
 
     def _update_right_logical_references(self):
+        if self._right_part:
+            self._right_part = False
+            self._set_right_logical_references()
+
+    def _set_right_logical_references(self):
         last_logical = self._option.last_logical
         last_part = self._option.last_part
 
@@ -588,27 +650,91 @@ class FilterQuery(QueryOption):
             last_group['logicals'].append(last_logical['id'])
             last_logical['group_id'] = last_group['id']
 
-    def _generate_property_for_draft_first(self):
-        self._option.add_part()
-        self._option.last_part['replaceable'] = False
 
-        operand = self._draft_proprty.generate()
-        operator = weighted_random(self._draft_proprty.operators.items())
-        self._option_string += self._draft_proprty.name + ' ' + operator + ' ' + operand
-        self._update_proprty_part(self._draft_proprty.name, operator, operand)
+class ProprtiesSelector(object):
+    def __init__(self, filterable_proprties, required_proprties):
+        self._filterable_proprties = filterable_proprties
+        self._required_proprties = required_proprties
 
-        self._delete_restricted_proprties(self._draft_proprty.name)
-        if self._filterable_proprties:
-            self._noterm_logical()
-            self._noterm_parent()
+        self._required_tuple = None
+        self._non_required_tuple = None
+        self._has_remaining_proprties = True if self._required_proprties else False
+        self._init_tuples()
 
-    def _generate_normal_string(self):
-        if len(self._restricted_proprties) >= 1 and random.random() < SINGLE_VALUE_PROB:
-            self._option.add_part()
-            self._generate_proprty()
+        self._proprties = [self._non_required_tuple, self._required_tuple]
+        self._times_called_has_remaining = 0
+
+    def has_remaining(self):
+        if self._times_called_has_remaining >= len(self._required_proprties):
+            return False
         else:
-            self._delete_restricted_proprties('')
-            self._noterm_expression()
+            self._times_called_has_remaining += 1
+            return self._has_remaining_proprties
+
+    def has_filterable(self):
+        return self._filterable_proprties
+
+    def get_random_proprty(self):
+        proprties_group = weighted_random(self._proprties)
+        proprty = proprties_group.get_proprty()
+        self._update_remaining_proprties()
+        return proprty
+
+    def _init_tuples(self):
+        non_required_proprties = list(set(self._filterable_proprties) - set(self._required_proprties))
+        if non_required_proprties:
+            if self._required_proprties:
+                self._non_required_tuple = (NonRequiredProprties(self._filterable_proprties), 0.01)
+                self._required_tuple = (RequiredProprties(self._required_proprties), 0.99)
+            else:
+                self._non_required_tuple = (NonRequiredProprties(self._filterable_proprties), 1.0)
+                self._required_tuple = (RequiredProprties([]), 0.0)
+        else:
+            self._non_required_tuple = (NonRequiredProprties([]), 0.0)
+            self._required_tuple = (RequiredProprties(self._required_proprties), 1.0)
+
+    def _update_remaining_proprties(self):
+        if self._has_remaining_proprties:
+            required_tuple = self._proprties[1]
+            required_group = required_tuple[0]
+            if not required_group.proprties:
+                self._has_remaining_proprties = False
+                self._proprties[0] = (NonRequiredProprties(self._filterable_proprties), 1.0)
+                del self._proprties[1]
+
+
+class ProprtiesGroup(object):
+    def __init__(self, proprties):
+        self._proprties = proprties
+
+    @property
+    def proprties(self):
+        return self._proprties
+
+    def _delete_filterable_if_restricted(self, filter_restriction, index):
+        if filter_restriction == 'single-value':
+            del self._proprties[index]
+
+
+class RequiredProprties(ProprtiesGroup):
+    def __init__(self, required_proprties):
+        super(RequiredProprties, self).__init__(required_proprties)
+
+    def get_proprty(self):
+        random_index = round(random.random() * (len(self._proprties) - 1))
+        proprty = self._proprties.pop(random_index)
+        return proprty
+
+
+class NonRequiredProprties(ProprtiesGroup):
+    def __init__(self, non_required_proprties):
+        super(NonRequiredProprties, self).__init__(non_required_proprties)
+
+    def get_proprty(self):
+        random_index = round(random.random() * (len(self._proprties) - 1))
+        proprty = self._proprties[random_index]
+        self._delete_filterable_if_restricted(proprty.filter_restriction, random_index)
+        return proprty
 
 
 class Option(metaclass=ABCMeta):
@@ -762,6 +888,21 @@ class FilterOption(Option):
     def reverse_logicals(self):
         self._logicals = list(reversed(self._logicals))
 
+    def delete_redundancies(self):
+        filtered_groups = []
+        redundant_groups_id = []
+
+        for group in self._groups:
+            if group['logicals'] and (group.get('right_id', None) or group.get('left_id', None)):
+                filtered_groups.append(group)
+            else:
+                redundant_groups_id.append(group['id'])
+        self._groups[:] = filtered_groups
+
+        for logical in self._logicals:
+            if logical.get('group_id', None) in redundant_groups_id:
+                logical.pop('group_id')
+
 
 class Stack(object):
     """An abstract stack data type."""
@@ -900,9 +1041,9 @@ class FilterOptionDeleter(object):
         self._deleting_part = None
         self._remaining_part = None
 
-    def remove_adjacent(self):
+    def remove_adjacent(self, selected_id):
         self._remove_logical_in_group()
-        self._init_selection()
+        self._init_selection(selected_id)
         if self._deleting_part:
             self._option_value['parts'].remove(self._deleting_part)
             self._add_part_references()
@@ -921,8 +1062,8 @@ class FilterOptionDeleter(object):
         if group_id:
             remove_logical_from_group(self._option_value, group_id, self._logical['id'])
 
-    def _init_selection(self):
-        self._selected_id = random.choice(['left_id', 'right_id'])
+    def _init_selection(self, selected_id):
+        self._selected_id = selected_id
         self._remained_id = 'left_id' if self._selected_id.startswith('right') else 'right_id'
         self._deleting_part = dict_by_id(self._option_value['parts'],
                                          self._logical[self._selected_id])
@@ -997,6 +1138,8 @@ class FilterFunctionsGroup(object):
 
     def _init_functions_group(self, filterable_proprties):
         for proprty in filterable_proprties:
+            if proprty.filter_restriction:
+                continue
             if proprty.typ.name == 'Edm.String':
                 self._group.setdefault('String', StringFilterFunctions()).add_proprty(proprty)
             elif proprty.typ.name == 'Edm.DateTime':
