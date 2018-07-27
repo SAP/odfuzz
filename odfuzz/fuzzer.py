@@ -222,7 +222,11 @@ class Fuzzer(object):
 
     def _crossover_queries(self, query1, query2, queryable):
         if is_filter_crossable(query1, query2):
-            offspring = self._crossover_filter(query1, query2)
+            replaceable_parts = [part for part in query1['_$filter']['parts'] if part.get('replaceable', True)]
+            if replaceable_parts:
+                offspring = self._crossover_filter(replaceable_parts, query1, query2)
+            else:
+                offspring = self._crossover_options(query1, query2)
         else:
             offspring = self._crossover_options(query1, query2)
         Stats.created_by_crossover += 1
@@ -295,7 +299,7 @@ class Fuzzer(object):
             proprty = queryable.query_option(option_name).entity_set.entity_type \
                 .proprty(part['name'])
             if getattr(proprty, 'mutate', None):
-                part['operand'] = '\'' + proprty.mutate(part['operand'][1:-1]) + '\''
+                part['operand'] = proprty.mutate(part['operand'])
 
     def _mutate_orderby_part(self, option_value):
         proprties_num = len(option_value['proprties']) - 1
@@ -328,12 +332,10 @@ class Fuzzer(object):
         query1[selected_option] = query2[selected_option]
         return query1
 
-    def _crossover_filter(self, query1, query2):
-        filter_option1 = query1['_$filter']
+    def _crossover_filter(self, replaceable_parts, query1, query2):
         filter_option2 = query2['_$filter']
 
         # properties that are not required for draft entities are replaceable by default
-        replaceable_parts = [part for part in filter_option1['parts'] if part.get('replaceable', True)]
         part_to_replace = random.choice(replaceable_parts)
         replacing_part = random.choice(filter_option2['parts'])
 

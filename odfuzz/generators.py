@@ -22,31 +22,37 @@ GUID_DASH_INDEXES = (8, 13, 18, 23)
 
 class StringMutator(object):
     @staticmethod
-    def flip_bit(self, string):
+    def flip_bit(self, original_string):
+        string = original_string[1:-1]
         if not string:
-            return string
+            return original_string
+
         index = round(random.random() * (len(string) - 1))
         ord_char = ord(string[index])
         ord_char ^= 1 << round(random.random() * ord_char.bit_length()) + 1
         ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char
         ord_char = replace_if_is_semicolon(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
-        return generated_string.decode(errors='replace')
+        return '\'' + generated_string.decode(errors='replace') + '\''
 
     @staticmethod
-    def replace_char(self, string):
+    def replace_char(self, original_string):
+        string = original_string[1:-1]
         if not string:
-            return string
+            return original_string
+
         index = round(random.random() * (len(string) - 1))
         ord_char = round(random.random() * (0x10ffff - 1) + 1)
         ord_char = replace_if_is_semicolon(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
-        return generated_string.decode(errors='replace')
+        return '\'' + generated_string.decode(errors='replace') + '\''
 
     @staticmethod
-    def swap_chars(self, string):
+    def swap_chars(self, original_string):
+        string = original_string[1:-1]
         if not string:
-            return string
+            return original_string
+
         index_length = len(string) - 1
         index1 = round(random.random() * index_length)
         index2 = round(random.random() * index_length)
@@ -55,12 +61,14 @@ class StringMutator(object):
 
         list_char = list(string)
         list_char[index1], list_char[index2] = string[index2], string[index1]
-        return ''.join(list_char)
+        return '\'' + ''.join(list_char) + '\''
 
     @staticmethod
-    def invert_chars(self, string):
+    def invert_chars(self, original_string):
+        string = original_string[1:-1]
         if len(string) < 3:
-            return string
+            return original_string
+
         index_len = len(string) - 1
         start_index = round(random.random() * (index_len - 2))
         end_index = round(random.random() * (index_len - start_index - 1)) + start_index + 2
@@ -68,24 +76,26 @@ class StringMutator(object):
 
         list_char = list(string)
         list_char[start_index:end_index] = slice_char[::-1]
-        return ''.join(list_char)
+        return '\'' + ''.join(list_char) + '\''
 
     @staticmethod
     def add_char(self, string):
+        string = string[1:-1]
         index = round(random.random() * (len(string)))
         new_char = random.choice(BASE_CHARSET)
         generated_string = ''.join([string[:index], new_char, string[index:]])
         if self.max_string_length < len(generated_string):
             generated_string = generated_string[:-1]
-        return generated_string
+        return '\'' + generated_string + '\''
 
     @staticmethod
-    def delete_char(self, string):
+    def delete_char(self, original_string):
+        string = original_string[1:-1]
         if len(string) >= 3:
             index = round(random.random() * (len(string) - 1))
-            return ''.join([string[:index], string[index + 1:]])
+            return '\'' + ''.join([string[:index], string[index + 1:]]) + '\''
         else:
-            return string
+            return original_string
 
 
 class NumberMutator(object):
