@@ -1188,7 +1188,8 @@ class StructTypeProperty(VariableDeclaration):
             except KeyError:
                 # TODO: resolve EntityType of text property
                 if '/' not in self._text_proprty_name:
-                    raise RuntimeError('The attribute sap:text of {1} is set to non existing Property \'{0}\''
+                    #raise RuntimeError
+                    logging.error('The attribute sap:text of {1} is set to non existing Property \'{0}\''
                                        .format(self._text_proprty_name, self))
 
     @property
@@ -1734,7 +1735,9 @@ class ValueHelper(Annotation):
                 try:
                     param.local_property = etype.proprty(param.local_property_name)
                 except KeyError:
-                    raise RuntimeError('{0} of {1} points to an non existing LocalDataProperty {2} of {3}'.format(
+                    #raise RuntimeError(
+                    logging.error(
+                        '{0} of {1} points to an non existing LocalDataProperty {2} of {3}'.format(
                         param, self, param.local_property_name, etype))
 
     @property
