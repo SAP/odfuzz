@@ -464,11 +464,11 @@ class FilterQuery(QueryOption):
     def _set_generators_for_restricted_proprties(self):
         for proprty in self._entity_set.entity_type.proprties():
             if proprty.filter_restriction == 'interval':
-                proprty.generate_remaning_proprties = self._generate_interval_values
+                proprty.generate_remaining_proprties = self._generate_interval_values
             elif proprty.filter_restriction == 'multi-value':
-                proprty.generate_remaning_proprties = self._generate_multi_values
+                proprty.generate_remaining_proprties = self._generate_multi_values
             else:
-                proprty.generate_remaning_proprties = lambda x, y: None
+                proprty.generate_remaining_proprties = lambda x, y: None
 
     def _generate_string(self):
         if not self._required_proprties and random.random() < SINGLE_VALUE_PROB:
@@ -524,7 +524,7 @@ class FilterQuery(QueryOption):
             self._generate_child()
 
     def _generate_child(self):
-        if random.random() < 0.5:
+        if random.random() < 0.5 or not self._proprties.has_remaining():
             self._noterm_child()
         else:
             self._generate_child_group()
@@ -534,7 +534,6 @@ class FilterQuery(QueryOption):
         self._option.add_group()
         last_group = self._option.last_group
         if self._right_part:
-            self._right_part = False
             self._update_group_references(last_group)
         self._groups_stack.push(last_group)
         self._noterm_child()
@@ -620,7 +619,7 @@ class FilterQuery(QueryOption):
         self._update_proprty_part(proprty.name, operator, operand, replaceable)
 
         self._update_right_logical_references()
-        proprty.generate_remaning_proprties(proprty, operator)
+        proprty.generate_remaining_proprties(proprty, operator)
 
     def _get_random_index_to_proprties(self):
         random_index = round(random.random() * (len(self._proprties) - 1))
