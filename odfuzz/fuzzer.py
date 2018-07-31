@@ -911,7 +911,8 @@ class Dispatcher(object):
         certificate_path = None
         if self._has_certificate:
             self_dir = os.path.dirname(__file__)
-            candidate_path = os.path.join(self_dir, CERTIFICATE_PATH)
+            relative_path = os.path.join(os.getcwd(), CERTIFICATE_PATH)
+            candidate_path = os.path.join(self_dir, relative_path)
             if not os.path.isfile(candidate_path):
                 return None
             certificate_path = candidate_path

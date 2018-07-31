@@ -52,7 +52,8 @@ def none_to_str(value):
 
 def init_loggers(logs_directory, stats_directory):
     config_defaults = create_config_defaults(logs_directory, stats_directory)
-    logging.config.fileConfig(CONFIG_PATH, disable_existing_loggers=False, defaults=config_defaults)
+    relative_path = os.path.join(os.getcwd(), CONFIG_PATH)
+    logging.config.fileConfig(relative_path, disable_existing_loggers=False, defaults=config_defaults)
 
 
 def create_config_defaults(logs_path, stats_path):
