@@ -24,22 +24,34 @@ C_Cpbupaemailvh?$top=81&$filter=ContactPerson eq 'Ý¿â†' and (RelationshipCa
 - [mongoDB 3.6](https://www.mongodb.com/)
 - [PivotTable](https://github.wdf.sap.corp/I342520/Pivot)
 
-### Setup
+## Setup
+Clone this repository:
+```
+$ git clone https://github.wdf.sap.corp/I342520/ODfuzz && cd ODfuzz
+```
+
+### Docker
+1. Execute the following command to build a docker image:
+```
+$ sudo docker build -t odfuzz:1.0 .
+```
+2. Run the container:
+```
+$ sudo docker run --dns=10.17.121.71 -ti odfuzz:1.0
+```
+
+### Manual
 1. [Download](https://www.mongodb.com/download-center#community) and [install](https://docs.mongodb.com/manual/administration/install-community/) the mongoDB server on your local machine.
 2. [Download](https://github.wdf.sap.corp/I342520/Pivot) or clone a custom implementation of the Pivot table:
 ```
 $ git clone https://github.wdf.sap.corp/I342520/Pivot
 ```
-3. Clone this repository:
-```
-$ git clone https://github.wdf.sap.corp/I342520/ODfuzz
-```
-4. Navigate to the cloned ODfuzz repository and install all python requirements:
+3. Install all python requirements:
 ```
 $ pip install -r requirements.txt
 ```
 
-### Run configuration
+## Run configuration
 To access OData services introduced in SAP, it is required to set the following **environment variables** in your system. The fuzzer will use these variables for a **basic authentication**.
 ```
 SAP_USERNAME=Username
@@ -48,7 +60,7 @@ SAP_PASSWORD=Password
 
 Command line arguments
 ```
-$ py odfuzz.py --help
+$ python3 odfuzz.py --help
 positional arguments:
   service               An OData service URL
 optional arguments:
@@ -61,7 +73,7 @@ optional arguments:
   -a, --async           Allow ODfuzz to send HTTP requests asynchronously
 ```
 
-#### Runtime
+### Runtime
 ODfuzz runs in an **infinite loop**. You may cancel an execution of the fuzzer with a **keyboard interruption** (CTRL + C).
 
 ### Output
@@ -75,10 +87,10 @@ Output of the fuzzer is stored in the user defined directories (e.g. logs_direct
 
 When a connection is forcibly closed by a host (e.g. user was disconnected from VPN), ODfuzz ends with an error message, but still creates all necessary stats files.
 
-### Usage
+## Usage
 1. Run the fuzzer, for example, as:
 ```
-py odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.txt
+python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.txt
 ```
 2. Let it run for a couple of hours (or minutes). Cancel execution of the fuzzer with CTRL + C.
 3. Browse overall stats, for example, by the following scenario:
@@ -86,7 +98,7 @@ py odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDE
     - Queries which produced the errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
     - Open SAP Logon and browse errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
 
-#### Restrictions
+### Restrictions
 With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following format:
 ```
 [ Exclude | Include ]
