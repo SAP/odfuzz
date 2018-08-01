@@ -7,33 +7,43 @@ COPY . ODfuzz/
 
 ENV TZ=Europe/Berlin
 
-RUN apk upgrade \
-	&& apk --update add build-base \
+RUN apk update \
+	&& apk add --no-cache \
+		build-base \
+		tzdata \
 	&& ln -sf /usr/share/zoneinfo/$TZ /etc/localtime \
 	&& apk add --no-cache --virtual=build-dependencies wget \
 	&& apk add --no-cache \
-		bash \
 		mongodb \
 		python3 \
-	&& apk add --no-cache \
-		libxml2 \
 		libffi-dev \
 		libxslt-dev \
-		libxml2-dev \
 		python3-dev \
-		openssl-dev \
 	&& wget "https://bootstrap.pypa.io/get-pip.py" -O /dev/stdout | python3 \
 	&& pip install cffi \
 	&& pip install -r ODfuzz/requirements.txt \
 	&& apk del \
 		build-base \
-		libxml2 \
+		build-dependencies \
 		libffi-dev \
-		libxml2-dev \
 		python3-dev \
-		openssl-dev \
+		tzdata \
 	&& rm -rf ~/.pip/cache/ \
+	&& rm -rf /tmp/* \
+	&& rm -rf /tar/tmp/* \
 	&& rm -rf /var/cache/apk/*
+
+ENV PROXY_ENABLED="yes" \
+	HTTP_PROXY="http://proxy:8080" \
+	http_proxy="http://proxy:8080" \
+	HTTPS_PROXY="http://proxy:8080" \
+	https_proxy="http://proxy:8080" \
+	FTP_PROXY="http://proxy:8080" \
+	ftp_proxy="http://proxy:8080" \
+	GOPHER_PROXY="http://proxy:8080" \
+	gopher_proxy="http://proxy:8080" \
+	NO_PROXY="localhost, 127.0.0.1, sap-ag.de, sap.corp, corp.sap, co.sap.com, sap.biz, wdf.sap.corp, .wdf.sap.corp, .blrl.sap.corp, .phl.sap.corp, 10.68.148.36, 10.68.148.36, 10.68.148.36, .global.corp.sap, .wdf.sap.corp, .sap-ag.de, .sap.corp, .corp.sap, .co.sap.com, .sap.biz, .successfactors.com, *.sap, *.corp, *.successfactors.com, *.cloud.sap" \
+	no_proxy="localhost, 127.0.0.1, sap-ag.de, sap.corp, corp.sap, co.sap.com, sap.biz, wdf.sap.corp, .wdf.sap.corp, .blrl.sap.corp, .phl.sap.corp, 10.68.148.36, 10.68.148.36, 10.68.148.36, .global.corp.sap, .wdf.sap.corp, .sap-ag.de, .sap.corp, .corp.sap, .co.sap.com, .sap.biz, .successfactors.com, *.sap, *.corp, *.successfactors.com, *.cloud.sap"
 
 VOLUME /data/db
 
