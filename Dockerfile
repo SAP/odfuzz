@@ -46,4 +46,7 @@ ENV PROXY_ENABLED="yes" \
 	no_proxy="localhost, 127.0.0.1, sap-ag.de, sap.corp, corp.sap, co.sap.com, sap.biz, wdf.sap.corp, .wdf.sap.corp, .blrl.sap.corp, .phl.sap.corp, 10.68.148.36, 10.68.148.36, 10.68.148.36, .global.corp.sap, .wdf.sap.corp, .sap-ag.de, .sap.corp, .corp.sap, .co.sap.com, .sap.biz, .successfactors.com, *.sap, *.corp, *.successfactors.com, *.cloud.sap"
 
 VOLUME /data/db
+WORKDIR /ODfuzz
+
+CMD mongod > /dev/null 2>&1 & sh -c sh
 
