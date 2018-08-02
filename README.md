@@ -115,6 +115,9 @@ Every line, except the first line, starts with a tab or set of tabs and should b
 
 Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.txt* restrictions file for [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
 
+##### Why are we using restrictions at all?
+OData services does not support some functions provided by the OData protocol (for example, day(), substring(), length()) or does not implement GET_ENTITYSET methods for all entities. By using the restrictions, one can easily decrease a number of queries that are worthless. Also, some services may implement handlers only for the $filter query option but does not declare that in the metadata document. Therefore, other query options cannot be used within the same request, otherwise various types of errors are produced (e.g. System query options '$orderby,$skip,$top,$skiptoken,$inlinecount' are not allowed in the requested URI). 
+
 ### Limitations
 At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32 and Edm.Guid. It is planned to support more types in the future.
 
@@ -144,3 +147,4 @@ ODfuzz may be used to test OData services outside the SAP network. There are two
 - Add unit tests. (30% done)
 - Use RotatingFileHandler instead of FileHandler in logging
 - Add support for the sap:display-format attribute. This attribute helps to determine whether a property is a type of integer or a string. For example, property FiscalPeriod is type of Edm.String with attributes MaxLength="3" and sap:display-format="NonNegative". This means that the property holds a non-negative integer value which is converted to the string.
+- Add support for function imports.
