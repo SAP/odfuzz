@@ -103,34 +103,54 @@ class NumberMutator(object):
     def increment_value(self, string_number):
         if not string_number:
             string_number = '0'
-        return str(int(string_number) + 1)
+        if string_number.endswith('L'):
+            appendix = 'L'
+            string_number = string_number[:-1]
+        else:
+            appendix = ''
+        return str(int(string_number) + 1) + appendix
 
     @staticmethod
     def decrement_value(self, string_number):
         if not string_number:
             string_number = '0'
+        if string_number.endswith('L'):
+            appendix = 'L'
+            string_number = string_number[:-1]
+        else:
+            appendix = ''
         value = int(string_number) - 1
         if value < 0:
             value = 0
-        return str(value)
+        return str(value) + appendix
 
     @staticmethod
     def add_digit(self, string_number):
+        if string_number.endswith('L'):
+            appendix = 'L'
+            string_number = string_number[:-1]
+        else:
+            appendix = ''
         digit = round(random.random() * 9)
         position = round(random.random() * len(string_number))
         string_number = ''.join([string_number[:position], str(digit), string_number[position:]])
-        return string_number
+        return string_number + appendix
 
     @staticmethod
     def delete_digit(self, string_number):
         if not string_number:
             return '0'
+        if string_number.endswith('L'):
+            appendix = 'L'
+            string_number = string_number[:-1]
+        else:
+            appendix = ''
         if len(string_number) > 1:
             index = round(random.random() * (len(string_number) - 1))
             generated_number = ''.join([string_number[:index], string_number[index + 1:]])
         else:
             return '0'
-        return generated_number
+        return generated_number + appendix
 
 
 class GuidMutator(object):
