@@ -1,5 +1,5 @@
 import pytest
-import random
+import unittest.mock
 import odfuzz.monkey as monkey
 
 from odfuzz.generators import RandomGenerator, StringMutator, NumberMutator
@@ -70,10 +70,34 @@ def test_num_property_mutator_patch(master_entity_type):
 def test_standard_property_operator_patch(master_entity_type):
     fiscal_year_property = master_entity_type.proprty('FiscalYear')
     monkey.patch_proprty_operator(fiscal_year_property)
-    assert set(fiscal_year_property.operators.keys()) == {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}
+    assert set(key for key, value in fiscal_year_property.operators.get_all()) == {'eq', 'ne', 'lt', 'le', 'gt', 'ge'}
 
 
 def test_boolean_property_operator_patch(master_entity_type):
     is_active_entity_property = master_entity_type.proprty('IsActiveEntity')
     monkey.patch_proprty_operator(is_active_entity_property)
-    assert set(is_active_entity_property.operators.keys()) == {'eq', 'ne'}
+    assert set(key for key, value in is_active_entity_property.operators.get_all()) == {'eq', 'ne'}
+
+
+def test_single_property_operator_patch(master_entity_type):
+    single_value_property = master_entity_type.proprty('SingleValue')
+    monkey.patch_proprty_operator(single_value_property)
+    assert set(key for key, value in single_value_property.operators.get_all()) == {'eq'}
+
+
+def test_multi_property_operator_patch(master_entity_type):
+    multi_value_property = master_entity_type.proprty('MultiValue')
+    monkey.patch_proprty_operator(multi_value_property)
+    assert set(key for key, value in multi_value_property.operators.get_all()) == {'eq'}
+
+
+def test_interval_property_operator_patch(master_entity_type):
+    interval_value_property = master_entity_type.proprty('IntervalValue')
+    monkey.patch_proprty_operator(interval_value_property)
+
+    with unittest.mock.patch('random.choice', lambda x: x[0]):
+        operators_names1 = set(key for key, value in interval_value_property.operators.get_all())
+    with unittest.mock.patch('random.choice', lambda x: x[1]):
+        operators_names2 = set(key for key, value in interval_value_property.operators.get_all())
+    assert sorted((operators_names1, operators_names2), key=lambda x: len(x)) == sorted(
+        ({'eq'}, {'ge', 'le'}), key=lambda x: len(x))

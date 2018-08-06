@@ -420,8 +420,8 @@ class FilterQuery(QueryOption):
             self._draft_proprty = self.entity_set.entity_type.proprty(draft_properties[0])
             # only 'eq' operator is allowed for fetching draft entities,
             # otherwise the GETWA_NOT_ASSIGNED runtime error is raised
-            self._draft_proprty.operators['ne'] = 0.0
-            self._draft_proprty.operators['eq'] = 1.0
+            self._draft_proprty.operators.set_key_value('ne', 0.0)
+            self._draft_proprty.operators.set_key_value('eq', 1.0)
         else:
             self._draft_proprty = None
 
@@ -612,7 +612,7 @@ class FilterQuery(QueryOption):
 
     def _generate_proprty(self):
         proprty = self._proprties.get_random_proprty()
-        operator = weighted_random(proprty.get_operators().items())
+        operator = weighted_random(proprty.operators.get_all())
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
         replaceable = getattr(proprty, 'replaceable', True)
