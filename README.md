@@ -90,7 +90,7 @@ When a connection is forcibly closed by a host (e.g. user was disconnected from 
 ## Usage
 1. Run the fuzzer, for example, as:
 ```
-python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.txt
+python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml
 ```
 2. Let it run for a couple of hours (or minutes). Cancel execution of the fuzzer with CTRL + C.
 3. Browse overall stats, for example, by the following scenario:
@@ -99,21 +99,20 @@ python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRES
     - Open SAP Logon and browse errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
 
 ### Restrictions
-With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following format:
+With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following YAML format:
 ```
-[ Exclude | Include ]
-    [ $filter | $orderby | $skip | ... ]
-        EntitySet name
-            Property name
-            Property name
+[ Exclude | Include ]:
+    [ $filter | $orderby | $skip | ... ]:
+        EntitySet name:
+            - Property name
+            - Property name
             ...
-        [ $F_ALL$ | $E_ALL$ | $P_ALL$ ]
-            [ Function name | EntitySet name | Property name ]
+        [ $F_ALL$ | $E_ALL$ | $P_ALL$ ]:
+            - [ Function name | EntitySet name | Property name ]
             ...
 ```
-Every line, except the first line, starts with a tab or set of tabs and should be properly aligned. At the moment, only entity, property and global function restrictions are implemented.
 
-Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.txt* restrictions file for [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
+Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.yaml* restrictions file for [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
 
 ##### Why are we using restrictions at all?
 OData services does not support some functions provided by the OData protocol (for example, day(), substring(), length()) or does not implement GET_ENTITYSET methods for all entities. By using the restrictions, one can easily decrease a number of queries that are worthless. Also, some services may implement handlers only for the $filter query option but does not declare that in the metadata document. Therefore, other query options cannot be used within the same request, otherwise various types of errors are produced (e.g. System query options '$orderby,$skip,$top,$skiptoken,$inlinecount' are not allowed in the requested URI). 
