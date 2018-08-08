@@ -14,6 +14,7 @@ from pyodata.exceptions import PyODataException
 from odfuzz.exceptions import BuilderError, DispatcherError
 from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
+from odfuzz.config import Config
 from odfuzz.constants import *
 
 NullEntity = namedtuple('NullEntity', 'name')
@@ -47,7 +48,7 @@ class Builder(object):
         return service_model
 
     def _get_metadata_from_service(self):
-        metadata_request = '$metadata?' + CLIENT
+        metadata_request = '$metadata?' + 'sap-client=' + Config.client
         try:
             metadata_response = self._dispatcher.get(metadata_request)
         # TODO: catch Dispatcher exception
@@ -331,7 +332,7 @@ class TopQuery(QueryOption):
     def _get_total_entities(self):
         # TODO: refactor method -- else block move out of the function
         try:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT,
+            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client,
                                             timeout=3)
         except DispatcherError:
             total_entities = INT_MAX
@@ -384,7 +385,7 @@ class SkipQuery(QueryOption):
 
     def _get_total_entities(self):
         try:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT,
+            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client,
                                             timeout=3)
         except DispatcherError:
             total_entities = INT_MAX

@@ -9,7 +9,7 @@ import logging.config
 from datetime import datetime
 from collections import namedtuple
 
-from odfuzz.constants import FUZZER_LOGS_NAME, STATS_LOGS_NAME, FILTER_LOGS_NAME, CONFIG_PATH
+from odfuzz.constants import FUZZER_LOGS_NAME, STATS_LOGS_NAME, FILTER_LOGS_NAME, LOGGING_CONFIG_PATH
 
 NONE_TYPE_POSSIBLE = 'n'
 
@@ -52,7 +52,7 @@ def none_to_str(value):
 
 def init_loggers(logs_directory, stats_directory):
     config_defaults = create_config_defaults(logs_directory, stats_directory)
-    relative_path = os.path.join(os.getcwd(), CONFIG_PATH)
+    relative_path = os.path.join(os.getcwd(), LOGGING_CONFIG_PATH)
     logging.config.fileConfig(relative_path, disable_existing_loggers=False, defaults=config_defaults)
 
 

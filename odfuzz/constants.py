@@ -4,8 +4,10 @@ FUZZER_LOGS_NAME = 'logs'
 STATS_LOGS_NAME = 'stats_overall'
 FILTER_LOGS_NAME = 'stats_filter'
 RUNTIME_FILE_NAME = 'runtime_info.txt'
-CONFIG_PATH = 'config/logging/logging.conf'
+LOGGING_CONFIG_PATH = 'config/logging/logging.conf'
 CERTIFICATE_PATH = 'config/security/ca_sap_root_base64.crt'
+FUZZER_CONFIG_PATH = 'config/fuzzer/fuzzer.ini'
+CONFIG_SECTION = 'default'
 
 # this set of constants must be equal to the corresponding
 # logger keys defined in the CONFIG_PATH
@@ -14,9 +16,6 @@ STATS_LOGGER = 'stats'
 FILTER_LOGGER = 'filter'
 
 MONGODB_NAME = 'odfuzz'
-
-CLIENT = 'sap-client=500'
-FORMAT = '$format=json'
 ACCESS_PROTOCOL = 'https://'
 
 ENV_USERNAME = 'SAP_USERNAME'
@@ -52,10 +51,6 @@ KEY_VALUES_MUTATION_PROB = 0.05
 ASSOCIATED_ENTITY_PROB = 0.2
 RECURSION_LIMIT = 3
 
-SEED_POPULATION = 100
-# pool size may be limited on some OData services
-# and should be a factor of seed population size
-POOL_SIZE = 20
 STRING_THRESHOLD = 200
 ITERATIONS_THRESHOLD = 30
 CONTENT_LEN_SIZE = 50000

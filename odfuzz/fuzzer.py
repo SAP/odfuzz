@@ -25,6 +25,7 @@ from odfuzz.mongos import MongoClient
 from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.loggers import LogFormatter
+from odfuzz.config import Config
 from odfuzz.constants import *
 
 
@@ -34,6 +35,7 @@ class Manager(object):
     def __init__(self, arguments, collection_name):
         self._dispatcher = Dispatcher(arguments.service, has_certificate=True)
         self._async = getattr(arguments, 'async')
+        Config.retrieve_config()
 
         restrictions_file = getattr(arguments, 'restr')
         if restrictions_file:
@@ -103,9 +105,9 @@ class Fuzzer(object):
     def seed_population(self):
         self._logger.info('Seeding population with requests...')
         for queryable in self._entities.all():
-            seed_range = len(queryable.entity_set.entity_type.proprties()) * SEED_POPULATION
+            seed_range = len(queryable.entity_set.entity_type.proprties()) * Config.seed_size
             if self._async:
-                seed_range = round(seed_range / POOL_SIZE)
+                seed_range = round(seed_range / Config.pool_size)
             self._logger.info('Population range for entity \'{}\' is set to {}'
                               .format(queryable.entity_set.name, seed_range))
             for _ in range(seed_range):
@@ -137,7 +139,7 @@ class Fuzzer(object):
 
     def _generate_multiple(self, queryable):
         queries = []
-        for _ in range(POOL_SIZE):
+        for _ in range(Config.pool_size):
             query = self._generate_query(queryable)
             if query:
                 queries.append(query)
@@ -172,7 +174,7 @@ class Fuzzer(object):
 
     def _crossover_multiple(self, crossable_selection, queryable):
         children = []
-        for _ in range(POOL_SIZE):
+        for _ in range(Config.pool_size):
             accessible_keys = crossable_selection[0].get('accessible_keys', None)
             if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
                 entity_data_to_be_mutated = crossable_selection[0]
@@ -359,7 +361,7 @@ class Fuzzer(object):
 
     def _get_multiple_responses(self, queries):
         responses = []
-        pool = Pool(POOL_SIZE)
+        pool = Pool(Config.pool_size)
         for query in queries:
             responses.append(pool.spawn(self._get_single_response, query))
         try:
@@ -862,10 +864,10 @@ class Query(object):
         }
 
     def _add_appendix(self):
-        if CLIENT:
-            self._query_string += '&' + CLIENT
-        if FORMAT:
-            self._query_string += '&' + FORMAT
+        if Config.client:
+            self._query_string += '&' + 'sap-client=' + Config.client
+        if Config.format:
+            self._query_string += '&' + '$format=' + Config.format
 
 
 class Dispatcher(object):
@@ -877,7 +879,7 @@ class Dispatcher(object):
         self._has_certificate = has_certificate
 
         self._session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(pool_connections=POOL_SIZE, pool_maxsize=POOL_SIZE)
+        adapter = requests.adapters.HTTPAdapter(pool_connections=Config.pool_size, pool_maxsize=Config.pool_size)
         self._session.mount(ACCESS_PROTOCOL, adapter)
         self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
         self._session.verify = self._get_sap_certificate()

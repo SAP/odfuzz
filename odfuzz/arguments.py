@@ -1,7 +1,5 @@
-"""This module contains a wrapper for parsing command line arguments."""
-
 import sys
-from argparse import ArgumentParser
+import argparse
 
 from odfuzz.exceptions import ArgParserError
 
@@ -10,7 +8,7 @@ FUZZER_DESC = 'Fuzzer for testing applications communicating via the OData proto
 
 class ArgParser(object):
     def __init__(self):
-        self._parser = ArgumentParser(prog='ODfuzz', add_help=False, description=FUZZER_DESC)
+        self._parser = argparse.ArgumentParser(prog='ODfuzz', add_help=False, description=FUZZER_DESC)
         self._add_arguments()
 
     def parse(self, arguments):
