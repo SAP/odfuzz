@@ -1,0 +1,20 @@
+Exclude:
+    $filter:
+        $F_ALL$:
+            - concat
+            - length
+            - tolower
+            - toupper
+            - trim
+            - replace
+            - indexof
+            - substring
+            - day
+            - hour
+            - minute
+            - month
+            - second
+            - year
+            - round
+            - floor
+            - ceiling

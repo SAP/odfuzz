@@ -1,0 +1,24 @@
+Exclude:
+    $filter:
+        $F_ALL$:
+            - concat
+            - trim
+            - substring
+            - toupper
+            - length
+            - tolower
+            - replace
+            - indexof
+        $E_ALL$:
+            - DefaultValueSet
+    $skip:
+        $E_ALL$:
+            - EmailPreviewTemplateCollection
+            - ResultCollection
+    $top:
+        $E_ALL$:
+            - EmailPreviewTemplateCollection
+            - ResultCollection
+    $orderby:
+        C_CorrespondenceCompanyCodeVH:
+            - CompanyCode
