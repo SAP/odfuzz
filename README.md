@@ -100,6 +100,8 @@ python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRES
     - Queries which produced the errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
     - Open SAP Logon and browse errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
 
+NOTE: ODfuzz uses a custom header **user-agent=odfuzz/1.0** in all HTTP requests. You may be able to filter internet traffic based on this header.
+
 ### Restrictions
 With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following YAML format:
 ```

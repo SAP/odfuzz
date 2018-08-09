@@ -883,6 +883,7 @@ class Dispatcher(object):
         self._session.mount(ACCESS_PROTOCOL, adapter)
         self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
         self._session.verify = self._get_sap_certificate()
+        self._session.headers.update({'user-agent': 'odfuzz/1.0'})
 
     @property
     def session(self):
