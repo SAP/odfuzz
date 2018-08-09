@@ -70,6 +70,8 @@ optional arguments:
                         A statistics directory
   -r RESTR, --restr RESTR
                         A user defined restrictions
+  -t TIMEOUT, --timeout TIMEOUT
+                        A general timeout in seconds for a fuzzing
   -a, --async           Allow ODfuzz to send HTTP requests asynchronously
 ```
 
@@ -138,7 +140,6 @@ ODfuzz may be used to test OData services outside the SAP network. There are two
 - While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
 
 #### TODO
-- Change format of restrictions file to JSON.
 - Generate filter strings for complex types.
 - Add heuristics for generators based on associations.
 - Create  database of valid inputs, e.g. for 'Language', 'Location', etc. (may be defined in restrictions file).

@@ -68,3 +68,6 @@ TOP_ENTITIES = 20
 
 CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter'
 CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'
+
+INFINITY_TIMEOUT = -1
+YEAR_IN_SECONDS = 31622400
