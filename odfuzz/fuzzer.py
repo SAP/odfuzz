@@ -159,14 +159,11 @@ class Fuzzer(object):
         return query
 
     def _generate_options(self, queryable, query):
+        depending_data = {}
         for option in queryable.random_options():
-            if option.name == SKIP:
-                generated_option = option.generate(query.options.get(TOP))
-            elif option.name == TOP:
-                generated_option = option.generate(query.options.get(SKIP))
-            else:
-                generated_option = option.generate()
+            generated_option = option.generate(depending_data)
             query.add_option(option.name, generated_option.data)
+            depending_data[option.name] = option.get_depending_data()
         query.build_string()
         self._logger.info('Generated query \'{}\''.format(query.query_string))
 
@@ -460,7 +457,7 @@ class Fuzzer(object):
         if orderby_option:
             for proprty in orderby_option['proprties']:
                 proprties.update([proprty])
-        if len(proprties) == 0:
+        if proprties:
             return ['']
         else:
             return list(proprties)
@@ -808,10 +805,7 @@ class Query(object):
         self._accessible_entity = value
 
     def is_option_deletable(self, name):
-        if self._accessible_entity.entity_set.requires_filter:
-            return False
-        else:
-            return True
+        return not (name == FILTER and self._accessible_entity.entity_set.requires_filter)
 
     def add_option(self, name, option):
         self._options[name] = option
@@ -988,16 +982,11 @@ def print_tests_num():
 def is_removable(option_value, part_id):
     for part in option_value['parts']:
         if part['id'] == part_id:
-            if not part.get('replaceable', True):
-                return False
-            else:
-                return True
+            return part.get('replaceable', True)
 
     for logical in option_value['logicals']:
         if logical.get('group_id', '') == part_id:
             left_id = is_removable(option_value, logical['left_id'])
             right_id = is_removable(option_value, logical['right_id'])
-            if right_id and left_id:
-                return True
-            else:
-                return False
+            return right_id and left_id
+    return True

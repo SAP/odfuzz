@@ -30,8 +30,8 @@ class ConfigParser(object):
     def _read_file(self):
         try:
             self._config.read(self._config_file)
-        except configparser.Error as ce:
-            raise ConfigParserError(ce)
+        except configparser.Error as error:
+            raise ConfigParserError(error)
 
     def get_section(self, name):
         try:

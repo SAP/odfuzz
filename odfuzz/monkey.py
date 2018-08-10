@@ -91,15 +91,13 @@ def set_mutator_methods(proprty, mutators_class):
 
 
 def get_string_mutator_method(self, value):
-    func_name = random.choice([func_name for func_name in StringMutator.__dict__.keys()
-                               if not func_name.startswith('_')])
+    func_name = random.choice([func_name for func_name in StringMutator.__dict__ if not func_name.startswith('_')])
     mutated_value = getattr(self, func_name)(self, value)
     return mutated_value
 
 
 def get_num_mutator_method(self, value):
-    func_name = random.choice([func_name for func_name in NumberMutator.__dict__.keys()
-                               if not func_name.startswith('_')])
+    func_name = random.choice([func_name for func_name in NumberMutator.__dict__ if not func_name.startswith('_')])
     mutated_value = getattr(self, func_name)(self, value)
     return mutated_value
 

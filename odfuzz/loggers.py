@@ -3,7 +3,6 @@
 import os
 import uuid
 import errno
-import string
 import logging.config
 
 from datetime import datetime
