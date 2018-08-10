@@ -24,7 +24,6 @@ from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.mongos import MongoClient
 from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
-from odfuzz.loggers import LogFormatter
 from odfuzz.config import Config
 from odfuzz.constants import *
 
@@ -65,7 +64,6 @@ class Fuzzer(object):
         self._filter_logger = logging.getLogger(FILTER_LOGGER)
         self._stats_logger.info(CSV)
         self._filter_logger.info(CSV_FILTER)
-        self._log_formatter = LogFormatter()
 
         self._dispatcher = dispatcher
         self._entities = entities
@@ -376,6 +374,9 @@ class Fuzzer(object):
         if query.response.status_code != 200:
             self._set_error_attributes(query)
             Stats.fails_num += 1
+        else:
+            setattr(query.response, 'error_code', None)
+            setattr(query.response, 'error_message', None)
 
     def _analyze_queries(self, queries):
         analyzed_offsprings = []
@@ -433,21 +434,22 @@ class Fuzzer(object):
                 self._log_formatted_stats(query, query_dict, proprty)
 
     def _log_formatted_stats(self, query, query_dict, proprty):
-        self._stats_logger.info(self._log_formatter.format(
-            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{AccessibleSet:n};{AccessibleKeys:n};'
-            '{Property:n};{orderby:n};{top:n};{skip:n};{filter:n}',
-            StatusCode=query.response.status_code,
-            ErrorCode=getattr(query.response, 'error_code', ''),
-            ErrorMessage=getattr(query.response, 'error_message', ''),
-            EntitySet=query_dict['entity_set'],
-            AccessibleSet=query_dict['accessible_set'],
-            AccessibleKeys=query_dict['accessible_keys'],
-            Property=proprty,
-            orderby=query.options_strings['$orderby'],
-            top=query.options_strings['$top'],
-            skip=query.options_strings['$skip'],
-            filter=query.options_strings['$filter']
-        ))
+        self._stats_logger.info(
+            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{AccessibleSet};{AccessibleKeys};'
+            '{Property};{orderby};{top};{skip};{filter}'.format(
+                StatusCode=query.response.status_code,
+                ErrorCode=query.response.error_code,
+                ErrorMessage=query.response.error_message,
+                EntitySet=query_dict['entity_set'],
+                AccessibleSet=query_dict['accessible_set'],
+                AccessibleKeys=query_dict['accessible_keys'],
+                Property=proprty,
+                orderby=query.options_strings['$orderby'],
+                top=query.options_strings['$top'],
+                skip=query.options_strings['$skip'],
+                filter=query.options_strings['$filter']
+            )
+        )
 
     def _get_proprties(self, query_dict):
         proprties = set()
@@ -497,19 +499,20 @@ class Fuzzer(object):
                 self._log_formatted_filter(query, proprty, logical_name, part, '')
 
     def _log_formatted_filter(self, query, proprty, logical_name, part, func):
-        self._filter_logger.info(self._log_formatter.format(
-            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{Property:n};{logical:n};'
-            '{operator};{function:n};{operand}',
-            StatusCode=query.response.status_code,
-            ErrorCode=getattr(query.response, 'error_code', ''),
-            ErrorMessage=getattr(query.response, 'error_message', ''),
-            EntitySet=query.dictionary['entity_set'],
-            Property=proprty,
-            logical=logical_name,
-            operator=part['operator'],
-            function=func,
-            operand=part['operand']
-        ))
+        self._filter_logger.info(
+            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{Property};{logical};'
+            '{operator};{function};{operand}'.format(
+                StatusCode=query.response.status_code,
+                ErrorCode=query.response.error_code,
+                ErrorMessage=query.response.error_message,
+                EntitySet=query.dictionary['entity_set'],
+                Property=proprty,
+                logical=logical_name,
+                operator=part['operator'],
+                function=func,
+                operand=part['operand']
+            )
+        )
 
 
 class Selector(object):
@@ -848,8 +851,8 @@ class Query(object):
         self._dict = {
             '_id': self._id,
             'http': str(self._response.status_code),
-            'error_code': getattr(self._response, 'error_code', None),
-            'error_message': getattr(self._response, 'error_message', None),
+            'error_code': self._response.error_code,
+            'error_message': self._response.error_message,
             'entity_set': self._accessible_entity.entity_set_name,
             'accessible_set': self._accessible_entity.containing_entity_name or None,
             'accessible_keys': self._accessible_entity.data or None,

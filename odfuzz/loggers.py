@@ -34,22 +34,6 @@ class DirectoriesCreator(object):
         return Directories(logs_path, stats_path)
 
 
-class LogFormatter(string.Formatter):
-    def format_field(self, value, format_spec):
-        if format_spec == NONE_TYPE_POSSIBLE:
-            normalized_value = none_to_str(value)
-            return normalized_value
-        else:
-            return super().format_field(value, format_spec)
-
-
-def none_to_str(value):
-    if value is None:
-        return ''
-    else:
-        return str(value)
-
-
 def init_loggers(logs_directory, stats_directory):
     config_defaults = create_config_defaults(logs_directory, stats_directory)
     relative_path = os.path.join(os.getcwd(), LOGGING_CONFIG_PATH)
