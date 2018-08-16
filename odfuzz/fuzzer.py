@@ -457,8 +457,8 @@ class Fuzzer(object):
         if orderby_option:
             for proprty in orderby_option['proprties']:
                 proprties.update([proprty])
-        if proprties:
-            return ['']
+        if not proprties:
+            return [None]
         else:
             return list(proprties)
 
@@ -689,14 +689,15 @@ class FitnessEvaluator(object):
         keys_len = sum(len(option_name) for option_name in query.options.keys())
         query_len = len(query.query_string) - len(query.entity_name) - keys_len
         total_score += FitnessEvaluator.eval_string_length(query_len)
-        total_score += FitnessEvaluator.eval_http_status_code(query.response.status_code)
+        total_score += FitnessEvaluator.eval_http_status_code(
+            query.response.status_code, query.response.error_code, query.response.error_message)
         total_score += FitnessEvaluator.eval_http_response_time(query.response)
         return total_score
 
     @staticmethod
-    def eval_http_status_code(status_code):
+    def eval_http_status_code(status_code, error_code, error_message):
         if status_code == 500:
-            return 100
+            return SAPErrors.evaluate(error_code, error_message)
         elif status_code == 200:
             return 0
         else:
@@ -724,7 +725,13 @@ class FitnessEvaluator(object):
 
 class SAPErrors(object):
     """A container of all types of errors produced by the SAP systems."""
-    pass
+
+    @staticmethod
+    def evaluate(error_code, error_message):
+        if error_code == 'SY/530':
+            if error_message.startswith('Invalid part') and error_message.endswith('of analytical ID'):
+                return -50
+        return 100
 
 
 class Query(object):

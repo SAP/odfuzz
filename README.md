@@ -145,8 +145,7 @@ ODfuzz may be used to test OData services outside the SAP network. There are two
 - Generate filter strings for complex types.
 - Add heuristics for generators based on associations.
 - Create  database of valid inputs, e.g. for 'Language', 'Location', etc. (may be defined in restrictions file).
-- Add custom headers for requests.
 - Add unit tests. (30% done)
-- Use RotatingFileHandler instead of FileHandler in logging
+- Use RotatingFileHandler instead of FileHandler in logging.
 - Add support for the sap:display-format attribute. This attribute helps to determine whether a property is a type of integer or a string. For example, property FiscalPeriod is type of Edm.String with attributes MaxLength="3" and sap:display-format="NonNegative". This means that the property holds a non-negative integer value which is converted to the string.
 - Add support for function imports.
