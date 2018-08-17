@@ -372,8 +372,8 @@ class Fuzzer(object):
             self._set_error_attributes(query)
             Stats.fails_num += 1
         else:
-            setattr(query.response, 'error_code', None)
-            setattr(query.response, 'error_message', None)
+            setattr(query.response, 'error_code', '')
+            setattr(query.response, 'error_message', '')
 
     def _analyze_queries(self, queries):
         analyzed_offsprings = []
@@ -432,11 +432,11 @@ class Fuzzer(object):
 
     def _log_formatted_stats(self, query, query_dict, proprty):
         self._stats_logger.info(
-            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{AccessibleSet};{AccessibleKeys};'
-            '{Property};{orderby};{top};{skip};{filter}'.format(
+            '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{AccessibleSet};{AccessibleKeys};'
+            '{Property};{orderby};{top};{skip};"{filter}"'.format(
                 StatusCode=query.response.status_code,
                 ErrorCode=query.response.error_code,
-                ErrorMessage=query.response.error_message,
+                ErrorMessage=query.response.error_message.replace('"', '""'),
                 EntitySet=query_dict['entity_set'],
                 AccessibleSet=query_dict['accessible_set'],
                 AccessibleKeys=query_dict['accessible_keys'],
@@ -444,7 +444,7 @@ class Fuzzer(object):
                 orderby=query.options_strings['$orderby'],
                 top=query.options_strings['$top'],
                 skip=query.options_strings['$skip'],
-                filter=query.options_strings['$filter']
+                filter=query.options_strings['$filter'].replace('"', '""')
             )
         )
 
@@ -497,11 +497,11 @@ class Fuzzer(object):
 
     def _log_formatted_filter(self, query, proprty, logical_name, part, func):
         self._filter_logger.info(
-            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{Property};{logical};'
+            '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{Property};{logical};'
             '{operator};{function};{operand}'.format(
                 StatusCode=query.response.status_code,
                 ErrorCode=query.response.error_code,
-                ErrorMessage=query.response.error_message,
+                ErrorMessage=query.response.error_message.replace('"', '""'),
                 EntitySet=query.dictionary['entity_set'],
                 Property=proprty,
                 logical=logical_name,
@@ -748,7 +748,7 @@ class Query(object):
         self._response = None
         self._parts = 0
         self._id = ObjectId()
-        self._options_strings = {'$orderby': None, '$filter': None, '$skip': None, '$top': None}
+        self._options_strings = {'$orderby': '', '$filter': '', '$skip': '', '$top': ''}
 
     @property
     def entity_name(self):

@@ -1,0 +1,29 @@
+Exclude:
+    $filter:
+        $F_ALL$:
+            - concat
+            - length
+            - tolower
+            - toupper
+            - trim
+            - replace
+            - indexof
+            - substring
+            - day
+            - hour
+            - minute
+            - month
+            - second
+            - year
+            - round
+            - floor
+            - ceiling
+    $orderby:
+        $E_ALL$:
+            - C_ARGlobalFilterOvwResults
+    $top:
+        $E_ALL$:
+            - C_ARGlobalFilterOvwResults
+    $skip:
+        $E_ALL$:
+            - C_ARGlobalFilterOvwResults
