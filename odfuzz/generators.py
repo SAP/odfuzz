@@ -13,10 +13,6 @@ START_DATE = datetime.datetime(1900, 1, 1, 0, 0, 0)
 END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
 DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
 
-SEMICOLON = 0x3B
-APOSTROPHE = 0x27
-NEW_LINE = 0x0A
-FORBIDDEN_CHARS = (SEMICOLON, APOSTROPHE, NEW_LINE)
 GUID_DASH_INDEXES = (8, 13, 18, 23)
 
 
@@ -31,9 +27,9 @@ class StringMutator(object):
         ord_char = ord(string[index])
         ord_char ^= 1 << round(random.random() * ord_char.bit_length()) + 1
         ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char
-        ord_char = replace_if_is_semicolon(ord_char)
-        generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
-        return '\'' + generated_string.decode(errors='replace') + '\''
+        ord_char = normalize_surrogates(ord_char)
+        generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]])
+        return '\'' + generated_string + '\''
 
     @staticmethod
     def replace_char(self, original_string):
@@ -43,9 +39,9 @@ class StringMutator(object):
 
         index = round(random.random() * (len(string) - 1))
         ord_char = round(random.random() * (0x10ffff - 1) + 1)
-        ord_char = replace_if_is_semicolon(ord_char)
-        generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]]).encode(errors='surrogatepass')
-        return '\'' + generated_string.decode(errors='replace') + '\''
+        ord_char = normalize_surrogates(ord_char)
+        generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]])
+        return '\'' + generated_string + '\''
 
     @staticmethod
     def swap_chars(self, original_string):
@@ -243,7 +239,7 @@ class RandomGenerator(object):
         return 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
 
 
-def replace_if_is_semicolon(hex_char):
-    if hex_char in FORBIDDEN_CHARS:
-        return hex_char - 1
-    return hex_char
+def normalize_surrogates(ord_char):
+    if 0xD800 <= ord_char <= 0xDFFF:
+        return 0xD7FF
+    return ord_char

@@ -498,7 +498,7 @@ class Fuzzer(object):
     def _log_formatted_filter(self, query, proprty, logical_name, part, func):
         self._filter_logger.info(
             '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{Property};{logical};'
-            '{operator};{function};{operand}'.format(
+            '{operator};{function};"{operand}"'.format(
                 StatusCode=query.response.status_code,
                 ErrorCode=query.response.error_code,
                 ErrorMessage=query.response.error_message.replace('"', '""'),
@@ -507,7 +507,7 @@ class Fuzzer(object):
                 logical=logical_name,
                 operator=part['operator'],
                 function=func,
-                operand=part['operand']
+                operand=part['operand'].replace('"', '""')
             )
         )
 

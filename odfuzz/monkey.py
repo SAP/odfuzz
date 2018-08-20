@@ -118,9 +118,6 @@ class Operators(object):
     def __init__(self, operators):
         self._operators = operators
 
-    def set_key_value(self, key, value):
-        self._operators[key] = value
-
     def get_all(self):
         return self._operators.items()
 
@@ -128,11 +125,6 @@ class Operators(object):
 class IntervalOperators(object):
     def __init__(self, operators_groups):
         self._operators_groups = operators_groups
-
-    def set_key_value(self, key, value):
-        for operators in self._operators_groups:
-            if key in operators:
-                operators[key] = value
 
     def get_all(self):
         operators = random.choice(self._operators_groups)

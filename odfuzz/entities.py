@@ -440,10 +440,6 @@ class FilterQuery(QueryOption):
         self._filterable_proprties = list(self._entity_set.entity_type.proprties())
         if draft_properties:
             self._draft_proprty = self.entity_set.entity_type.proprty(draft_properties[0])
-            # only 'eq' operator is allowed for fetching draft entities,
-            # otherwise the GETWA_NOT_ASSIGNED runtime error is raised
-            self._draft_proprty.operators.set_key_value('ne', 0.0)
-            self._draft_proprty.operators.set_key_value('eq', 1.0)
         else:
             self._draft_proprty = None
 
