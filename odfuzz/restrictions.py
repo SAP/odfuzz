@@ -1,5 +1,7 @@
 """This module contains classes that convert restrictions to manageable objects."""
 
+import yaml
+
 from odfuzz.exceptions import RestrictionsError
 from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS
 
@@ -21,15 +23,11 @@ class RestrictionsGroup(object):
 
     def _parse_restrictions(self):
         try:
-            restrictions_lines = read_lines(self._restrictions_file)
-        except EnvironmentError as env_error:
-            raise RestrictionsError('An exception was raised while reading a file: {}'
-                                    .format(env_error))
-        try:
-            restrictions_dict = convert_to_dict(restrictions_lines)
-        except TypeError as typ_error:
-            raise RestrictionsError('An exception was raised during a dictionary conversion: {}'
-                                    .format(typ_error))
+            with open(self._restrictions_file) as stream:
+                restrictions_dict = yaml.safe_load(stream)
+        except (EnvironmentError, yaml.YAMLError) as error:
+            raise RestrictionsError('An exception was raised while parsing the restrictions file \'{}\': {}'
+                                    .format(self._restrictions_file, error))
         self._init_restrictions(restrictions_dict)
 
     def _init_restrictions(self, restrictions_dict):
@@ -69,27 +67,3 @@ class QueryRestrictions(object):
     @property
     def exclude(self):
         return self._exclude
-
-
-def read_lines(file_path):
-    with open(file_path) as file_object:
-        return file_object.read().split('\n')
-
-
-def convert_to_dict(lines):
-    dictionary = {}
-    entity_dict = None
-    query_dict = None
-    restr_dict = None
-
-    for line in lines:
-        if line[:3] == '\t\t\t':
-            entity_dict.append(line[3:])
-        elif line[:2] == '\t\t':
-            entity_dict = query_dict[line[2:]] = []
-        elif line[:1] == '\t':
-            query_dict = restr_dict[line[1:]] = {}
-        else:
-            restr_dict = dictionary[line] = {}
-
-    return dictionary

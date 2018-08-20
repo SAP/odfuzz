@@ -24,7 +24,7 @@ from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.mongos import MongoClient
 from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
-from odfuzz.loggers import LogFormatter
+from odfuzz.config import Config
 from odfuzz.constants import *
 
 
@@ -34,6 +34,7 @@ class Manager(object):
     def __init__(self, arguments, collection_name):
         self._dispatcher = Dispatcher(arguments.service, has_certificate=True)
         self._async = getattr(arguments, 'async')
+        Config.retrieve_config()
 
         restrictions_file = getattr(arguments, 'restr')
         if restrictions_file:
@@ -63,7 +64,6 @@ class Fuzzer(object):
         self._filter_logger = logging.getLogger(FILTER_LOGGER)
         self._stats_logger.info(CSV)
         self._filter_logger.info(CSV_FILTER)
-        self._log_formatter = LogFormatter()
 
         self._dispatcher = dispatcher
         self._entities = entities
@@ -103,9 +103,9 @@ class Fuzzer(object):
     def seed_population(self):
         self._logger.info('Seeding population with requests...')
         for queryable in self._entities.all():
-            seed_range = len(queryable.entity_set.entity_type.proprties()) * SEED_POPULATION
+            seed_range = len(queryable.entity_set.entity_type.proprties()) * Config.seed_size
             if self._async:
-                seed_range = round(seed_range / POOL_SIZE)
+                seed_range = round(seed_range / Config.pool_size)
             self._logger.info('Population range for entity \'{}\' is set to {}'
                               .format(queryable.entity_set.name, seed_range))
             for _ in range(seed_range):
@@ -137,7 +137,7 @@ class Fuzzer(object):
 
     def _generate_multiple(self, queryable):
         queries = []
-        for _ in range(POOL_SIZE):
+        for _ in range(Config.pool_size):
             query = self._generate_query(queryable)
             if query:
                 queries.append(query)
@@ -159,20 +159,17 @@ class Fuzzer(object):
         return query
 
     def _generate_options(self, queryable, query):
+        depending_data = {}
         for option in queryable.random_options():
-            if option.name == SKIP:
-                generated_option = option.generate(query.options.get(TOP))
-            elif option.name == TOP:
-                generated_option = option.generate(query.options.get(SKIP))
-            else:
-                generated_option = option.generate()
+            generated_option = option.generate(depending_data)
             query.add_option(option.name, generated_option.data)
+            depending_data[option.name] = option.get_depending_data()
         query.build_string()
         self._logger.info('Generated query \'{}\''.format(query.query_string))
 
     def _crossover_multiple(self, crossable_selection, queryable):
         children = []
-        for _ in range(POOL_SIZE):
+        for _ in range(Config.pool_size):
             accessible_keys = crossable_selection[0].get('accessible_keys', None)
             if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
                 entity_data_to_be_mutated = crossable_selection[0]
@@ -359,7 +356,7 @@ class Fuzzer(object):
 
     def _get_multiple_responses(self, queries):
         responses = []
-        pool = Pool(POOL_SIZE)
+        pool = Pool(Config.pool_size)
         for query in queries:
             responses.append(pool.spawn(self._get_single_response, query))
         try:
@@ -374,6 +371,9 @@ class Fuzzer(object):
         if query.response.status_code != 200:
             self._set_error_attributes(query)
             Stats.fails_num += 1
+        else:
+            setattr(query.response, 'error_code', '')
+            setattr(query.response, 'error_message', '')
 
     def _analyze_queries(self, queries):
         analyzed_offsprings = []
@@ -431,21 +431,22 @@ class Fuzzer(object):
                 self._log_formatted_stats(query, query_dict, proprty)
 
     def _log_formatted_stats(self, query, query_dict, proprty):
-        self._stats_logger.info(self._log_formatter.format(
-            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{AccessibleSet:n};{AccessibleKeys:n};'
-            '{Property:n};{orderby:n};{top:n};{skip:n};{filter:n}',
-            StatusCode=query.response.status_code,
-            ErrorCode=getattr(query.response, 'error_code', ''),
-            ErrorMessage=getattr(query.response, 'error_message', ''),
-            EntitySet=query_dict['entity_set'],
-            AccessibleSet=query_dict['accessible_set'],
-            AccessibleKeys=query_dict['accessible_keys'],
-            Property=proprty,
-            orderby=query.options_strings['$orderby'],
-            top=query.options_strings['$top'],
-            skip=query.options_strings['$skip'],
-            filter=query.options_strings['$filter']
-        ))
+        self._stats_logger.info(
+            '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{AccessibleSet};{AccessibleKeys};'
+            '{Property};{orderby};{top};{skip};"{filter}"'.format(
+                StatusCode=query.response.status_code,
+                ErrorCode=query.response.error_code,
+                ErrorMessage=query.response.error_message.replace('"', '""'),
+                EntitySet=query_dict['entity_set'],
+                AccessibleSet=query_dict['accessible_set'],
+                AccessibleKeys=query_dict['accessible_keys'],
+                Property=proprty,
+                orderby=query.options_strings['$orderby'],
+                top=query.options_strings['$top'],
+                skip=query.options_strings['$skip'],
+                filter=query.options_strings['$filter'].replace('"', '""')
+            )
+        )
 
     def _get_proprties(self, query_dict):
         proprties = set()
@@ -456,8 +457,8 @@ class Fuzzer(object):
         if orderby_option:
             for proprty in orderby_option['proprties']:
                 proprties.update([proprty])
-        if len(proprties) == 0:
-            return ['']
+        if not proprties:
+            return [None]
         else:
             return list(proprties)
 
@@ -495,19 +496,20 @@ class Fuzzer(object):
                 self._log_formatted_filter(query, proprty, logical_name, part, '')
 
     def _log_formatted_filter(self, query, proprty, logical_name, part, func):
-        self._filter_logger.info(self._log_formatter.format(
-            '{StatusCode};{ErrorCode};{ErrorMessage};{EntitySet};{Property:n};{logical:n};'
-            '{operator};{function:n};{operand}',
-            StatusCode=query.response.status_code,
-            ErrorCode=getattr(query.response, 'error_code', ''),
-            ErrorMessage=getattr(query.response, 'error_message', ''),
-            EntitySet=query.dictionary['entity_set'],
-            Property=proprty,
-            logical=logical_name,
-            operator=part['operator'],
-            function=func,
-            operand=part['operand']
-        ))
+        self._filter_logger.info(
+            '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{Property};{logical};'
+            '{operator};{function};"{operand}"'.format(
+                StatusCode=query.response.status_code,
+                ErrorCode=query.response.error_code,
+                ErrorMessage=query.response.error_message.replace('"', '""'),
+                EntitySet=query.dictionary['entity_set'],
+                Property=proprty,
+                logical=logical_name,
+                operator=part['operator'],
+                function=func,
+                operand=part['operand'].replace('"', '""')
+            )
+        )
 
 
 class Selector(object):
@@ -687,14 +689,15 @@ class FitnessEvaluator(object):
         keys_len = sum(len(option_name) for option_name in query.options.keys())
         query_len = len(query.query_string) - len(query.entity_name) - keys_len
         total_score += FitnessEvaluator.eval_string_length(query_len)
-        total_score += FitnessEvaluator.eval_http_status_code(query.response.status_code)
+        total_score += FitnessEvaluator.eval_http_status_code(
+            query.response.status_code, query.response.error_code, query.response.error_message)
         total_score += FitnessEvaluator.eval_http_response_time(query.response)
         return total_score
 
     @staticmethod
-    def eval_http_status_code(status_code):
+    def eval_http_status_code(status_code, error_code, error_message):
         if status_code == 500:
-            return 100
+            return SAPErrors.evaluate(error_code, error_message)
         elif status_code == 200:
             return 0
         else:
@@ -722,7 +725,13 @@ class FitnessEvaluator(object):
 
 class SAPErrors(object):
     """A container of all types of errors produced by the SAP systems."""
-    pass
+
+    @staticmethod
+    def evaluate(error_code, error_message):
+        if error_code == 'SY/530':
+            if error_message.startswith('Invalid part') and error_message.endswith('of analytical ID'):
+                return -50
+        return 100
 
 
 class Query(object):
@@ -739,7 +748,7 @@ class Query(object):
         self._response = None
         self._parts = 0
         self._id = ObjectId()
-        self._options_strings = {'$orderby': None, '$filter': None, '$skip': None, '$top': None}
+        self._options_strings = {'$orderby': '', '$filter': '', '$skip': '', '$top': ''}
 
     @property
     def entity_name(self):
@@ -803,10 +812,7 @@ class Query(object):
         self._accessible_entity = value
 
     def is_option_deletable(self, name):
-        if self._accessible_entity.entity_set.requires_filter:
-            return False
-        else:
-            return True
+        return not (name == FILTER and self._accessible_entity.entity_set.requires_filter)
 
     def add_option(self, name, option):
         self._options[name] = option
@@ -846,8 +852,8 @@ class Query(object):
         self._dict = {
             '_id': self._id,
             'http': str(self._response.status_code),
-            'error_code': getattr(self._response, 'error_code', None),
-            'error_message': getattr(self._response, 'error_message', None),
+            'error_code': self._response.error_code,
+            'error_message': self._response.error_message,
             'entity_set': self._accessible_entity.entity_set_name,
             'accessible_set': self._accessible_entity.containing_entity_name or None,
             'accessible_keys': self._accessible_entity.data or None,
@@ -862,10 +868,10 @@ class Query(object):
         }
 
     def _add_appendix(self):
-        if CLIENT:
-            self._query_string += '&' + CLIENT
-        if FORMAT:
-            self._query_string += '&' + FORMAT
+        if Config.client:
+            self._query_string += '&' + 'sap-client=' + Config.client
+        if Config.format:
+            self._query_string += '&' + '$format=' + Config.format
 
 
 class Dispatcher(object):
@@ -877,10 +883,11 @@ class Dispatcher(object):
         self._has_certificate = has_certificate
 
         self._session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(pool_connections=POOL_SIZE, pool_maxsize=POOL_SIZE)
+        adapter = requests.adapters.HTTPAdapter(pool_connections=Config.pool_size, pool_maxsize=Config.pool_size)
         self._session.mount(ACCESS_PROTOCOL, adapter)
         self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
         self._session.verify = self._get_sap_certificate()
+        self._session.headers.update({'user-agent': 'odfuzz/1.0'})
 
     @property
     def session(self):
@@ -982,16 +989,11 @@ def print_tests_num():
 def is_removable(option_value, part_id):
     for part in option_value['parts']:
         if part['id'] == part_id:
-            if not part.get('replaceable', True):
-                return False
-            else:
-                return True
+            return part.get('replaceable', True)
 
     for logical in option_value['logicals']:
         if logical.get('group_id', '') == part_id:
             left_id = is_removable(option_value, logical['left_id'])
             right_id = is_removable(option_value, logical['right_id'])
-            if right_id and left_id:
-                return True
-            else:
-                return False
+            return right_id and left_id
+    return True

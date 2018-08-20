@@ -91,15 +91,13 @@ def set_mutator_methods(proprty, mutators_class):
 
 
 def get_string_mutator_method(self, value):
-    func_name = random.choice([func_name for func_name in StringMutator.__dict__.keys()
-                               if not func_name.startswith('_')])
+    func_name = random.choice([func_name for func_name in StringMutator.__dict__ if not func_name.startswith('_')])
     mutated_value = getattr(self, func_name)(self, value)
     return mutated_value
 
 
 def get_num_mutator_method(self, value):
-    func_name = random.choice([func_name for func_name in NumberMutator.__dict__.keys()
-                               if not func_name.startswith('_')])
+    func_name = random.choice([func_name for func_name in NumberMutator.__dict__ if not func_name.startswith('_')])
     mutated_value = getattr(self, func_name)(self, value)
     return mutated_value
 
@@ -107,23 +105,27 @@ def get_num_mutator_method(self, value):
 def patch_proprty_operator(proprty):
     proprty_type = proprty.typ.name
     if proprty.filter_restriction in ('single-value', 'multi-value'):
-        proprty.operators = {'eq': 1.0}
-        proprty.get_operators = get_operators.__get__(proprty, None)
+        proprty.operators = Operators({'eq': 1.0})
     elif proprty.filter_restriction == 'interval':
-        proprty.operators = (INTERVAL_OPERATORS, {'eq': 1.0})
-        proprty.get_operators = get_interval_operators.__get__(proprty, None)
+        proprty.operators = IntervalOperators((INTERVAL_OPERATORS, {'eq': 1.0}))
     elif proprty_type == 'Edm.Boolean':
-        proprty.operators = BOOLEAN_OPERATORS
-        proprty.get_operators = get_operators.__get__(proprty, None)
+        proprty.operators = Operators(BOOLEAN_OPERATORS)
     else:
-        proprty.operators = EXPRESSION_OPERATORS
-        proprty.get_operators = get_operators.__get__(proprty, None)
+        proprty.operators = Operators(EXPRESSION_OPERATORS)
 
 
-def get_operators(self):
-    return self.operators
+class Operators(object):
+    def __init__(self, operators):
+        self._operators = operators
+
+    def get_all(self):
+        return self._operators.items()
 
 
-def get_interval_operators(self):
-    selected_operators = random.choice(self.operators)
-    return selected_operators
+class IntervalOperators(object):
+    def __init__(self, operators_groups):
+        self._operators_groups = operators_groups
+
+    def get_all(self):
+        operators = random.choice(self._operators_groups)
+        return operators.items()

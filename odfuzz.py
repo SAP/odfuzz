@@ -12,9 +12,9 @@
 # either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 
-"""The main module for running the ODfuzz fuzzer"""
 
 from gevent import monkey
+
 monkey.patch_all()
 
 import sys
@@ -30,6 +30,7 @@ from odfuzz.fuzzer import Manager
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers, DirectoriesCreator
 from odfuzz.mongos import CollectionCreator
+from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.exceptions import ArgParserError, ODfuzzException
 
 
@@ -46,12 +47,7 @@ def main():
     collection_name = create_collection_name(parsed_arguments)
     set_signal_handler(collection_name)
 
-    manager = Manager(parsed_arguments, collection_name)
-    try:
-        manager.start()
-    except ODfuzzException as fuzzer_ex:
-        sys.stderr.write(str(fuzzer_ex))
-        sys.exit(1)
+    run_fuzzer(parsed_arguments, collection_name)
 
 
 def get_arguments():
@@ -86,8 +82,22 @@ def set_signal_handler(db_collection_name):
     gevent.signal(signal.SIGINT, partial(signal_handler, db_collection_name))
 
 
+def run_fuzzer(parsed_arguments, collection_name):
+    manager = Manager(parsed_arguments, collection_name)
+    try:
+        if parsed_arguments.timeout == INFINITY_TIMEOUT:
+            manager.start()
+        else:
+            gevent.with_timeout(parsed_arguments.timeout, manager.start)
+    except ODfuzzException as ex:
+        sys.stderr.write(str(ex))
+        sys.exit(1)
+    except gevent.Timeout:
+        signal_handler(collection_name)
+
+
 def signal_handler(db_collection_name):
-    logging.info('Program interrupted with SIGINT. Exiting...')
+    logging.info('Program interrupted. Exiting...')
     stats = StatsPrinter(db_collection_name)
     stats.write()
     sys.exit(0)

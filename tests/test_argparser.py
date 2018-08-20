@@ -1,17 +1,29 @@
 import pytest
 
+from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.arguments import ArgParserError
 
 
 def test_argument_parsing(argparser):
     parsed_arguments = argparser.parse(
-        ['https://www.odata.org/', '-s', 'stats', '-l', 'logs', '-a', '-r', 'restrict'])
+        ['https://www.odata.org/', '-s', 'stats', '-l', 'logs', '-a', '-r', 'restrict', '-t', '1000'])
 
     assert parsed_arguments.service == 'https://www.odata.org/'
     assert parsed_arguments.stats == 'stats'
     assert parsed_arguments.logs == 'logs'
     assert parsed_arguments.restr == 'restrict'
+    assert parsed_arguments.timeout == 1000
     assert parsed_arguments.async
+
+
+def test_default_timeout_value(argparser):
+    parsed_arguments = argparser.parse(['https://www.odata.org'])
+    assert parsed_arguments.timeout == INFINITY_TIMEOUT
+
+
+def test_inappropriate_timeout_value(argparser):
+    with pytest.raises(ArgParserError):
+        argparser.parse(['https://www.odata.org', '-t', '100000000000000000000000'])
 
 
 def test_missing_url(argparser):
@@ -42,3 +54,13 @@ def test_wrong_argument_with_valid_arguments(argparser):
 def test_wrong_option_with_valid_arguments(argparser):
     with pytest.raises(ArgParserError):
         argparser.parse(['https://www.odata.org/', '-a', '-r', 'restrict', '-WRONG_ARGUMENT'])
+
+
+def test_help_with_other_arguments(argparser):
+    with pytest.raises(SystemExit):
+        argparser.parse(['https://www.odata.org', '-a', '-r', 'restrict', '-h'])
+
+
+def test_help_only_argument(argparser):
+    with pytest.raises(SystemExit):
+        argparser.parse(['--help'])

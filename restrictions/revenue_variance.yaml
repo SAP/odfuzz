@@ -1,0 +1,34 @@
+Exclude:
+    $filter:
+        $F_ALL$:
+            - concat
+            - length
+            - tolower
+            - toupper
+            - trim
+            - replace
+            - indexof
+            - substring
+            - day
+            - hour
+            - minute
+            - month
+            - second
+            - year
+            - round
+            - floor
+            - ceiling
+        $P_ALL$:
+            - Language
+    $orderby:
+        $E_ALL$:
+            - C_RevenueVarianceResults
+            - C_RevenueVarianceBenchmarkResults
+    $skip:
+        $E_ALL$:
+            - C_RevenueVarianceResults
+            - C_RevenueVarianceBenchmarkResults
+    $top:
+        $E_ALL$:
+            - C_RevenueVarianceResults
+            - C_RevenueVarianceBenchmarkResults

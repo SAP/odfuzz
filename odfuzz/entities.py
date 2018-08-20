@@ -14,6 +14,7 @@ from pyodata.exceptions import PyODataException
 from odfuzz.exceptions import BuilderError, DispatcherError
 from odfuzz.generators import RandomGenerator
 from odfuzz.monkey import patch_proprties
+from odfuzz.config import Config
 from odfuzz.constants import *
 
 NullEntity = namedtuple('NullEntity', 'name')
@@ -47,7 +48,7 @@ class Builder(object):
         return service_model
 
     def _get_metadata_from_service(self):
-        metadata_request = '$metadata?' + CLIENT
+        metadata_request = '$metadata?' + 'sap-client=' + Config.client
         try:
             metadata_response = self._dispatcher.get(metadata_request)
         # TODO: catch Dispatcher exception
@@ -261,7 +262,11 @@ class QueryOption(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def generate(self):
+    def generate(self, depending_data):
+        pass
+
+    @abstractmethod
+    def get_depending_data(self):
         pass
 
 
@@ -275,7 +280,7 @@ class OrderbyQuery(QueryOption):
     def apply_restrictions(self):
         pass
 
-    def generate(self):
+    def generate(self, depending_data):
         option = OrderbyOption([], '')
         total_proprties = len(self._proprties)
         if total_proprties > 3:
@@ -288,6 +293,9 @@ class OrderbyQuery(QueryOption):
         option.option_string = OrderbyOptionBuilder(option).build()
         return option
 
+    def get_depending_data(self):
+        return None
+
 
 class TopQuery(QueryOption):
     """The $top query option."""
@@ -296,20 +304,27 @@ class TopQuery(QueryOption):
         super(TopQuery, self).__init__(entity, TOP, '$', restrictions)
         self._dispatcher = dispatcher
         self._max_range_prob = {INT_MAX: 1.0}
+        self._depending_data = 0
         self.apply_restrictions()
 
     def apply_restrictions(self):
         self._set_max_range()
 
-    def generate(self, dependent_option=None):
+    def generate(self, depending_data):
         option = TopOption()
         selected_value = weighted_random(self._max_range_prob.items())
-        if dependent_option and int(dependent_option) + selected_value > INT_MAX:
-            max_range = INT_MAX - int(dependent_option)
+        skip_value = depending_data.get(SKIP)
+        if skip_value and skip_value + selected_value > INT_MAX:
+            max_range = INT_MAX - skip_value
         else:
             max_range = selected_value
-        option.option_string = str(round(random.random() * max_range))
+        top_value = round(random.random() * max_range)
+        option.option_string = str(top_value)
+        self._depending_data = top_value
         return option
+
+    def get_depending_data(self):
+        return self._depending_data
 
     def _set_max_range(self):
         self._max_range_prob.update({INT_MAX: 0.001})
@@ -331,7 +346,7 @@ class TopQuery(QueryOption):
     def _get_total_entities(self):
         # TODO: refactor method -- else block move out of the function
         try:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT,
+            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client,
                                             timeout=3)
         except DispatcherError:
             total_entities = INT_MAX
@@ -350,20 +365,27 @@ class SkipQuery(QueryOption):
         super(SkipQuery, self).__init__(entity, SKIP, '$', restrictions)
         self._dispatcher = dispatcher
         self._max_range_prob = {INT_MAX: 1.0}
+        self._depending_data = 0
         self.apply_restrictions()
 
     def apply_restrictions(self):
         self._set_max_range()
 
-    def generate(self, dependent_option=None):
+    def generate(self, depending_data):
         option = SkipOption()
         selected_value = weighted_random(self._max_range_prob.items())
-        if dependent_option and int(dependent_option) + selected_value > INT_MAX:
-            max_range = INT_MAX - int(dependent_option)
+        top_value = depending_data.get(TOP)
+        if top_value and top_value + selected_value > INT_MAX:
+            max_range = INT_MAX - top_value
         else:
             max_range = selected_value
-        option.option_string = str(round(random.random() * max_range))
+        skip_value = round(random.random() * max_range)
+        option.option_string = str(skip_value)
+        self._depending_data = skip_value
         return option
+
+    def get_depending_data(self):
+        return self._depending_data
 
     def _set_max_range(self):
         self._max_range_prob.update({INT_MAX: 0.001})
@@ -384,7 +406,7 @@ class SkipQuery(QueryOption):
 
     def _get_total_entities(self):
         try:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + CLIENT,
+            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client,
                                             timeout=3)
         except DispatcherError:
             total_entities = INT_MAX
@@ -418,10 +440,6 @@ class FilterQuery(QueryOption):
         self._filterable_proprties = list(self._entity_set.entity_type.proprties())
         if draft_properties:
             self._draft_proprty = self.entity_set.entity_type.proprty(draft_properties[0])
-            # only 'eq' operator is allowed for fetching draft entities,
-            # otherwise the GETWA_NOT_ASSIGNED runtime error is raised
-            self._draft_proprty.operators['ne'] = 0.0
-            self._draft_proprty.operators['eq'] = 1.0
         else:
             self._draft_proprty = None
 
@@ -441,9 +459,9 @@ class FilterQuery(QueryOption):
         self._required_proprties.append(proprty)
 
     def apply_restrictions(self):
-        pass
+        return None
 
-    def generate(self):
+    def generate(self, depending_data):
         self._init_variables()
         self._generate_string()
 
@@ -451,6 +469,9 @@ class FilterQuery(QueryOption):
         self._option.delete_redundancies()
         self._option.option_string = self._option_string
         return self._option
+
+    def get_depending_data(self):
+        pass
 
     def _init_variables(self):
         self._recursion_depth = 0
@@ -612,7 +633,7 @@ class FilterQuery(QueryOption):
 
     def _generate_proprty(self):
         proprty = self._proprties.get_random_proprty()
-        operator = weighted_random(proprty.get_operators().items())
+        operator = weighted_random(proprty.operators.get_all())
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
         replaceable = getattr(proprty, 'replaceable', True)
@@ -716,9 +737,6 @@ class ProprtiesGroup(object):
 
 
 class RequiredProprties(ProprtiesGroup):
-    def __init__(self, required_proprties):
-        super(RequiredProprties, self).__init__(required_proprties)
-
     def get_proprty(self):
         random_index = round(random.random() * (len(self._proprties) - 1))
         proprty = self._proprties.pop(random_index)
@@ -726,9 +744,6 @@ class RequiredProprties(ProprtiesGroup):
 
 
 class NonRequiredProprties(ProprtiesGroup):
-    def __init__(self, non_required_proprties):
-        super(NonRequiredProprties, self).__init__(non_required_proprties)
-
     def get_proprty(self):
         random_index = round(random.random() * (len(self._proprties) - 1))
         proprty = self._proprties[random_index]
@@ -759,9 +774,6 @@ class Option(metaclass=ABCMeta):
 class SkipOption(Option):
     """A skip option container holding an integer value."""
 
-    def __init__(self):
-        super(SkipOption, self).__init__()
-
     @property
     def data(self):
         return self._option_string
@@ -769,9 +781,6 @@ class SkipOption(Option):
 
 class TopOption(Option):
     """A top option container holding an integer value."""
-
-    def __init__(self):
-        super(TopOption, self).__init__()
 
     @property
     def data(self):
@@ -969,8 +978,8 @@ class FilterOptionBuilder(object):
             self._build_first_group(first_logical['group_id'])
         else:
             self._used_logicals.append(first_logical['id'])
-            self._option_string = self._build_left(first_logical) + ' ' + first_logical['name']\
-                                  + ' ' + self._build_right(first_logical)
+            self._option_string = self._build_left(first_logical) + ' ' + first_logical['name'] \
+                                                                  + ' ' + self._build_right(first_logical)
         self._check_last_logical()
 
     def _build_first_group(self, group_id):
@@ -1453,9 +1462,6 @@ class EntitySet(metaclass=ABCMeta):
 
 
 class AddressableEntity(EntitySet):
-    def __init__(self, entity_set, principal_entities):
-        super(AddressableEntity, self).__init__(entity_set, principal_entities)
-
     def get_queryable_entity(self):
         accessible_entity = AccessibleEntity(self._entity_set, {}, '')
         return accessible_entity
@@ -1468,7 +1474,7 @@ class NonAddressableEntity(EntitySet):
 
     def get_queryable_entity(self):
         if random.random() > EMPTY_ENTITY_PROB:
-            if self.has_containing_entities() and random.random() < ASSOCIATED_ENTITY_PROB:
+            if self._principal_entities and random.random() < ASSOCIATED_ENTITY_PROB:
                 containing_entity_set = random.choice(self._principal_entities)
                 principal_entity_set = containing_entity_set
             else:
@@ -1481,12 +1487,6 @@ class NonAddressableEntity(EntitySet):
 
         accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set.name)
         return accessible_entity
-
-    def has_containing_entities(self):
-        if self._principal_entities:
-            return True
-        else:
-            return False
 
 
 class AccessibleEntity(object):
@@ -1617,10 +1617,7 @@ def get_principal_from_ends(association_set, entity_set):
 
 
 def may_contain_principal_entity(association_set):
-    if len(association_set.ends) == 2:
-        return True
-    else:
-        return False
+    return len(association_set.ends) == 2
 
 
 def get_principal_entity_set(association_set, index):

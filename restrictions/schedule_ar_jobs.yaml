@@ -1,0 +1,62 @@
+Exclude:
+    $filter:
+        $F_ALL$:
+            - concat
+            - length
+            - tolower
+            - toupper
+            - trim
+            - replace
+            - indexof
+            - substring
+            - day
+            - hour
+            - minute
+            - month
+            - second
+            - year
+            - round
+            - floor
+            - ceiling
+        $E_ALL$:
+            - ApplicationLogMessageLongTextCollection
+            - CheckJobSchedulingCollection
+            - JobActionStatusCollection
+            - JobScheduleCheckCollection
+            - JobScheduleStatusCollection
+            - ModifyTemplateActionStatusCollection
+            - TimeZoneDefinitionCollection
+            - ValueHelpResultCollection
+    $orderby:
+        $E_ALL$:
+            - JobCatalogEntrySet
+            - ApplicationLogMessageLongTextCollection
+            - CheckJobSchedulingCollection
+            - JobActionStatusCollection
+            - JobScheduleCheckCollection
+            - JobScheduleStatusCollection
+            - ModifyTemplateActionStatusCollection
+            - TimeZoneDefinitionCollection
+            - ValueHelpResultCollection
+    $skip:
+        $E_ALL$:
+            - JobCatalogEntrySet
+            - ApplicationLogMessageLongTextCollection
+            - CheckJobSchedulingCollection
+            - JobActionStatusCollection
+            - JobScheduleCheckCollection
+            - JobScheduleStatusCollection
+            - ModifyTemplateActionStatusCollection
+            - TimeZoneDefinitionCollection
+            - ValueHelpResultCollection
+    $top:
+        $E_ALL$:
+            - JobCatalogEntrySet
+            - ApplicationLogMessageLongTextCollection
+            - CheckJobSchedulingCollection
+            - JobActionStatusCollection
+            - JobScheduleCheckCollection
+            - JobScheduleStatusCollection
+            - ModifyTemplateActionStatusCollection
+            - TimeZoneDefinitionCollection
+            - ValueHelpResultCollection

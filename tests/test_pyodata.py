@@ -7,7 +7,8 @@ def test_master_entity_properties_parsing(schema):
     master_entity = schema.entity_type('MasterEntity')
     master_entity_properties = [proprty.name for proprty in master_entity.proprties()]
     assert set(master_entity_properties) == {
-        'DataType', 'Data', 'DataName', 'Key', 'TotalCount', 'FiscalYear', 'IsActiveEntity'}
+        'DataType', 'Data', 'DataName', 'Key', 'TotalCount', 'FiscalYear', 'IsActiveEntity',
+        'SingleValue', 'MultiValue', 'IntervalValue'}
 
 
 def test_data_entity_properties_parsing(schema):

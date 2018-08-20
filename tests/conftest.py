@@ -24,6 +24,9 @@ def metadata():
             <Property Name="FiscalYear" Type="Edm.Int32" sap:creatable="false" sap:updatable="false"/>
             <Property Name="TotalCount" Type="Edm.Int32" sap:creatable="false" sap:updatable="false"/>
             <Property Name="IsActiveEntity" Type="Edm.Boolean" Nullable="false" sap:sortable="false" sap:filterable="false"/>
+            <Property Name="SingleValue" Type="Edm.String" sap:filter-restriction="single-value"/>
+            <Property Name="MultiValue" Type="Edm.String" sap:filter-restriction="multi-value"/>
+            <Property Name="IntervalValue" Type="Edm.String" sap:filter-restriction="interval"/>
            </EntityType>
            <EntityType Name="DataEntity" sap:content-version="1" sap:value-list="true" sap:label="Data entities">
             <Key>

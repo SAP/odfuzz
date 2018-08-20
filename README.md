@@ -70,6 +70,8 @@ optional arguments:
                         A statistics directory
   -r RESTR, --restr RESTR
                         A user defined restrictions
+  -t TIMEOUT, --timeout TIMEOUT
+                        A general timeout in seconds for a fuzzing
   -a, --async           Allow ODfuzz to send HTTP requests asynchronously
 ```
 
@@ -90,7 +92,7 @@ When a connection is forcibly closed by a host (e.g. user was disconnected from 
 ## Usage
 1. Run the fuzzer, for example, as:
 ```
-python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.txt
+python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml
 ```
 2. Let it run for a couple of hours (or minutes). Cancel execution of the fuzzer with CTRL + C.
 3. Browse overall stats, for example, by the following scenario:
@@ -98,22 +100,23 @@ python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRES
     - Queries which produced the errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
     - Open SAP Logon and browse errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
 
-### Restrictions
-With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following format:
-```
-[ Exclude | Include ]
-    [ $filter | $orderby | $skip | ... ]
-        EntitySet name
-            Property name
-            Property name
-            ...
-        [ $F_ALL$ | $E_ALL$ | $P_ALL$ ]
-            [ Function name | EntitySet name | Property name ]
-            ...
-```
-Every line, except the first line, starts with a tab or set of tabs and should be properly aligned. At the moment, only entity, property and global function restrictions are implemented.
+NOTE: ODfuzz uses a custom header **user-agent=odfuzz/1.0** in all HTTP requests. You may be able to filter internet traffic based on this header.
 
-Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.txt* restrictions file for [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
+### Restrictions
+With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following YAML format:
+```
+[ Exclude | Include ]:
+    [ $filter | $orderby | $skip | ... ]:
+        EntitySet name:
+            - Property name
+            - Property name
+            ...
+        [ $F_ALL$ | $E_ALL$ | $P_ALL$ ]:
+            - [ Function name | EntitySet name | Property name ]
+            ...
+```
+
+Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.yaml* restrictions file for [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
 
 ##### Why are we using restrictions at all?
 OData services does not support some functions provided by the OData protocol (for example, day(), substring(), length()) or does not implement GET_ENTITYSET methods for all entities. By using the restrictions, one can easily decrease a number of queries that are worthless. Also, some services may implement handlers only for the $filter query option but does not declare that in the metadata document. Therefore, other query options cannot be used within the same request, otherwise various types of errors are produced (e.g. System query options '$orderby,$skip,$top,$skiptoken,$inlinecount' are not allowed in the requested URI). 
@@ -139,12 +142,13 @@ ODfuzz may be used to test OData services outside the SAP network. There are two
 - While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
 
 #### TODO
-- Change format of restrictions file to JSON.
 - Generate filter strings for complex types.
 - Add heuristics for generators based on associations.
-- Create  database of valid inputs, e.g. for 'Language', 'Location', etc. (may be defined in restrictions file).
-- Add custom headers for requests.
+- Create a database of valid inputs, e.g. for 'Language', 'Location', etc. (may be defined in restrictions file).
 - Add unit tests. (30% done)
-- Use RotatingFileHandler instead of FileHandler in logging
+- Use RotatingFileHandler instead of FileHandler in logging.
 - Add support for the sap:display-format attribute. This attribute helps to determine whether a property is a type of integer or a string. For example, property FiscalPeriod is type of Edm.String with attributes MaxLength="3" and sap:display-format="NonNegative". This means that the property holds a non-negative integer value which is converted to the string.
 - Add support for function imports.
+- Add option for generation of invalid values.
+- Add support for the $expand query option.
+- Create a database of test cases (e.g. invalid UTF-8 characters) that triggered an undefined behavior in the past.
