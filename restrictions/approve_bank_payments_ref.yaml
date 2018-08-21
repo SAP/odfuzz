@@ -20,12 +20,21 @@ Exclude:
             - ceiling
         $P_ALL$:
             - Language
+        $E_ALL$:
+            - ResponseCollection
+            - ResponseTokenCollection
     $orderby:
         $E_ALL$:
             - C_AbpInstructionKey
+            - ResponseCollection
+            - ResponseTokenCollection
     $skip:
         $E_ALL$:
             - C_AbpInstructionKey
+            - ResponseCollection
+            - ResponseTokenCollection
     $top:
         $E_ALL$:
             - C_AbpInstructionKey
+            - ResponseCollection
+            - ResponseTokenCollection
