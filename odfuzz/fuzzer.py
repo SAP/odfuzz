@@ -55,6 +55,7 @@ class Manager(object):
         fuzzer.run()
 
 
+# TODO: variable 'queryable' is used almost in every method, so a new class should be extracted
 class Fuzzer(object):
     """A main class that initiates a fuzzing process."""
 
@@ -172,11 +173,7 @@ class Fuzzer(object):
         for _ in range(Config.pool_size):
             accessible_keys = crossable_selection[0].get('accessible_keys', None)
             if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
-                entity_data_to_be_mutated = crossable_selection[0]
-                self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
-                query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
-                query.add_predecessor(entity_data_to_be_mutated['_id'])
-                query.build_string()
+                query = self.build_mutated_accessible_keys(queryable, accessible_keys, crossable_selection[0])
                 children.append(query)
                 Stats.tests_num += 1
                 Stats.created_by_mutation += 1
@@ -189,6 +186,25 @@ class Fuzzer(object):
             self._get_multiple_responses(children)
         return children
 
+    def _crossover_single(self, crossable_selection, queryable):
+        query1, query2 = crossable_selection
+        accessible_keys = crossable_selection[0].get('accessible_keys', None)
+        if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
+            query = self.build_mutated_accessible_keys(queryable, accessible_keys, crossable_selection[0])
+            Stats.tests_num += 1
+            Stats.created_by_mutation += 1
+        else:
+            query = self._crossover_queries(query1, query2, queryable)
+        self._get_single_response(query)
+        return [query]
+
+    def build_mutated_accessible_keys(self, queryable, accessible_keys, data_to_be_mutated):
+        self._mutate_accessible_keys(queryable, accessible_keys, data_to_be_mutated)
+        query = build_offspring(queryable.get_accessible_entity_set(), data_to_be_mutated)
+        query.add_predecessor(data_to_be_mutated['_id'])
+        query.build_string()
+        return query
+
     def _mutate_accessible_keys(self, queryable, accessible_keys, entity_data):
         keys_list = list(accessible_keys.items())
         key_values = random.sample(keys_list, round((random.random() * (len(keys_list) - 1)) + 1))
@@ -200,22 +216,6 @@ class Fuzzer(object):
         for proprty_name, value in key_values:
             accessible_keys[proprty_name] = '\'' + accessible_entity_set.entity_type.proprty(proprty_name) \
                 .mutate(value[1:-1]) + '\''
-
-    def _crossover_single(self, crossable_selection, queryable):
-        query1, query2 = crossable_selection
-        accessible_keys = crossable_selection[0].get('accessible_keys', None)
-        if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
-            entity_data_to_be_mutated = crossable_selection[0]
-            self._mutate_accessible_keys(queryable, accessible_keys, entity_data_to_be_mutated)
-            query = build_offspring(queryable.get_accessible_entity_set(), entity_data_to_be_mutated)
-            query.add_predecessor(entity_data_to_be_mutated['_id'])
-            query.build_string()
-            Stats.tests_num += 1
-            Stats.created_by_mutation += 1
-        else:
-            query = self._crossover_queries(query1, query2, queryable)
-        self._get_single_response(query)
-        return [query]
 
     def _crossover_queries(self, query1, query2, queryable):
         if is_filter_crossable(query1, query2):
@@ -271,7 +271,6 @@ class Fuzzer(object):
         return removable_ids
 
     def _remove_logical_part(self, option_value, index, adjacent_id):
-        # MAZE SA AJ TO, CO SA NEMA MAZAT (properties. ktore su required-in-filter)
         logical = option_value['logicals'].pop(index)
         FilterOptionDeleter(option_value, logical).remove_adjacent(adjacent_id)
 
@@ -423,6 +422,7 @@ class Fuzzer(object):
         self._logger.info('Fetched \'{}\' from XML'.format(value))
         return value
 
+    # TODO: create a separate class for logging, fuzzer should not have a knowledge about logging format, etc.
     def _log_stats(self, queries):
         for query in queries:
             query_dict = query.dictionary
@@ -520,19 +520,9 @@ class Selector(object):
         self._passed_iterations = 0
         self._entities = entities
 
-    @property
-    def score_average(self):
-        return self._score_average
-
-    @score_average.setter
-    def score_average(self, value):
-        self._score_average = value
-
     def select(self):
-        self._compute_score_average()
         if self._is_score_stagnating():
-            selection = Selection(None, random.choice(list(self._entities.all())),
-                                  self._score_average)
+            selection = Selection(None, random.choice(list(self._entities.all())), self._score_average)
         else:
             selection = self._crossable_selection()
         self._passed_iterations += 1
@@ -551,35 +541,19 @@ class Selector(object):
             current_average = self._mongodb.overall_score() / self._mongodb.total_queries()
             old_average = self._score_average
             self._score_average = current_average
-            if abs(old_average - current_average) < SCORE_EPS:
+            if (current_average - old_average) < SCORE_EPS:
                 return True
         return False
 
-    def _compute_score_average(self):
-        pass
-
     def _get_crossable(self, queryable):
         entity_set_name = queryable.entity_set.name
-        parent1 = self._get_single_parent(entity_set_name, None)
+        parent1 = self._mongodb.best_filter_sample_query(entity_set_name, None)
         if parent1 is None:
             return None
-        parent2 = self._get_single_parent(entity_set_name, ObjectId(parent1['_id']))
+        parent2 = self._mongodb.best_filter_sample_query(entity_set_name, ObjectId(parent1['_id']))
         if parent2 is None:
             return None
         return parent1, parent2
-
-    def _get_single_parent(self, entity_set_name, object_id):
-        queries_sample = self._mongodb.queries_sample_filter(entity_set_name, FILTER_SAMPLE_SIZE, object_id)
-        if not queries_sample:
-            return None
-        parent = self._get_best_query(queries_sample)
-        return parent
-
-    def _get_best_query(self, queries_sample):
-        sorted_queries = sorted(queries_sample, key=operator.itemgetter('score'), reverse=True)
-        best_query = sorted_queries[0]
-        self._logger.info('Selected parent is \'{}\''.format(best_query['string']))
-        return best_query
 
 
 class Selection(object):
@@ -730,6 +704,9 @@ class SAPErrors(object):
     def evaluate(error_code, error_message):
         if error_code == 'SY/530':
             if error_message.startswith('Invalid part') and error_message.endswith('of analytical ID'):
+                return -50
+        elif error_code == '/IWBEP/CM_MGW_RT/176':
+            if error_message.startswith('\'Language') and error_message.endswith('not in system\''):
                 return -50
         return 100
 
