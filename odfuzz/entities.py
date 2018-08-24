@@ -32,6 +32,7 @@ class Builder(object):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
             patch_proprties(entity_set)
+            # TODO: ordinary entities with multiplicity=1 can be interpreted as principal
             principal_entities = get_principal_entities(data_model, entity_set)
             query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher, principal_entities)
             if query_group.query_options():
@@ -1525,6 +1526,7 @@ class AccessibleEntity(object):
 
     def _generate_addressable_path(self):
         if self._containing_entity_name:
+            # TODO: the name should be equal to the value of attribute "Name" of "NavigationProperty"
             path = self._containing_entity_name + self._build_key_values() + '/' + self._entity_set.name
         else:
             path = self._entity_set.name + self._build_key_values()

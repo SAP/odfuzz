@@ -5,12 +5,12 @@ import io
 import os
 import sys
 import logging
-import operator
 import requests
 import requests.adapters
 
 from copy import deepcopy
 from datetime import datetime
+from collections import namedtuple
 from abc import ABCMeta, abstractmethod
 from lxml import etree
 from gevent.pool import Pool
@@ -26,6 +26,8 @@ from odfuzz.generators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
 from odfuzz.constants import *
+
+SelfMock = namedtuple('SelfMock', 'max_string_length')
 
 
 class Manager(object):
@@ -55,16 +57,12 @@ class Manager(object):
         fuzzer.run()
 
 
-# TODO: variable 'queryable' is used almost in every method, so a new class should be extracted
 class Fuzzer(object):
     """A main class that initiates a fuzzing process."""
 
     def __init__(self, dispatcher, entities, collection_name, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
-        self._stats_logger = logging.getLogger(STATS_LOGGER)
-        self._filter_logger = logging.getLogger(FILTER_LOGGER)
-        self._stats_logger.info(CSV)
-        self._filter_logger.info(CSV_FILTER)
+        self._stats_logger = StatsLogger()
 
         self._dispatcher = dispatcher
         self._entities = entities
@@ -77,11 +75,11 @@ class Fuzzer(object):
 
         self._async = kwargs.get('async')
         if self._async:
-            self._crossover = self._crossover_multiple
-            self._generate = self._generate_multiple
+            self._queryable_factory = MultipleQueryable
+            self._dispatch = self._get_multiple_responses
         else:
-            self._crossover = self._crossover_single
-            self._generate = self._generate_single
+            self._queryable_factory = SingleQueryable
+            self._dispatch = self._get_single_response
 
         Stats.tests_num = 0
         Stats.fails_num = 0
@@ -110,7 +108,9 @@ class Fuzzer(object):
             self._logger.info('Population range for entity \'{}\' is set to {}'
                               .format(queryable.entity_set.name, seed_range))
             for _ in range(seed_range):
-                queries = self._generate(queryable)
+                q = self._queryable_factory(queryable, self._logger)
+                queries = q.generate()
+                self._dispatch(queries)
                 self._analyze_queries(queries)
                 self._save_queries(queries)
 
@@ -120,244 +120,30 @@ class Fuzzer(object):
             selection = self._selector.select()
             if selection.crossable:
                 self._logger.info('Crossing parents...')
-                queries = self._crossover(selection.crossable, selection.queryable)
+                q = self._queryable_factory(selection.queryable, self._logger)
+                queries = q.crossover(selection.crossable)
+                self._dispatch(queries)
                 analyzed_queries = self._analyze_queries(queries)
                 self._remove_weak_queries(analyzed_queries, queries)
             else:
                 self._logger.info('Generating new queries...')
-                queries = self._generate(selection.queryable)
+                q = self._queryable_factory(selection.queryable, self._logger)
+                queries = q.generate()
+                self._dispatch(queries)
                 self._analyze_queries(queries)
                 self._slay_weakest_individuals(len(queries))
             self._save_queries(queries)
 
     def _save_queries(self, queries):
-        self._log_stats(queries)
-        self._log_filter(queries)
+        self._stats_logger.log_stats(queries)
         self._save_to_database(queries)
         print_tests_num()
-
-    def _generate_multiple(self, queryable):
-        queries = []
-        for _ in range(Config.pool_size):
-            query = self._generate_query(queryable)
-            if query:
-                queries.append(query)
-        if queries:
-            self._get_multiple_responses(queries)
-        return queries
-
-    def _generate_single(self, queryable):
-        query = self._generate_query(queryable)
-        if query:
-            self._get_single_response(query)
-        return [query]
-
-    def _generate_query(self, queryable):
-        accessible_entity = queryable.get_accessible_entity_set()
-        query = Query(accessible_entity)
-        self._generate_options(queryable, query)
-        Stats.tests_num += 1
-        return query
-
-    def _generate_options(self, queryable, query):
-        depending_data = {}
-        for option in queryable.random_options():
-            generated_option = option.generate(depending_data)
-            query.add_option(option.name, generated_option.data)
-            depending_data[option.name] = option.get_depending_data()
-        query.build_string()
-        self._logger.info('Generated query \'{}\''.format(query.query_string))
-
-    def _crossover_multiple(self, crossable_selection, queryable):
-        children = []
-        for _ in range(Config.pool_size):
-            accessible_keys = crossable_selection[0].get('accessible_keys', None)
-            if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
-                query = self.build_mutated_accessible_keys(queryable, accessible_keys, crossable_selection[0])
-                children.append(query)
-                Stats.tests_num += 1
-                Stats.created_by_mutation += 1
-            else:
-                query1, query2 = crossable_selection
-                offspring = self._crossover_queries(query1, query2, queryable)
-                if offspring:
-                    children.append(offspring)
-        if children:
-            self._get_multiple_responses(children)
-        return children
-
-    def _crossover_single(self, crossable_selection, queryable):
-        query1, query2 = crossable_selection
-        accessible_keys = crossable_selection[0].get('accessible_keys', None)
-        if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
-            query = self.build_mutated_accessible_keys(queryable, accessible_keys, crossable_selection[0])
-            Stats.tests_num += 1
-            Stats.created_by_mutation += 1
-        else:
-            query = self._crossover_queries(query1, query2, queryable)
-        self._get_single_response(query)
-        return [query]
-
-    def build_mutated_accessible_keys(self, queryable, accessible_keys, data_to_be_mutated):
-        self._mutate_accessible_keys(queryable, accessible_keys, data_to_be_mutated)
-        query = build_offspring(queryable.get_accessible_entity_set(), data_to_be_mutated)
-        query.add_predecessor(data_to_be_mutated['_id'])
-        query.build_string()
-        return query
-
-    def _mutate_accessible_keys(self, queryable, accessible_keys, entity_data):
-        keys_list = list(accessible_keys.items())
-        key_values = random.sample(keys_list, round((random.random() * (len(keys_list) - 1)) + 1))
-        if entity_data['accessible_set']:
-            accessible_entity_set = queryable.principal_entity(entity_data['accessible_set'])
-        else:
-            accessible_entity_set = queryable.entity_set
-
-        for proprty_name, value in key_values:
-            accessible_keys[proprty_name] = '\'' + accessible_entity_set.entity_type.proprty(proprty_name) \
-                .mutate(value[1:-1]) + '\''
-
-    def _crossover_queries(self, query1, query2, queryable):
-        if is_filter_crossable(query1, query2):
-            replaceable_parts = [part for part in query1['_$filter']['parts'] if part.get('replaceable', True)]
-            if replaceable_parts:
-                offspring = self._crossover_filter(replaceable_parts, query1, query2)
-            else:
-                offspring = self._crossover_options(query1, query2)
-        else:
-            offspring = self._crossover_options(query1, query2)
-        Stats.created_by_crossover += 1
-        query = build_offspring(queryable.get_accessible_entity_set(), deepcopy(offspring))
-        self._mutate_query(query, queryable)
-        query.add_predecessor(query1['_id'])
-        query.add_predecessor(query2['_id'])
-        query.build_string()
-        self._logger.info('Generated {}'.format(query.query_string))
-        Stats.tests_num += 1
-        return query
-
-    def _mutate_query(self, query, queryable):
-        option_name, option_value = random.choice(list(query.options.items()))
-        if query.is_option_deletable(option_name) and len(query.order) > 1 and random.random() < OPTION_DEL_PROB:
-            query.delete_option(option_name)
-        else:
-            self._mutate_option(queryable, query, option_name, option_value)
-        Stats.created_by_mutation += 1
-
-    def _mutate_option(self, queryable, query, option_name, option_value):
-        if option_name == FILTER:
-            if option_value['logicals'] and random.random() < FILTER_DEL_PROB:
-                logical_index = round(random.random() * (len(option_value['logicals']) - 1))
-                parts = self._get_removable_parts(option_value, logical_index)
-                if parts:
-                    random_part = random.choice(parts)
-                    self._remove_logical_part(option_value, logical_index, random_part)
-                else:
-                    self._mutate_filter_part(queryable, option_name, option_value)
-            else:
-                self._mutate_filter_part(queryable, option_name, option_value)
-        elif option_name == ORDERBY:
-            self._mutate_orderby_part(option_value)
-        else:
-            query.options[option_name] = self._mutate_value(NumberMutator, option_value)
-
-    def _get_removable_parts(self, option_value, logical_index):
-        logical = option_value['logicals'][logical_index]
-        removable_ids = []
-        if is_removable(option_value, logical['left_id']):
-            removable_ids.append('left_id')
-        if is_removable(option_value, logical['right_id']):
-            removable_ids.append('right_id')
-        return removable_ids
-
-    def _remove_logical_part(self, option_value, index, adjacent_id):
-        logical = option_value['logicals'].pop(index)
-        FilterOptionDeleter(option_value, logical).remove_adjacent(adjacent_id)
-
-    def _mutate_filter_part(self, queryable, option_name, option_value):
-        part = random.choice(option_value['parts'])
-        if 'func' in part:
-            if part['params'] and random.random() < 0.5:
-                proprty = queryable.query_option(option_name).entity_set.entity_type \
-                    .proprty(part['proprties'][0])
-                part['params'][0] = proprty.mutate(part['params'][0])
-            else:
-                if part['return_type'] == 'Edm.Boolean':
-                    part['operand'] = 'true' if part['operand'] == 'false' else 'false'
-                elif part['return_type'] == 'Edm.String':
-                    self_mock = type('', (), {'max_string_length': 5})
-                    part['operand'] = self._mutate_value(StringMutator, self_mock,
-                                                         part['operand'][1:-1])
-                    part['operand'] = '\'' + part['operand'] + '\''
-                elif part['return_type'].startswith('Edm.Int'):
-                    part['operand'] = self._mutate_value(NumberMutator, part['operand'])
-        else:
-            proprty = queryable.query_option(option_name).entity_set.entity_type \
-                .proprty(part['name'])
-            if getattr(proprty, 'mutate', None):
-                part['operand'] = proprty.mutate(part['operand'])
-
-    def _mutate_orderby_part(self, option_value):
-        proprties_num = len(option_value['proprties']) - 1
-        if proprties_num > 1 and random.random() < ORDERBY_DEL_PROB:
-            option_value['proprties'].pop(round(random.random() * proprties_num))
-        option_value['order'] = 'asc' if option_value['order'] == 'desc' else 'desc'
-
-    def _mutate_value(self, mutator_class, value, string_value=None):
-        mutators = self._get_mutators(mutator_class)
-        mutator = random.choice(mutators)
-        if string_value is not None:
-            mutated_value = getattr(mutator_class, mutator)(value, string_value)
-        else:
-            mutated_value = getattr(mutator_class, mutator)(None, value)
-        return mutated_value
-
-    def _get_mutators(self, mutators_class):
-        mutators = []
-        for func_name in mutators_class.__dict__.keys():
-            if not func_name.startswith('_'):
-                mutators.append(func_name)
-        return mutators
-
-    def _crossover_options(self, query1, query2):
-        filled_options = [option_name for option_name, value in query2.items()
-                          if value is not None and option_name.startswith('_$')]
-        selected_option = random.choice(filled_options)
-        if selected_option not in query1['order']:
-            query1['order'].append(selected_option)
-        query1[selected_option] = query2[selected_option]
-        return query1
-
-    def _crossover_filter(self, replaceable_parts, query1, query2):
-        filter_option2 = query2['_$filter']
-
-        # properties that are not required for draft entities are replaceable by default
-        part_to_replace = random.choice(replaceable_parts)
-        replacing_part = random.choice(filter_option2['parts'])
-
-        if 'func' in replacing_part:
-            part_to_replace['func'] = replacing_part['func']
-            part_to_replace['params'] = replacing_part['params']
-            part_to_replace['proprties'] = replacing_part['proprties']
-            part_to_replace['return_type'] = replacing_part['return_type']
-        else:
-            if 'func' in part_to_replace:
-                part_to_replace.pop('func')
-                part_to_replace.pop('params')
-                part_to_replace.pop('proprties')
-                part_to_replace.pop('return_type')
-
-        part_to_replace['name'] = replacing_part['name']
-        part_to_replace['operator'] = replacing_part['operator']
-        part_to_replace['operand'] = replacing_part['operand']
-
-        return query1
 
     def _get_multiple_responses(self, queries):
         responses = []
         pool = Pool(Config.pool_size)
         for query in queries:
-            responses.append(pool.spawn(self._get_single_response, query))
+            responses.append(pool.spawn(self._get_response, query))
         try:
             pool.join(raise_error=True)
         except Exception:
@@ -365,7 +151,11 @@ class Fuzzer(object):
             stats.write()
             sys.exit(1)
 
-    def _get_single_response(self, query):
+    def _get_single_response(self, queries):
+        query = queries[0]
+        self._get_response(query)
+
+    def _get_response(self, query):
         query.response = self._dispatcher.get(query.query_string)
         if query.response.status_code != 200:
             self._set_error_attributes(query)
@@ -422,8 +212,241 @@ class Fuzzer(object):
         self._logger.info('Fetched \'{}\' from XML'.format(value))
         return value
 
-    # TODO: create a separate class for logging, fuzzer should not have a knowledge about logging format, etc.
-    def _log_stats(self, queries):
+
+class Queryable(object):
+    def __init__(self, queryable, logger):
+        self._queryable = queryable
+        self._logger = logger
+
+    def generate_query(self):
+        accessible_entity = self._queryable.get_accessible_entity_set()
+        query = Query(accessible_entity)
+        self.generate_options(query)
+        Stats.tests_num += 1
+        return query
+
+    def generate_options(self, query):
+        depending_data = {}
+        for option in self._queryable.random_options():
+            generated_option = option.generate(depending_data)
+            query.add_option(option.name, generated_option.data)
+            depending_data[option.name] = option.get_depending_data()
+        query.build_string()
+        self._logger.info('Generated query \'{}\''.format(query.query_string))
+
+    def _crossover_queries(self, query1, query2):
+        if is_filter_crossable(query1, query2):
+            replaceable_parts = [part for part in query1['_$filter']['parts'] if part.get('replaceable', True)]
+            if replaceable_parts:
+                offspring = self._crossover_filter(replaceable_parts, query1, query2)
+            else:
+                offspring = self._crossover_options(query1, query2)
+        else:
+            offspring = self._crossover_options(query1, query2)
+        Stats.created_by_crossover += 1
+        query = self.build_offspring(deepcopy(offspring))
+        self._mutate_query(query)
+        query.add_predecessor(query1['_id'])
+        query.add_predecessor(query2['_id'])
+        query.build_string()
+        self._logger.info('Generated {}'.format(query.query_string))
+        Stats.tests_num += 1
+        return query
+
+    def _crossover_filter(self, replaceable_parts, query1, query2):
+        filter_option2 = query2['_$filter']
+
+        # properties that are not required for draft entities are replaceable by default
+        part_to_replace = random.choice(replaceable_parts)
+        replacing_part = random.choice(filter_option2['parts'])
+
+        if 'func' in replacing_part:
+            part_to_replace['func'] = replacing_part['func']
+            part_to_replace['params'] = replacing_part['params']
+            part_to_replace['proprties'] = replacing_part['proprties']
+            part_to_replace['return_type'] = replacing_part['return_type']
+        else:
+            if 'func' in part_to_replace:
+                part_to_replace.pop('func')
+                part_to_replace.pop('params')
+                part_to_replace.pop('proprties')
+                part_to_replace.pop('return_type')
+
+        part_to_replace['name'] = replacing_part['name']
+        part_to_replace['operator'] = replacing_part['operator']
+        part_to_replace['operand'] = replacing_part['operand']
+
+        return query1
+
+    def build_offspring(self, offspring):
+        query = Query(self._queryable.get_accessible_entity_set())
+        for option in offspring['order']:
+            query.add_option(option[1:], offspring[option])
+        return query
+
+    def _crossover_options(self, query1, query2):
+        filled_options = [option_name for option_name, value in query2.items()
+                          if value is not None and option_name.startswith('_$')]
+        selected_option = random.choice(filled_options)
+        if selected_option not in query1['order']:
+            query1['order'].append(selected_option)
+        query1[selected_option] = query2[selected_option]
+        return query1
+
+    def _mutate_query(self, query):
+        option_name, option_value = random.choice(list(query.options.items()))
+        if query.is_option_deletable(option_name) and len(query.order) > 1 and random.random() < OPTION_DEL_PROB:
+            query.delete_option(option_name)
+        else:
+            self._mutate_option(query, option_name, option_value)
+        Stats.created_by_mutation += 1
+
+    def build_mutated_accessible_keys(self, accessible_keys, data_to_be_mutated):
+        self._mutate_accessible_keys(accessible_keys, data_to_be_mutated)
+        query = self.build_offspring(data_to_be_mutated)
+        query.add_predecessor(data_to_be_mutated['_id'])
+        query.build_string()
+        return query
+
+    def _mutate_accessible_keys(self, accessible_keys, entity_data):
+        keys_list = list(accessible_keys.items())
+        key_values = random.sample(keys_list, round((random.random() * (len(keys_list) - 1)) + 1))
+        if entity_data['accessible_set']:
+            accessible_entity_set = self._queryable.principal_entity(entity_data['accessible_set'])
+        else:
+            accessible_entity_set = self._queryable.entity_set
+
+        for proprty_name, value in key_values:
+            accessible_keys[proprty_name] = '\'' + accessible_entity_set.entity_type.proprty(proprty_name) \
+                .mutate(value[1:-1]) + '\''
+
+    def _mutate_option(self, query, option_name, option_value):
+        if option_name == FILTER:
+            if option_value['logicals'] and random.random() < FILTER_DEL_PROB:
+                logical_index = round(random.random() * (len(option_value['logicals']) - 1))
+                parts = self._get_removable_parts(option_value, logical_index)
+                if parts:
+                    random_part = random.choice(parts)
+                    self._remove_logical_part(option_value, logical_index, random_part)
+                else:
+                    self._mutate_filter_part(option_name, option_value)
+            else:
+                self._mutate_filter_part(option_name, option_value)
+        elif option_name == ORDERBY:
+            self._mutate_orderby_part(option_value)
+        else:
+            query.options[option_name] = self._mutate_value(NumberMutator, option_value)
+
+    def _get_removable_parts(self, option_value, logical_index):
+        logical = option_value['logicals'][logical_index]
+        removable_ids = []
+        if is_removable(option_value, logical['left_id']):
+            removable_ids.append('left_id')
+        if is_removable(option_value, logical['right_id']):
+            removable_ids.append('right_id')
+        return removable_ids
+
+    def _remove_logical_part(self, option_value, index, adjacent_id):
+        logical = option_value['logicals'].pop(index)
+        FilterOptionDeleter(option_value, logical).remove_adjacent(adjacent_id)
+
+    def _mutate_filter_part(self, option_name, option_value):
+        part = random.choice(option_value['parts'])
+        if 'func' in part:
+            if part['params'] and random.random() < 0.5:
+                proprty = self._queryable.query_option(option_name).entity_set.entity_type \
+                    .proprty(part['proprties'][0])
+                part['params'][0] = proprty.mutate(part['params'][0])
+            else:
+                if part['return_type'] == 'Edm.Boolean':
+                    part['operand'] = 'true' if part['operand'] == 'false' else 'false'
+                elif part['return_type'] == 'Edm.String':
+                    part['operand'] = self._mutate_value(StringMutator, part['operand'][1:-1],
+                                                         SelfMock(max_string_length=5))
+                    part['operand'] = '\'' + part['operand'] + '\''
+                elif part['return_type'].startswith('Edm.Int'):
+                    part['operand'] = self._mutate_value(NumberMutator, part['operand'])
+        else:
+            proprty = self._queryable.query_option(option_name).entity_set.entity_type \
+                .proprty(part['name'])
+            if getattr(proprty, 'mutate', None):
+                part['operand'] = proprty.mutate(part['operand'])
+
+    def _mutate_orderby_part(self, option_value):
+        proprties_num = len(option_value['proprties']) - 1
+        if proprties_num > 1 and random.random() < ORDERBY_DEL_PROB:
+            option_value['proprties'].pop(round(random.random() * proprties_num))
+        option_value['order'] = 'asc' if option_value['order'] == 'desc' else 'desc'
+
+    def _mutate_value(self, mutator_class, value, self_mock=None):
+        mutators = self._get_mutators(mutator_class)
+        mutator = random.choice(mutators)
+        mutated_value = getattr(mutator_class, mutator)(self_mock, value)
+        return mutated_value
+
+    def _get_mutators(self, mutators_class):
+        mutators = []
+        for func_name in mutators_class.__dict__.keys():
+            if not func_name.startswith('_'):
+                mutators.append(func_name)
+        return mutators
+
+
+class MultipleQueryable(Queryable):
+    def generate(self):
+        queries = []
+        for _ in range(Config.pool_size):
+            query = self.generate_query()
+            if query:
+                queries.append(query)
+        return queries
+
+    def crossover(self, crossable_selection):
+        children = []
+        for _ in range(Config.pool_size):
+            accessible_keys = crossable_selection[0].get('accessible_keys', None)
+            if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
+                query = self.build_mutated_accessible_keys(accessible_keys, crossable_selection[0])
+                children.append(query)
+                Stats.tests_num += 1
+                Stats.created_by_mutation += 1
+            else:
+                query1, query2 = crossable_selection
+                offspring = self._crossover_queries(query1, query2)
+                if offspring:
+                    children.append(offspring)
+        return children
+
+
+class SingleQueryable(Queryable):
+    def generate(self):
+        query = self.generate_query()
+        return [query]
+
+    def crossover(self, crossable_selection):
+        query1, query2 = crossable_selection
+        accessible_keys = crossable_selection[0].get('accessible_keys', None)
+        if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
+            query = self.build_mutated_accessible_keys(accessible_keys, crossable_selection[0])
+            Stats.tests_num += 1
+            Stats.created_by_mutation += 1
+        else:
+            query = self._crossover_queries(query1, query2)
+        return [query]
+
+
+class StatsLogger(object):
+    def __init__(self):
+        self._stats_logger = logging.getLogger(STATS_LOGGER)
+        self._filter_logger = logging.getLogger(FILTER_LOGGER)
+        self._stats_logger.info(CSV)
+        self._filter_logger.info(CSV_FILTER)
+
+    def log_stats(self, queries):
+        self.log_overall(queries)
+        self.log_filter(queries)
+
+    def log_overall(self, queries):
         for query in queries:
             query_dict = query.dictionary
             query_proprties = self._get_proprties(query_dict)
@@ -472,7 +495,7 @@ class Fuzzer(object):
                 proprties.update([part['name']])
         return proprties
 
-    def _log_filter(self, queries):
+    def log_filter(self, queries):
         for query in queries:
             filter_option = query.dictionary.get('_$filter')
             if filter_option:
@@ -882,7 +905,7 @@ class Dispatcher(object):
             self._logger.info('An exception {} was raised'.format(requests_ex))
             raise DispatcherError('An exception was raised while sending HTTP {}: {}'
                                   .format(method, requests_ex))
-        self._logger.info('Received HTTP {} response from {}'.format(response.status_code, url))
+        self._logger.info('Received HTTP {} from {}'.format(response.status_code, url))
         return response
 
     def get(self, query, **kwargs):
@@ -910,13 +933,6 @@ def is_filter_crossable(query1, query2):
     if query1['_$filter'] and query2['_$filter'] and random.random() < FILTER_CROSS_PROBABILITY:
         crossable = True
     return crossable
-
-
-def build_offspring(entity_set, offspring):
-    query = Query(entity_set)
-    for option in offspring['order']:
-        query.add_option(option[1:], offspring[option])
-    return query
 
 
 def build_filter_string(filter_data):
