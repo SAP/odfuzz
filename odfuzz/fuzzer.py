@@ -855,7 +855,7 @@ class Query(object):
             'error_code': self._response.error_code,
             'error_message': self._response.error_message,
             'entity_set': self._accessible_entity.entity_set_name,
-            'accessible_set': self._accessible_entity.containing_entity_name or None,
+            'accessible_set': self._accessible_entity.principal_entity_name or None,
             'accessible_keys': self._accessible_entity.data or None,
             'predecessors': self._predecessors,
             'string': self._query_string,

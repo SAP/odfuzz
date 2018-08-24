@@ -32,7 +32,6 @@ class Builder(object):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
             patch_proprties(entity_set)
-            # TODO: ordinary entities with multiplicity=1 can be interpreted as principal
             principal_entities = get_principal_entities(data_model, entity_set)
             query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher, principal_entities)
             if query_group.query_options():
@@ -52,14 +51,11 @@ class Builder(object):
         metadata_request = '$metadata?' + 'sap-client=' + Config.client
         try:
             metadata_response = self._dispatcher.get(metadata_request)
-        # TODO: catch Dispatcher exception
-        except Exception as ex:
-            raise BuilderError('An exception occurred while retrieving metadata: {}'
-                               .format(ex))
+        except DispatcherError as disp_error:
+            raise BuilderError('An exception occurred while retrieving metadata: {}'.format(disp_error))
         if metadata_response.status_code != 200:
-            raise BuilderError('Cannot retrieve metadata from {}. Status code is {}'
-                               .format(self._dispatcher.service,
-                                       metadata_response.status_code))
+            raise BuilderError('Cannot retrieve metadata from {}. Status code is {}'.format(
+                self._dispatcher.service, metadata_response.status_code))
         return metadata_response
 
 
@@ -1464,7 +1460,7 @@ class EntitySet(metaclass=ABCMeta):
 
 class AddressableEntity(EntitySet):
     def get_queryable_entity(self):
-        accessible_entity = AccessibleEntity(self._entity_set, {}, '')
+        accessible_entity = AccessibleEntity(self._entity_set, {}, NullEntity(''))
         return accessible_entity
 
 
@@ -1486,16 +1482,19 @@ class NonAddressableEntity(EntitySet):
             principal_entity_set = NullEntity('')
             key_pairs = {}
 
-        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set.name)
+        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set)
         return accessible_entity
 
 
 class AccessibleEntity(object):
-    def __init__(self, entity_set, key_pairs, containing_entity_name):
+    def __init__(self, entity_set, key_pairs, principal_entity_set):
         self._entity_set = entity_set
         self._key_pairs = key_pairs
-        self._containing_entity_name = containing_entity_name
+        self._principal_entity_set = principal_entity_set
         self._accessible_entity_path = ''
+
+        self._entity_set_name = None
+        self._init_entity_set_name()
 
     @property
     def entity_set(self):
@@ -1506,8 +1505,8 @@ class AccessibleEntity(object):
         return self._entity_set.name
 
     @property
-    def containing_entity_name(self):
-        return self._containing_entity_name
+    def principal_entity_name(self):
+        return self._principal_entity_set.name
 
     @property
     def data(self):
@@ -1525,9 +1524,8 @@ class AccessibleEntity(object):
             self._accessible_entity_path = self._entity_set.name
 
     def _generate_addressable_path(self):
-        if self._containing_entity_name:
-            # TODO: the name should be equal to the value of attribute "Name" of "NavigationProperty"
-            path = self._containing_entity_name + self._build_key_values() + '/' + self._entity_set.name
+        if self._principal_entity_set.name:
+            path = self._principal_entity_set.name + self._build_key_values() + '/' + self._entity_set_name
         else:
             path = self._entity_set.name + self._build_key_values()
         return path
@@ -1542,6 +1540,15 @@ class AccessibleEntity(object):
             entity_path += proprty_name + '=' + proprty_value + ','
         entity_path = entity_path[:-1]
         return entity_path
+
+    def _init_entity_set_name(self):
+        # TODO: this is useless check
+        if self._principal_entity_set.name:
+            for navigation_prop in self._principal_entity_set.entity_type.nav_proprties:
+                role = self._entity_set.association_set_end.role
+                if navigation_prop.to_role.role == role:
+                    self._entity_set_name = navigation_prop.name
+                    break
 
 
 def is_method(obj):
@@ -1602,6 +1609,10 @@ def get_principal_entities(data_model, entity_set):
         principal_entity = get_principal_from_ends(association_set, entity_set)
         if principal_entity:
             principal_entities.append(principal_entity)
+        else:
+            principal_entity = get_principal_from_multiplicity(association_set, entity_set)
+            if principal_entity:
+                principal_entities.append(principal_entity)
     return principal_entities
 
 
@@ -1616,6 +1627,26 @@ def get_principal_from_ends(association_set, entity_set):
                 break
             index += 1
     return principal_entity
+
+
+# TODO
+def get_principal_from_multiplicity(association_set, entity_set):
+    principal_entity = None
+    if may_contain_principal_entity(association_set):
+        index = 0
+        for end in association_set.ends:
+            if end.entity_set.name == entity_set.name:
+                principal_entity_index = index ^ 1
+                principal_entity = get_from_multi(association_set.ends[principal_entity_index], association_set)
+            index += 1
+    return principal_entity
+
+
+# TODO
+def get_from_multi(association_set_end, association_set):
+    if association_set.association_type.end_by_role(association_set_end.role).multiplicity == '1':
+        return association_set_end.entity_set
+    return None
 
 
 def may_contain_principal_entity(association_set):
