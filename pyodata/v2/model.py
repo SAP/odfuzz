@@ -888,7 +888,9 @@ class Schema(object):
                 for end in assoc_set.ends:
                     # Check if entity set exists in current scheme
                     try:
-                        end.entity_set = schema.entity_set(end.entity_set_name, namespace)
+                        entity_set = schema.entity_set(end.entity_set_name, namespace)
+                        end.entity_set = entity_set
+                        entity_set.association_set_end = end
                     except KeyError:
                         raise PyODataModelError('EntitySet {} does not exist in Schema Namespace {}'
                                                 .format(end.entity_set_name, namespace))
@@ -1061,6 +1063,8 @@ class EntitySet(Identifier):
         self._topable = topable
         self._req_filter = req_filter
 
+        self._association_set_end = None
+
     @property
     def entity_type_info(self):
         return self._entity_type_info
@@ -1114,6 +1118,16 @@ class EntitySet(Identifier):
     @property
     def requires_filter(self):
         return self._req_filter
+
+    @property
+    def association_set_end(self):
+        return self._association_set_end
+
+    @association_set_end.setter
+    def association_set_end(self, value):
+        if self._association_set_end is not None:
+            raise RuntimeError('Cannot replace {0} of {1} to {2}'.format(self._entity_type, self, value))
+        self._association_set_end = value
 
     @staticmethod
     def from_etree(entity_set_node):
