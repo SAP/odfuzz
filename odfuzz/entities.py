@@ -1545,10 +1545,10 @@ class AccessibleEntity(object):
         # TODO: this is useless check
         if self._principal_entity_set.name:
             for navigation_prop in self._principal_entity_set.entity_type.nav_proprties:
-                role = self._entity_set.association_set_end.role
-                if navigation_prop.to_role.role == role:
-                    self._entity_set_name = navigation_prop.name
-                    break
+                for end in self._entity_set.association_set_ends:
+                    if navigation_prop.to_role.role == end.role:
+                        self._entity_set_name = navigation_prop.name
+                        break
 
 
 def is_method(obj):
