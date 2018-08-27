@@ -1606,60 +1606,60 @@ def remove_logical_from_group(option_value, group_id, logical_id):
 def get_principal_entities(data_model, entity_set):
     principal_entities = []
     for association_set in data_model.association_sets:
-        principal_entity = get_principal_from_ends(association_set, entity_set)
+        ends_principal_getter = EndsPrincipal(association_set, entity_set)
+        principal_entity = ends_principal_getter.get()
         if principal_entity:
             principal_entities.append(principal_entity)
         else:
-            principal_entity = get_principal_from_multiplicity(association_set, entity_set)
+            multiplicity_principal_getter = MultiplicityPrincipal(association_set, entity_set)
+            principal_entity = multiplicity_principal_getter.get()
             if principal_entity:
                 principal_entities.append(principal_entity)
     return principal_entities
 
 
-def get_principal_from_ends(association_set, entity_set):
-    principal_entity = None
-    if may_contain_principal_entity(association_set):
-        index = 0
-        for end in association_set.ends:
-            if end.entity_set.name == entity_set.name:
-                principal_entity_index = index ^ 1
-                principal_entity = get_principal_entity_set(association_set, principal_entity_index)
-                break
-            index += 1
-    return principal_entity
+class PrincipalGetter(metaclass=ABCMeta):
+    def __init__(self, association_set, entity_set):
+        self._association_set = association_set
+        self._entity_set = entity_set
+
+    def get(self):
+        principal_entity = None
+        if self.may_contain_principal_entity():
+            index = 0
+            for end in self._association_set.ends:
+                if end.entity_set.name == self._entity_set.name:
+                    principal_entity_index = index ^ 1
+                    principal_entity = self.get_principal(principal_entity_index)
+                    break
+                index += 1
+        return principal_entity
+
+    def may_contain_principal_entity(self):
+        return len(self._association_set.ends) == 2
+
+    @abstractmethod
+    def get_principal(self, index):
+        pass
 
 
-# TODO
-def get_principal_from_multiplicity(association_set, entity_set):
-    principal_entity = None
-    if may_contain_principal_entity(association_set):
-        index = 0
-        for end in association_set.ends:
-            if end.entity_set.name == entity_set.name:
-                principal_entity_index = index ^ 1
-                principal_entity = get_from_multi(association_set.ends[principal_entity_index], association_set)
-            index += 1
-    return principal_entity
+class EndsPrincipal(PrincipalGetter):
+    def get_principal(self, index):
+        principal_entity = None
+        principal_end = self._association_set.ends[index]
+        principal = getattr(self._association_set.association_type.referential_constraint, 'principal', None)
+        if principal and principal.name == principal_end.role:
+            principal_entity = principal_end.entity_set
+        return principal_entity
 
 
-# TODO
-def get_from_multi(association_set_end, association_set):
-    if association_set.association_type.end_by_role(association_set_end.role).multiplicity == '1':
-        return association_set_end.entity_set
-    return None
-
-
-def may_contain_principal_entity(association_set):
-    return len(association_set.ends) == 2
-
-
-def get_principal_entity_set(association_set, index):
-    principal_entity = None
-    principal_end = association_set.ends[index]
-    principal = getattr(association_set.association_type.referential_constraint, 'principal', None)
-    if principal and principal.name == principal_end.role:
-        principal_entity = principal_end.entity_set
-    return principal_entity
+class MultiplicityPrincipal(PrincipalGetter):
+    def get_principal(self, index):
+        principal_entity = None
+        association_set_end = self._association_set.ends[index]
+        if self._association_set.association_type.end_by_role(association_set_end.role).multiplicity == '1':
+            principal_entity = association_set_end.entity_set
+        return principal_entity
 
 
 def generate_accessible_entity_key_values(containing_entity_set):
