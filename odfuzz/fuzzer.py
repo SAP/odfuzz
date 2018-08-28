@@ -22,7 +22,7 @@ from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, F
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.mongos import MongoClient
-from odfuzz.generators import NumberMutator, StringMutator
+from odfuzz.mutators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
 from odfuzz.constants import *
@@ -361,8 +361,7 @@ class Queryable(object):
                 if part['return_type'] == 'Edm.Boolean':
                     part['operand'] = 'true' if part['operand'] == 'false' else 'false'
                 elif part['return_type'] == 'Edm.String':
-                    part['operand'] = self._mutate_value(StringMutator, part['operand'][1:-1],
-                                                         SelfMock(max_string_length=5))
+                    part['operand'] = self._mutate_value(StringMutator, part['operand'], SelfMock(max_string_length=5))
                     part['operand'] = '\'' + part['operand'] + '\''
                 elif part['return_type'].startswith('Edm.Int'):
                     part['operand'] = self._mutate_value(NumberMutator, part['operand'])

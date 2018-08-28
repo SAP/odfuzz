@@ -341,10 +341,9 @@ class TopQuery(QueryOption):
             self._max_range_prob[total_entities] = 0.999
 
     def _get_total_entities(self):
-        # TODO: refactor method -- else block move out of the function
         try:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client,
-                                            timeout=3)
+            response = self._dispatcher.get(
+                self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client, timeout=3)
         except DispatcherError:
             total_entities = INT_MAX
         else:
@@ -392,27 +391,14 @@ class SkipQuery(QueryOption):
             if max_values:
                 total_entities = int(max_values[0])
             else:
-                total_entities = self._get_total_entities()
+                total_entities = INT_MAX
         else:
-            total_entities = self._get_total_entities()
+            total_entities = INT_MAX
 
         if total_entities == INT_MAX:
             self._max_range_prob[total_entities] = 1
         else:
             self._max_range_prob[total_entities] = 0.999
-
-    def _get_total_entities(self):
-        try:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client,
-                                            timeout=3)
-        except DispatcherError:
-            total_entities = INT_MAX
-        else:
-            try:
-                total_entities = int(response.text)
-            except ValueError:
-                total_entities = INT_MAX
-        return total_entities
 
 
 class FilterQuery(QueryOption):

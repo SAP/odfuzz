@@ -4,7 +4,8 @@ import random
 import logging
 
 from pyodata.v2.model import VariableDeclaration
-from odfuzz.generators import RandomGenerator, StringMutator, NumberMutator, GuidMutator
+from odfuzz.generators import RandomGenerator
+from odfuzz.mutators import StringMutator, NumberMutator, GuidMutator, BooleanMutator, DecimalMutator, DateTimeMutator
 from odfuzz.constants import BOOLEAN_OPERATORS, EXPRESSION_OPERATORS, INTERVAL_OPERATORS
 
 MAX_STRING_LENGTH = 100
@@ -77,6 +78,14 @@ def patch_proprty_mutator(proprty):
         proprty.mutate = get_num_mutator_method.__get__(proprty, None)
     elif proprty_type == 'Edm.Guid':
         proprty.mutate = GuidMutator.replace_char
+    elif proprty_type == 'Edm.Boolean':
+        proprty.mutate = BooleanMutator.flip_value
+    elif proprty_type == 'Edm.Decimal':
+        # TODO
+        proprty.mutate = lambda value: value
+    elif proprty_type == 'Edm.DateTime':
+         # TODO
+        proprty.mutate = lambda value: value
     else:
         proprty.mutate = lambda value: value
         logging.error('Property type {} is not supported by mutator yet'.format(proprty_type))

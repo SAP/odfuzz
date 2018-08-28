@@ -71,3 +71,8 @@ CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;opera
 
 INFINITY_TIMEOUT = -1
 YEAR_IN_SECONDS = 31622400
+
+HEX_BINARY = 'ABCDEFabcdef0123456789'
+BASE_CHARSET = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789~!$@^*()_+-–—=' \
+               '[]|:<>.‰¨œƒ…†‡Œ‘’´`“”•™¡¢£¤¥¦§©ª«¬®¯°±²³µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍ' \
+               'ÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ{} '
