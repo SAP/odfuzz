@@ -19,9 +19,10 @@ RUN apk update \
 		libffi-dev \
 		libxslt-dev \
 		python3-dev \
-	&& wget "https://bootstrap.pypa.io/get-pip.py" -O /dev/stdout | python3 \
-	&& pip install cffi \
-	&& pip install -r ODfuzz/requirements.txt \
+	&& python3 -m ensurepip \
+	&& pip3 install --upgrade pip \
+	&& pip3 install cffi \
+	&& pip3 install -r ODfuzz/requirements.txt \
 	&& apk del \
 		build-base \
 		build-dependencies \
@@ -31,7 +32,9 @@ RUN apk update \
 	&& rm -rf ~/.pip/cache/ \
 	&& rm -rf /tmp/* \
 	&& rm -rf /tar/tmp/* \
-	&& rm -rf /var/cache/apk/*
+	&& rm -rf /var/cache/apk/* \
+	&& rm -rf /usr/lib/python*/ensurepip \
+	&& rm -rf /root/.cache
 
 ENV PROXY_ENABLED="yes" \
 	HTTP_PROXY="http://proxy:8080" \
