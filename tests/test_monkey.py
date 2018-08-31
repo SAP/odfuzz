@@ -2,7 +2,8 @@ import pytest
 import unittest.mock
 import odfuzz.monkey as monkey
 
-from odfuzz.generators import RandomGenerator, StringMutator, NumberMutator
+from odfuzz.generators import RandomGenerator
+from odfuzz.mutators import StringMutator, NumberMutator
 
 
 def test_defined_max_length_patch(master_entity_type):
@@ -44,27 +45,6 @@ def test_num_property_generator_patch(master_entity_type):
 
     monkey.patch_proprty_generator(fiscal_year_property)
     assert fiscal_year_property.generate == generator
-
-
-def test_string_property_mutator_patch(master_entity_type):
-    data_type_property = master_entity_type.proprty('DataType')
-    string_mutators = [func_name for func_name in StringMutator.__dict__.keys() if not func_name.startswith('_')]
-
-    monkey.patch_proprty_mutator(data_type_property)
-    data_type_mutators = [func_name for func_name in data_type_property.__dict__.keys() if func_name in string_mutators]
-    assert set(data_type_mutators) == set(string_mutators)
-    assert data_type_property.mutate
-
-
-def test_num_property_mutator_patch(master_entity_type):
-    total_count_property = master_entity_type.proprty('TotalCount')
-    number_mutators = [func_name for func_name in NumberMutator.__dict__.keys() if not func_name.startswith('_')]
-
-    monkey.patch_proprty_mutator(total_count_property)
-    total_count_mutators = [func_name for func_name in total_count_property.__dict__.keys()
-                            if func_name in number_mutators]
-    assert set(total_count_mutators) == set(number_mutators)
-    assert total_count_property.mutate
 
 
 def test_standard_property_operator_patch(master_entity_type):

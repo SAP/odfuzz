@@ -2,27 +2,73 @@ from collections import namedtuple
 
 from odfuzz.mutators import DecimalMutator
 
+SelfMock = namedtuple('SelfMock', 'precision scale')
 
-def test_decimal_mutator():
-    SelfMock = namedtuple('SelfMock', 'precision scale')
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', -1) == '1.21m'
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', -2) == '0.12m'
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', -3) == '0.01m'
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', -4) == '0m'
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', -5) == '0m'
 
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', 1) == '121.2m'
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', 2) == '1212m'
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', 3) == '12120m'
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', 4) == '21200m'
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m', 5) == '12000m'
+def test_shift_value_decimal_mutator():
+    DecimalMutator.generator = GeneratorMock(randint=[-1])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '1.21m'
+    DecimalMutator.generator = GeneratorMock(randint=[-2])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '0.12m'
+    DecimalMutator.generator = GeneratorMock(randint=[-3])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '0.01m'
+    DecimalMutator.generator = GeneratorMock(randint=[-4])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '0m'
+    DecimalMutator.generator = GeneratorMock(randint=[-5])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '0m'
 
-    assert DecimalMutator.shift_value(SelfMock(4, 2), '12.12m', 4) == '1200m'
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m', -1) == '1.2m'
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m', -2) == '0.12m'
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m', -3) == '0.012m'
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m', -4) == '0.001m'
+    DecimalMutator.generator = GeneratorMock(randint=[1])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '121.2m'
+    DecimalMutator.generator = GeneratorMock(randint=[2])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '1212m'
+    DecimalMutator.generator = GeneratorMock(randint=[3])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '12120m'
+    DecimalMutator.generator = GeneratorMock(randint=[4])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '21200m'
+    DecimalMutator.generator = GeneratorMock(randint=[5])
+    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '12000m'
 
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '0m', 2) == '0m'
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m', 3) == '2000m'
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m', 4) == '0m'
+    DecimalMutator.generator = GeneratorMock(randint=[4])
+    assert DecimalMutator.shift_value(SelfMock(4, 2), '12.12m') == '1200m'
+    DecimalMutator.generator = GeneratorMock(randint=[-1])
+    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '1.2m'
+    DecimalMutator.generator = GeneratorMock(randint=[-2])
+    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '0.12m'
+    DecimalMutator.generator = GeneratorMock(randint=[-3])
+    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '0.012m'
+    DecimalMutator.generator = GeneratorMock(randint=[-4])
+    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '0.001m'
+
+    DecimalMutator.generator = GeneratorMock(randint=[2])
+    assert DecimalMutator.shift_value(SelfMock(4, 3), '0m') == '0m'
+    DecimalMutator.generator = GeneratorMock(randint=[3])
+    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '2000m'
+    DecimalMutator.generator = GeneratorMock(randint=[4])
+    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '0m'
+    DecimalMutator.generator = GeneratorMock(randint=[0])
+    assert DecimalMutator.shift_value(SelfMock(4, 3), '0.0m') == '0m'
+
+
+def test_replace_digit_decimal_mutator():
+    DecimalMutator.generator = GeneratorMock(randint=[0, 2])
+    assert DecimalMutator.replace_digit(None, '1m') == '2m'
+    DecimalMutator.generator = GeneratorMock(randint=[0, 9])
+    assert DecimalMutator.replace_digit(None, '10m') == '90m'
+    DecimalMutator.generator = GeneratorMock(randint=[2, 1])
+    assert DecimalMutator.replace_digit(None, '100m') == '101m'
+    DecimalMutator.generator = GeneratorMock(randint=[1, 1])
+    assert DecimalMutator.replace_digit(None, '100m') == '110m'
+
+    DecimalMutator.generator = GeneratorMock(randint=[2, 0, 2])
+    assert DecimalMutator.replace_digit(None, '10.0m') == '20.0m'
+    DecimalMutator.generator = GeneratorMock(randint=[2, 0, 0])
+    assert DecimalMutator.replace_digit(None, '10.0m') == '0m'
+
+
+class GeneratorMock:
+    def __init__(self, randint=None):
+        if randint:
+            self._randint = iter(randint)
+
+    def randint(self, frm, to):
+        return next(self._randint)

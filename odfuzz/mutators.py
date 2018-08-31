@@ -5,7 +5,13 @@ from odfuzz.constants import BASE_CHARSET, HEX_BINARY
 GUID_DASH_INDEXES = (8, 13, 18, 23)
 
 
-class StringMutator(object):
+class StringMutator:
+    @staticmethod
+    def mutate(proprty, value):
+        func_name = random.choice([func_name for func_name in StringMutator.__dict__ if not func_name.startswith('_')])
+        mutated_value = getattr(StringMutator, func_name)(proprty, value)
+        return mutated_value
+
     @staticmethod
     def flip_bit(self, original_string):
         string = original_string[1:-1]
@@ -83,7 +89,13 @@ class StringMutator(object):
             return original_string
 
 
-class NumberMutator(object):
+class NumberMutator:
+    @staticmethod
+    def mutate(proprty, value):
+        func_name = random.choice([func_name for func_name in NumberMutator.__dict__ if not func_name.startswith('_')])
+        mutated_value = getattr(NumberMutator, func_name)(proprty, value)
+        return mutated_value
+
     @staticmethod
     def increment_value(self, string_number):
         if not string_number:
@@ -138,7 +150,7 @@ class NumberMutator(object):
         return generated_number + appendix
 
 
-class GuidMutator(object):
+class GuidMutator:
     @staticmethod
     def replace_char(string_guid):
         without_dashes = string_guid
@@ -157,12 +169,36 @@ class BooleanMutator:
 
 
 class DecimalMutator:
-    @staticmethod
-    def replace_digit(self, decimal_value):
-        pass
+    generator = random
 
     @staticmethod
-    def shift_value(self, decimal_value, to_shift):
+    def mutate(proprty, value):
+        func_name = random.choice([func_name for func_name in DecimalMutator.__dict__ if not func_name.startswith('_')])
+        mutated_value = getattr(DecimalMutator, func_name)(proprty, value)
+        return mutated_value
+
+    @staticmethod
+    def replace_digit(self, decimal_value):
+        # remove trailing m|M
+        decimal_value = decimal_value[:-1]
+
+        # get index of random digit
+        max_index = len(decimal_value) - 1
+        random_index = DecimalMutator.generator.randint(0, max_index)
+        while decimal_value[random_index] == '.':
+            random_index = DecimalMutator.generator.randint(0, max_index)
+
+        # replace selected digit with random digit
+        digit = str(DecimalMutator.generator.randint(0, 9))
+        decimal_value = ''.join((decimal_value[:random_index], digit, decimal_value[random_index + 1:]))
+
+        if not float(decimal_value):
+            return '0m'
+        else:
+            return decimal_value + 'm'
+
+    @staticmethod
+    def shift_value(self, decimal_value):
         # remove trailing m|M
         decimal_value = decimal_value[:-1]
 
@@ -171,6 +207,7 @@ class DecimalMutator:
         if point_index == -1:
             point_index = len(decimal_value)
         decimal_value = decimal_value.replace('.', '')
+        to_shift = DecimalMutator.generator.randint(-self.precision, self.precision)
         abs_shift = abs(to_shift)
         shifted_point_index = abs_shift + point_index + to_shift
 
