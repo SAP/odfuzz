@@ -71,11 +71,11 @@ def patch_proprty_generator(proprty):
 def patch_proprty_mutator(proprty):
     proprty_type = proprty.typ.name
     if proprty_type == 'Edm.String':
-        proprty.mutate = StringMutator.mutate.__get__(proprty, None)
+        proprty.mutate = StringMutator._mutate.__get__(proprty, None)
     elif proprty_type.startswith('Edm.Int'):
-        proprty.mutate = NumberMutator.mutate.__get__(proprty, None)
+        proprty.mutate = NumberMutator._mutate.__get__(proprty, None)
     elif proprty_type == 'Edm.Decimal':
-        proprty.mutate = DecimalMutator.mutate.__get__(proprty, None)
+        proprty.mutate = DecimalMutator._mutate.__get__(proprty, None)
     elif proprty_type == 'Edm.Guid':
         proprty.mutate = GuidMutator.replace_char
     elif proprty_type == 'Edm.Boolean':
