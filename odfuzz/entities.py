@@ -19,6 +19,7 @@ from odfuzz.constants import *
 
 NullEntity = namedtuple('NullEntity', 'name')
 StringSelf = namedtuple('StringSelf', 'max_string_length')
+OptionRestriction = namedtuple('OptionRestriction', 'restr is_not_restricted')
 
 
 class Builder(object):
@@ -44,8 +45,7 @@ class Builder(object):
         try:
             service_model = Edmx.parse(metadata_response.content)
         except PyODataException as pyodata_ex:
-            raise BuilderError('An exception occurred while parsing metadata: {}'
-                               .format(pyodata_ex))
+            raise BuilderError('An exception occurred while parsing metadata: {}'.format(pyodata_ex))
         return service_model
 
     def _get_metadata_from_service(self):
@@ -130,6 +130,7 @@ class QueryGroup(object):
     def _init_group(self):
         self._init_filter_query()
         self._init_orderby_query()
+        self._init_expand_query()
         self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher)
         self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher)
 
@@ -138,8 +139,7 @@ class QueryGroup(object):
         is_queryable = getattr(self._entity_set, metadata_attr)
 
         if is_queryable and option_restr.is_not_restricted:
-            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr,
-                                                            dispatcher)
+            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr, dispatcher)
             include_restrictions = getattr(option_restr.restr, 'include', None)
             if include_restrictions and include_restrictions.get(self._entity_set.name):
                 self._required_options.append(self._query_options[option_name])
@@ -183,8 +183,28 @@ class QueryGroup(object):
             self._query_options[ORDERBY] = OrderbyQuery(entity_set, option_restr.restr)
             self._query_options_list.append(self._query_options[ORDERBY])
 
+    def _init_expand_query(self):
+        option_restr = self._get_restrictions(EXPAND)
+        if option_restr.restr:
+            entity_set = self._delete_restricted_nav_proprties(option_restr.restr)
+        else:
+            entity_set = self._entity_set
+        if option_restr.is_not_restricted and self._entity_set.entity_type.nav_proprties:
+            self._query_options[EXPAND] = ExpandQuery(entity_set, option_restr.restr)
+            self._query_options_list.append(self._query_options[EXPAND])
+
+    def _delete_restricted_nav_proprties(self, option_restrictions):
+        entity_set = self._entity_set
+        if option_restrictions.exclude:
+            entity_set = copy.deepcopy(self._entity_set)
+            restricted_proprties = set(option_restrictions.exclude.get(NAV_PROPRTY, []))
+            restricted_proprties |= set(option_restrictions.exclude.get(self._entity_set.name, []))
+            for navigation_proprty in self._entity_set.entity_type.nav_proprties:
+                if navigation_proprty.name in restricted_proprties:
+                    del entity_set.entity_type._nav_properties[navigation_proprty.name]
+        return entity_set
+
     def _get_restrictions(self, option_name):
-        OptionRestriction = namedtuple('OptionRestriction', ['restr', 'is_not_restricted'])
         if self._restrictions:
             query_restr = self._restrictions.restriction(option_name)
             is_not_restricted = self._is_not_restricted(query_restr.exclude)
@@ -266,6 +286,44 @@ class QueryOption(metaclass=ABCMeta):
     @abstractmethod
     def get_depending_data(self):
         pass
+
+
+class ExpandQuery(QueryOption):
+    def __init__(self, entity, restrictions):
+        super(ExpandQuery, self).__init__(entity, EXPAND, '$', restrictions)
+        self._navigation_paths = set()
+        self._init_possible_paths()
+
+    def _init_possible_paths(self):
+        for navigation_proprty in self._entity_set.entity_type.nav_proprties:
+            possible_paths = [navigation_proprty.name]
+            # TODO: search deeper for navigation properties
+            for inner_nav_proprty in navigation_proprty.to_role.entity_type.nav_proprties:
+                possible_paths.append(navigation_proprty.name + '/' + inner_nav_proprty.name)
+            self._navigation_paths.update(possible_paths)
+
+    def apply_restrictions(self):
+        pass
+
+    def generate(self, depending_data):
+        option = ExpandOption()
+        entities_to_expand = self._get_random_entity_paths()
+        option.option_string = ','.join(entities_to_expand)
+        option.add_entity_paths(entities_to_expand)
+        return option
+
+    def _get_random_entity_paths(self):
+        paths_num = len(self._navigation_paths)
+        if paths_num > MAX_EXPAND_VALUES:
+            max_values = MAX_EXPAND_VALUES
+        else:
+            max_values = paths_num
+        num_of_entities = round(random.random() * (max_values - 1)) + 1
+        random_entities = random.sample(self._navigation_paths, num_of_entities)
+        return random_entities
+
+    def get_depending_data(self):
+        return None
 
 
 class OrderbyQuery(QueryOption):
@@ -755,6 +813,19 @@ class Option(metaclass=ABCMeta):
         pass
 
 
+class ExpandOption(Option):
+    def __init__(self):
+        super(ExpandOption, self).__init__()
+        self._entity_paths = set()
+
+    @property
+    def data(self):
+        return list(self._entity_paths)
+
+    def add_entity_paths(self, entity_paths):
+        self._entity_paths.update(entity_paths)
+
+
 class SkipOption(Option):
     """A skip option container holding an integer value."""
 
@@ -794,9 +865,6 @@ class OrderbyOption(Option):
 
     def add_proprty(self, proprty_name):
         self._proprties.append(proprty_name)
-
-    def delete_proprty(self, proprty):
-        self._proprties.remove(proprty)
 
 
 class FilterOption(Option):

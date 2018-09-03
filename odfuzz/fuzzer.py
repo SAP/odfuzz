@@ -334,6 +334,9 @@ class Queryable(object):
                 self._mutate_filter_part(option_name, option_value)
         elif option_name == ORDERBY:
             self._mutate_orderby_part(option_value)
+        elif option_name == EXPAND:
+            # TODO: implement mutator for expand method
+            pass
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
 
@@ -353,23 +356,25 @@ class Queryable(object):
     def _mutate_filter_part(self, option_name, option_value):
         part = random.choice(option_value['parts'])
         if 'func' in part:
-            if part['params'] and random.random() < 0.5:
-                proprty = self._queryable.query_option(option_name).entity_set.entity_type \
-                    .proprty(part['proprties'][0])
-                part['params'][0] = proprty.mutate(part['params'][0])
-            else:
-                if part['return_type'] == 'Edm.Boolean':
-                    part['operand'] = 'true' if part['operand'] == 'false' else 'false'
-                elif part['return_type'] == 'Edm.String':
-                    part['operand'] = self._mutate_value(StringMutator, part['operand'], SelfMock(max_string_length=5))
-                    part['operand'] = '\'' + part['operand'] + '\''
-                elif part['return_type'].startswith('Edm.Int'):
-                    part['operand'] = self._mutate_value(NumberMutator, part['operand'])
+            self._mutate_filter_function(part, option_name)
         else:
-            proprty = self._queryable.query_option(option_name).entity_set.entity_type \
-                .proprty(part['name'])
+            proprty = self._queryable.query_option(option_name).entity_set.entity_type.proprty(part['name'])
             if getattr(proprty, 'mutate', None):
                 part['operand'] = proprty.mutate(part['operand'])
+
+    def _mutate_filter_function(self, part, option_name):
+        if part['params'] and random.random() < 0.5:
+            # TODO: mutate more than one parameter
+            proprty = self._queryable.query_option(option_name).entity_set.entity_type.proprty(part['proprties'][0])
+            part['params'][0] = proprty.mutate(part['params'][0])
+        else:
+            if part['return_type'] == 'Edm.Boolean':
+                part['operand'] = 'true' if part['operand'] == 'false' else 'false'
+            elif part['return_type'] == 'Edm.String':
+                part['operand'] = self._mutate_value(StringMutator, part['operand'], SelfMock(max_string_length=5))
+                part['operand'] = '\'' + part['operand'] + '\''
+            elif part['return_type'].startswith('Edm.Int'):
+                part['operand'] = self._mutate_value(NumberMutator, part['operand'])
 
     def _mutate_orderby_part(self, option_value):
         proprties_num = len(option_value['proprties']) - 1
@@ -455,7 +460,7 @@ class StatsLogger(object):
     def _log_formatted_stats(self, query, query_dict, proprty):
         self._stats_logger.info(
             '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{AccessibleSet};{AccessibleKeys};'
-            '{Property};{orderby};{top};{skip};"{filter}"'.format(
+            '{Property};{orderby};{top};{skip};"{filter}";{expand}'.format(
                 StatusCode=query.response.status_code,
                 ErrorCode=query.response.error_code,
                 ErrorMessage=query.response.error_message.replace('"', '""'),
@@ -466,7 +471,8 @@ class StatsLogger(object):
                 orderby=query.options_strings['$orderby'],
                 top=query.options_strings['$top'],
                 skip=query.options_strings['$skip'],
-                filter=query.options_strings['$filter'].replace('"', '""')
+                filter=query.options_strings['$filter'].replace('"', '""'),
+                expand=query.options_strings['$expand']
             )
         )
 
@@ -747,7 +753,7 @@ class Query(object):
         self._response = None
         self._parts = 0
         self._id = ObjectId()
-        self._options_strings = {'$orderby': '', '$filter': '', '$skip': '', '$top': ''}
+        self._options_strings = {'$orderby': '', '$filter': '', '$skip': '', '$top': '', '$expand': ''}
 
     @property
     def entity_name(self):
@@ -835,6 +841,8 @@ class Query(object):
                 orderby_data = self._options[option_name[1:]]
                 orderby_option = OrderbyOption(orderby_data['proprties'], orderby_data['order'])
                 option_string = OrderbyOptionBuilder(orderby_option).build()
+            elif option_name.endswith('expand'):
+                option_string = ','.join(self._options[option_name[1:]])
             else:
                 option_string = self._options[option_name[1:]]
             self._options_strings[option_name[1:]] = option_string
@@ -863,7 +871,8 @@ class Query(object):
             '_$orderby': self._options.get(ORDERBY),
             '_$top': self._options.get(TOP),
             '_$skip': self._options.get(SKIP),
-            '_$filter': self._options.get(FILTER)
+            '_$filter': self._options.get(FILTER),
+            '_$expand': self._options.get(EXPAND)
         }
 
     def _add_appendix(self):
