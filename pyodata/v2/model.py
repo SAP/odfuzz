@@ -1775,8 +1775,10 @@ class ValueHelper(Annotation):
                 try:
                     param.list_property = etype.proprty(param.list_property_name)
                 except KeyError:
-                    raise RuntimeError('{0} of {1} points to an non existing ValueListProperty {2} of {3}'.format(
+                    logging.error('{0} of {1} points to an non existing ValueListProperty {2} of {3}'.format(
                         param, self, param.list_property_name, etype))
+                    # raise RuntimeError('{0} of {1} points to an non existing ValueListProperty {2} of {3}'.format(
+                    #    param, self, param.list_property_name, etype))
 
     @property
     def label(self):

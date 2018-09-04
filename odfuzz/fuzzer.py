@@ -731,11 +731,17 @@ class SAPErrors(object):
     @staticmethod
     def evaluate(error_code, error_message):
         if error_code == 'SY/530':
+            # Wrong number of analytical ID
             if error_message.startswith('Invalid part') and error_message.endswith('of analytical ID'):
                 return -50
         elif error_code == '/IWBEP/CM_MGW_RT/176':
+            # Unsupported type of language
             if error_message.startswith('\'Language') and error_message.endswith('not in system\''):
                 return -50
+        # The interpreter cannot convert generated UTF8 character
+        elif error_code == 'CONVT_CODEPAGE':
+            return -10
+
         return 100
 
 
