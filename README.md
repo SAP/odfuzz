@@ -54,8 +54,8 @@ $ pip install -r requirements.txt
 ## Run configuration
 To access OData services introduced in SAP, it is required to set the following **environment variables** in your system. The fuzzer will use these variables for a **basic authentication**.
 ```
-SAP_USERNAME=Username
-SAP_PASSWORD=Password
+export SAP_USERNAME=Username
+export SAP_PASSWORD=Password
 ```
 
 Command line arguments
