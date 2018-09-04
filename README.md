@@ -89,6 +89,13 @@ Output of the fuzzer is stored in the user defined directories (e.g. logs_direct
 
 When a connection is forcibly closed by a host (e.g. user was disconnected from VPN), ODfuzz ends with an error message, but still creates all necessary stats files.
 
+#### Docker
+The output of ODfuzz is written into running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
+```
+sudo docker run --dns=10.17.121.71 -v /host/absolute/path:/image/absolute/path -ti odfuzz:1.0
+```
+Taking this into account, you have to set the fuzzer's output directories to /image/absolute/path as well. For more, visit https://docs.docker.com/storage/volumes/.
+
 ## Usage
 1. Run the fuzzer, for example, as:
 ```
