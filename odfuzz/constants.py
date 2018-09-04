@@ -23,6 +23,7 @@ ENV_PASSWORD = 'SAP_PASSWORD'
 
 EXCLUDE = 'Exclude'
 INCLUDE = 'Include'
+EXPAND = '$expand'
 ORDERBY = '$orderby'
 TOP = '$top'
 SKIP = '$skip'
@@ -31,8 +32,9 @@ GLOBAL_ENTITY = '$E_ALL$'
 GLOBAL_FUNCTION = '$F_ALL$'
 GLOBAL_PROPRTY = '$P_ALL$'
 DRAFT_OBJECTS = '$DRAFT$'
+NAV_PROPRTY = '$NAV_PROP$'
 
-QUERY_OPTIONS = [FILTER, ORDERBY, TOP, SKIP]
+QUERY_OPTIONS = [FILTER, ORDERBY, TOP, SKIP, EXPAND]
 
 STRING_FUNC_PROB = 0.70
 MATH_FUNC_PROB = 0.15
@@ -54,7 +56,7 @@ RECURSION_LIMIT = 3
 STRING_THRESHOLD = 200
 ITERATIONS_THRESHOLD = 30
 CONTENT_LEN_SIZE = 50000
-INT_MAX = 2147483646
+INT_MAX = 2147483647
 
 PARTS_NUM = 2
 SCORE_EPS = 200
@@ -63,11 +65,17 @@ FILTER_DEL_PROB = 0.1
 ORDERBY_DEL_PROB = 0.1
 OPTION_DEL_PROB = 0.1
 MAX_MULTI_VALUES = 3
+MAX_EXPAND_VALUES = 3
 FILTER_SAMPLE_SIZE = 30
 TOP_ENTITIES = 20
 
-CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter'
+CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand'
 CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'
 
 INFINITY_TIMEOUT = -1
 YEAR_IN_SECONDS = 31622400
+
+HEX_BINARY = 'ABCDEFabcdef0123456789'
+BASE_CHARSET = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789~!$@^*()_+-–—=' \
+               '[]|:<>.‰¨œƒ…†‡Œ‘’´`“”•™¡¢£¤¥¦§©ª«¬®¯°±²³µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍ' \
+               'ÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ{} '

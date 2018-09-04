@@ -7,7 +7,7 @@ import uuid
 import pymongo
 import pymongo.errors
 
-from odfuzz.constants import MONGODB_NAME, PARTS_NUM
+from odfuzz.constants import MONGODB_NAME, PARTS_NUM, FILTER_SAMPLE_SIZE
 
 
 class CollectionCreator(object):
@@ -36,9 +36,11 @@ class MongoClient(object):
         return self._collection
 
     def remove_collection(self):
+        # TODO: use drop() instead
         self._collection.remove({})
 
     def save_document(self, query_dict):
+        # TODO: create custom ObjectId with random generator and use upsert() instead of insert()
         try:
             if self._collection.find(query_dict).count() == 0:
                 self._collection.insert_one(query_dict)
@@ -69,25 +71,20 @@ class MongoClient(object):
     def total_queries(self):
         return self._collection.find().count()
 
-    def queries_sample_filter(self, entity_set_name, sample_size, without):
-        cursor = self._collection.aggregate(
+    def best_filter_sample_query(self, entity_set_name, without):
+        queries = list(self._collection.aggregate(
             [
                 {'$match': {'entity_set': entity_set_name, '_id': {'$ne': without},
                             '_$filter.parts': {'$exists': True},
                             '$expr': {'$gte': [{'$size': '$_$filter.parts'}, PARTS_NUM]}}},
-                {'$sample': {'size': sample_size}}
-            ])
-        return list(cursor)
-
-    def remove_weak_queries(self, score_average, number):
-        cursor = self._collection.aggregate(
-            [
-                {'$project': {'score': 1}},
-                {'$match': {'score': {'$lt': score_average}}},
-                {'$limit': number}
-            ])
-        for query in cursor:
-            self._collection.remove({'_id': query['_id']})
+                {'$sample': {'size': FILTER_SAMPLE_SIZE}},
+                {'$sort': {'score': pymongo.DESCENDING}},
+                {'$limit': 1}
+            ]))
+        if queries:
+            return queries[0]
+        else:
+            return None
 
     def remove_weakest_queries(self, number):
         cursor = self._collection.find().sort('score', pymongo.ASCENDING).limit(number)

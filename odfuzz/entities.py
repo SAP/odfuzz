@@ -18,6 +18,8 @@ from odfuzz.config import Config
 from odfuzz.constants import *
 
 NullEntity = namedtuple('NullEntity', 'name')
+StringSelf = namedtuple('StringSelf', 'max_string_length')
+OptionRestriction = namedtuple('OptionRestriction', 'restr is_not_restricted')
 
 
 class Builder(object):
@@ -43,22 +45,18 @@ class Builder(object):
         try:
             service_model = Edmx.parse(metadata_response.content)
         except PyODataException as pyodata_ex:
-            raise BuilderError('An exception occurred while parsing metadata: {}'
-                               .format(pyodata_ex))
+            raise BuilderError('An exception occurred while parsing metadata: {}'.format(pyodata_ex))
         return service_model
 
     def _get_metadata_from_service(self):
         metadata_request = '$metadata?' + 'sap-client=' + Config.client
         try:
             metadata_response = self._dispatcher.get(metadata_request)
-        # TODO: catch Dispatcher exception
-        except Exception as ex:
-            raise BuilderError('An exception occurred while retrieving metadata: {}'
-                               .format(ex))
+        except DispatcherError as disp_error:
+            raise BuilderError('An exception occurred while retrieving metadata: {}'.format(disp_error))
         if metadata_response.status_code != 200:
-            raise BuilderError('Cannot retrieve metadata from {}. Status code is {}'
-                               .format(self._dispatcher.service,
-                                       metadata_response.status_code))
+            raise BuilderError('Cannot retrieve metadata from {}. Status code is {}'.format(
+                self._dispatcher.service, metadata_response.status_code))
         return metadata_response
 
 
@@ -132,6 +130,7 @@ class QueryGroup(object):
     def _init_group(self):
         self._init_filter_query()
         self._init_orderby_query()
+        self._init_expand_query()
         self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher)
         self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher)
 
@@ -140,8 +139,7 @@ class QueryGroup(object):
         is_queryable = getattr(self._entity_set, metadata_attr)
 
         if is_queryable and option_restr.is_not_restricted:
-            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr,
-                                                            dispatcher)
+            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr, dispatcher)
             include_restrictions = getattr(option_restr.restr, 'include', None)
             if include_restrictions and include_restrictions.get(self._entity_set.name):
                 self._required_options.append(self._query_options[option_name])
@@ -185,8 +183,28 @@ class QueryGroup(object):
             self._query_options[ORDERBY] = OrderbyQuery(entity_set, option_restr.restr)
             self._query_options_list.append(self._query_options[ORDERBY])
 
+    def _init_expand_query(self):
+        option_restr = self._get_restrictions(EXPAND)
+        if option_restr.restr:
+            entity_set = self._delete_restricted_nav_proprties(option_restr.restr)
+        else:
+            entity_set = self._entity_set
+        if option_restr.is_not_restricted and self._entity_set.entity_type.nav_proprties:
+            self._query_options[EXPAND] = ExpandQuery(entity_set, option_restr.restr)
+            self._query_options_list.append(self._query_options[EXPAND])
+
+    def _delete_restricted_nav_proprties(self, option_restrictions):
+        entity_set = self._entity_set
+        if option_restrictions.exclude:
+            entity_set = copy.deepcopy(self._entity_set)
+            restricted_proprties = set(option_restrictions.exclude.get(NAV_PROPRTY, []))
+            restricted_proprties |= set(option_restrictions.exclude.get(self._entity_set.name, []))
+            for navigation_proprty in self._entity_set.entity_type.nav_proprties:
+                if navigation_proprty.name in restricted_proprties:
+                    del entity_set.entity_type._nav_properties[navigation_proprty.name]
+        return entity_set
+
     def _get_restrictions(self, option_name):
-        OptionRestriction = namedtuple('OptionRestriction', ['restr', 'is_not_restricted'])
         if self._restrictions:
             query_restr = self._restrictions.restriction(option_name)
             is_not_restricted = self._is_not_restricted(query_restr.exclude)
@@ -270,6 +288,44 @@ class QueryOption(metaclass=ABCMeta):
         pass
 
 
+class ExpandQuery(QueryOption):
+    def __init__(self, entity, restrictions):
+        super(ExpandQuery, self).__init__(entity, EXPAND, '$', restrictions)
+        self._navigation_paths = set()
+        self._init_possible_paths()
+
+    def _init_possible_paths(self):
+        for navigation_proprty in self._entity_set.entity_type.nav_proprties:
+            possible_paths = [navigation_proprty.name]
+            # TODO: search deeper for navigation properties
+            for inner_nav_proprty in navigation_proprty.to_role.entity_type.nav_proprties:
+                possible_paths.append(navigation_proprty.name + '/' + inner_nav_proprty.name)
+            self._navigation_paths.update(possible_paths)
+
+    def apply_restrictions(self):
+        pass
+
+    def generate(self, depending_data):
+        option = ExpandOption()
+        entities_to_expand = self._get_random_entity_paths()
+        option.option_string = ','.join(entities_to_expand)
+        option.add_entity_paths(entities_to_expand)
+        return option
+
+    def _get_random_entity_paths(self):
+        paths_num = len(self._navigation_paths)
+        if paths_num > MAX_EXPAND_VALUES:
+            max_values = MAX_EXPAND_VALUES
+        else:
+            max_values = paths_num
+        num_of_entities = round(random.random() * (max_values - 1)) + 1
+        random_entities = random.sample(self._navigation_paths, num_of_entities)
+        return random_entities
+
+    def get_depending_data(self):
+        return None
+
+
 class OrderbyQuery(QueryOption):
     """The search query option."""
 
@@ -344,10 +400,9 @@ class TopQuery(QueryOption):
             self._max_range_prob[total_entities] = 0.999
 
     def _get_total_entities(self):
-        # TODO: refactor method -- else block move out of the function
         try:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client,
-                                            timeout=3)
+            response = self._dispatcher.get(
+                self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client, timeout=3)
         except DispatcherError:
             total_entities = INT_MAX
         else:
@@ -395,27 +450,14 @@ class SkipQuery(QueryOption):
             if max_values:
                 total_entities = int(max_values[0])
             else:
-                total_entities = self._get_total_entities()
+                total_entities = INT_MAX
         else:
-            total_entities = self._get_total_entities()
+            total_entities = INT_MAX
 
         if total_entities == INT_MAX:
             self._max_range_prob[total_entities] = 1
         else:
             self._max_range_prob[total_entities] = 0.999
-
-    def _get_total_entities(self):
-        try:
-            response = self._dispatcher.get(self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client,
-                                            timeout=3)
-        except DispatcherError:
-            total_entities = INT_MAX
-        else:
-            try:
-                total_entities = int(response.text)
-            except ValueError:
-                total_entities = INT_MAX
-        return total_entities
 
 
 class FilterQuery(QueryOption):
@@ -771,6 +813,19 @@ class Option(metaclass=ABCMeta):
         pass
 
 
+class ExpandOption(Option):
+    def __init__(self):
+        super(ExpandOption, self).__init__()
+        self._entity_paths = set()
+
+    @property
+    def data(self):
+        return list(self._entity_paths)
+
+    def add_entity_paths(self, entity_paths):
+        self._entity_paths.update(entity_paths)
+
+
 class SkipOption(Option):
     """A skip option container holding an integer value."""
 
@@ -810,9 +865,6 @@ class OrderbyOption(Option):
 
     def add_proprty(self, proprty_name):
         self._proprties.append(proprty_name)
-
-    def delete_proprty(self, proprty):
-        self._proprties.remove(proprty)
 
 
 class FilterOption(Option):
@@ -1149,11 +1201,11 @@ class FilterFunctionsGroup(object):
             if proprty.filter_restriction:
                 continue
             if proprty.typ.name == 'Edm.String':
-                self._group.setdefault('String', StringFilterFunctions()).add_proprty(proprty)
+                self._group.setdefault('String', StringFilterFunctions(FunctionsGenerator())).add_proprty(proprty)
             elif proprty.typ.name == 'Edm.DateTime':
-                self._group.setdefault('Date', DateFilterFunctions()).add_proprty(proprty)
+                self._group.setdefault('Date', DateFilterFunctions(FunctionsGenerator())).add_proprty(proprty)
             elif proprty.typ.name == 'Edm.Decimal':
-                self._group.setdefault('Math', MathFilterFunctions()).add_proprty(proprty)
+                self._group.setdefault('Math', MathFilterFunctions(FunctionsGenerator())).add_proprty(proprty)
 
     def _apply_restrictions(self, exclude_restrictions):
         if exclude_restrictions:
@@ -1172,10 +1224,22 @@ class FilterFunctionsGroup(object):
                 self._group.pop(key)
 
 
-class DateFilterFunctions(object):
-    """A wrapper of corresponding date filter functions family."""
-
+class FunctionsGenerator:
     def __init__(self):
+        self._random = random
+
+    def __getattr__(self, item):
+        def func_wrap(*args, **kwargs):
+            return getattr(self._random, item)(*args, **kwargs)
+        return func_wrap
+
+    def edm_string(self, proprty):
+        return RandomGenerator.edm_string(proprty)
+
+
+class FilterFunctions:
+    def __init__(self, random_generator):
+        self._random_generator = random_generator
         self._probability = DATE_FUNC_PROB
         self._proprties = []
 
@@ -1194,181 +1258,147 @@ class DateFilterFunctions(object):
     def add_proprty(self, proprty_object):
         self._proprties.append(proprty_object)
 
+
+class DateFilterFunctions(FilterFunctions):
+    """A wrapper of corresponding date filter functions family."""
+
     def func_day(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'day({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('day'))
 
     def func_hour(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'hour({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('hour'))
 
     def func_minute(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'minute({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('minute'))
 
     def func_month(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'month({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('month'))
 
     def func_second(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'second({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('second'))
 
     def func_year(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'year({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('second'))
 
 
-class MathFilterFunctions(object):
+class MathFilterFunctions(FilterFunctions):
     """A wrapper of corresponding math filter functions family."""
 
-    def __init__(self):
-        self._probability = MATH_FUNC_PROB
-        self._proprties = []
-
-    @property
-    def proprties(self):
-        return self._proprties
-
-    @property
-    def probability(self):
-        return self._probability
-
-    @probability.setter
-    def probability(self, probability_number):
-        self._probability = probability_number
-
-    def add_proprty(self, proprty_object):
-        self._proprties.append(proprty_object)
-
     def func_round(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'round({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('round'))
 
     def func_floor(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'floor({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('floor'))
 
     def func_ceiling(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'ceiling({})'.format(proprty.name)
         return FilterFunction([proprty.name], None, generated_string, FunctionsInt('ceiling'))
 
 
-class StringFilterFunctions(object):
+class StringFilterFunctions(FilterFunctions):
     """A wrapper of corresponding string filter functions family."""
 
-    def __init__(self):
-        self._probability = STRING_FUNC_PROB
-        self._proprties = []
-
-    @property
-    def proprties(self):
-        return self._proprties
-
-    @property
-    def probability(self):
-        return self._probability
-
-    @probability.setter
-    def probability(self, probability_number):
-        self._probability = probability_number
-
-    def add_proprty(self, proprty_object):
-        self._proprties.append(proprty_object)
+    SUBSTRING_PARAM_NUM = 1
 
     def func_substringof(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'substringof({}, {})'.format(proprty.name, value)
-        return FilterFunction([proprty.name], [value], generated_string,
-                              FunctionsBool('substringof'))
+        return FilterFunction([proprty.name], [value], generated_string, FunctionsBool('substringof'))
 
     def func_endswith(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'endswith({}, {})'.format(proprty.name, value)
         return FilterFunction([proprty.name], [value], generated_string, FunctionsBool('endswith'))
 
     def func_startswith(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'startswith({}, {})'.format(proprty.name, value)
-        return FilterFunction([proprty.name], [value], generated_string,
-                              FunctionsBool('startswith'))
+        return FilterFunction([proprty.name], [value], generated_string, FunctionsBool('startswith'))
 
     def func_length(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'length({})'.format(proprty.name)
         return FilterFunction([proprty.name], [value], generated_string, FunctionsInt('length'))
 
     def func_indexof(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         value = proprty.generate()
         generated_string = 'indexof({}, {})'.format(proprty.name, value)
         return FilterFunction([proprty.name], [value], generated_string, FunctionsInt('indexof'))
 
     def func_replace(self):
-        proprty = random.choice(self._proprties)
-        self_mock = type('', (), {'max_string_length': 5})
-        literal1 = RandomGenerator.edm_string(self_mock)
-        literal2 = RandomGenerator.edm_string(self_mock)
+        proprty = self._random_generator.choice(self._proprties)
+        literal1 = self._random_generator.edm_string(proprty)
+        literal2 = self._random_generator.edm_string(proprty)
         generated_string = 'replace({}, {}, {})'.format(proprty.name, literal1, literal2)
         return FilterFunction([proprty.name], [literal1, literal2], generated_string,
-                              FunctionsString('replace'))
+                              FunctionsString('replace', proprty))
 
     def func_substring(self):
-        proprty = random.choice(self._proprties)
-        int1 = RandomGenerator.edm_byte()
-        if random.random() > 0.5:
-            int2 = RandomGenerator.edm_byte()
-            param_list = [int1, int2]
-            generated_string = 'substring({}, {}, {})'.format(proprty.name, int1, int2)
-        else:
-            param_list = [int1]
-            generated_string = 'substring({}, {})'.format(proprty.name, int1)
-        return FilterFunction([proprty.name], param_list, generated_string,
-                              FunctionsString('substring'))
+        proprty = self._random_generator.choice(self._proprties)
+        generated_string = 'substring(' + proprty.name
+        params = []
+        for _ in range(StringFilterFunctions.SUBSTRING_PARAM_NUM):
+            int32 = str(self._random_generator.randint(-2147483648, 2147483647))
+            generated_string += ', ' + int32
+            params.append(int32)
+        generated_string += ')'
+        return FilterFunction([proprty.name], params, generated_string, FunctionsString('substring', proprty))
 
     def func_tolower(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'tolower({})'.format(proprty.name)
-        return FilterFunction([proprty.name], None, generated_string, FunctionsString('tolower'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsString('tolower', proprty))
 
     def func_toupper(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'toupper({})'.format(proprty.name)
-        return FilterFunction([proprty.name], None, generated_string, FunctionsString('toupper'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsString('toupper', proprty))
 
     def func_trim(self):
-        proprty = random.choice(self._proprties)
+        proprty = self._random_generator.choice(self._proprties)
         generated_string = 'trim({})'.format(proprty.name)
-        return FilterFunction([proprty.name], None, generated_string, FunctionsString('trim'))
+        return FilterFunction([proprty.name], None, generated_string, FunctionsString('trim', proprty))
 
     def func_concat(self):
-        proprty = random.choice(self._proprties)
-        if random.random() > 0.5:
-            self_mock = type('', (), {'max_string_length': 20})
-            value = RandomGenerator.edm_string(self_mock)
+        proprty = self._random_generator.choice(self._proprties)
+        if self._random_generator.random() > 0.5:
+            value = self._random_generator.edm_string(proprty)
             proprty_list = [proprty.name]
             param_list = [value]
             generated_string = 'concat({}, {})'.format(proprty.name, value)
         else:
-            proprty2 = random.choice(self._proprties)
+            proprty2 = self._random_generator.choice(self._proprties)
             proprty_list = [proprty.name, proprty2.name]
             param_list = None
             generated_string = 'concat({}, {})'.format(proprty.name, proprty2.name)
+
+        max_length = 0
+        for proprty in proprty_list:
+            max_length += proprty.max_string_length
         return FilterFunction(proprty_list, param_list, generated_string,
-                              FunctionsString('concat'))
+                              FunctionsString('concat', StringSelf(max_length)))
 
 
 class FunctionsReturnType(object):
@@ -1398,24 +1428,21 @@ class FunctionsReturnType(object):
 
 class FunctionsInt(FunctionsReturnType):
     def __init__(self, name):
-        super(FunctionsInt, self).__init__('Edm.Int32', EXPRESSION_OPERATORS,
-                                           name, RandomGenerator.edm_int32)
+        super(FunctionsInt, self).__init__('Edm.Int32', EXPRESSION_OPERATORS, name, RandomGenerator.edm_int32)
 
 
 class FunctionsString(FunctionsReturnType):
-    def __init__(self, name):
-        self._self_mock = namedtuple('self_mock', 'max_string_length')
-        super(FunctionsString, self).__init__('Edm.String', EXPRESSION_OPERATORS,
-                                              name, RandomGenerator.edm_string)
+    def __init__(self, name, proprty):
+        self._proprty = proprty
+        super(FunctionsString, self).__init__('Edm.String', EXPRESSION_OPERATORS, name, RandomGenerator.edm_string)
 
     def generate(self):
-        return self._generator(self._self_mock(10))
+        return self._generator(self._proprty)
 
 
 class FunctionsBool(FunctionsReturnType):
     def __init__(self, name):
-        super(FunctionsBool, self).__init__('Edm.Boolean', BOOLEAN_OPERATORS,
-                                            name, RandomGenerator.edm_boolean)
+        super(FunctionsBool, self).__init__('Edm.Boolean', BOOLEAN_OPERATORS, name, RandomGenerator.edm_boolean)
 
 
 class FilterFunction(object):
@@ -1463,7 +1490,7 @@ class EntitySet(metaclass=ABCMeta):
 
 class AddressableEntity(EntitySet):
     def get_queryable_entity(self):
-        accessible_entity = AccessibleEntity(self._entity_set, {}, '')
+        accessible_entity = AccessibleEntity(self._entity_set, {}, NullEntity(''))
         return accessible_entity
 
 
@@ -1485,16 +1512,19 @@ class NonAddressableEntity(EntitySet):
             principal_entity_set = NullEntity('')
             key_pairs = {}
 
-        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set.name)
+        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set)
         return accessible_entity
 
 
 class AccessibleEntity(object):
-    def __init__(self, entity_set, key_pairs, containing_entity_name):
+    def __init__(self, entity_set, key_pairs, principal_entity_set):
         self._entity_set = entity_set
         self._key_pairs = key_pairs
-        self._containing_entity_name = containing_entity_name
+        self._principal_entity_set = principal_entity_set
         self._accessible_entity_path = ''
+
+        self._entity_set_name = None
+        self._init_entity_set_name()
 
     @property
     def entity_set(self):
@@ -1505,8 +1535,8 @@ class AccessibleEntity(object):
         return self._entity_set.name
 
     @property
-    def containing_entity_name(self):
-        return self._containing_entity_name
+    def principal_entity_name(self):
+        return self._principal_entity_set.name
 
     @property
     def data(self):
@@ -1524,8 +1554,8 @@ class AccessibleEntity(object):
             self._accessible_entity_path = self._entity_set.name
 
     def _generate_addressable_path(self):
-        if self._containing_entity_name:
-            path = self._containing_entity_name + self._build_key_values() + '/' + self._entity_set.name
+        if self._principal_entity_set.name:
+            path = self._principal_entity_set.name + self._build_key_values() + '/' + self._entity_set_name
         else:
             path = self._entity_set.name + self._build_key_values()
         return path
@@ -1540,6 +1570,15 @@ class AccessibleEntity(object):
             entity_path += proprty_name + '=' + proprty_value + ','
         entity_path = entity_path[:-1]
         return entity_path
+
+    def _init_entity_set_name(self):
+        # TODO: this is useless check
+        if self._principal_entity_set.name:
+            for navigation_prop in self._principal_entity_set.entity_type.nav_proprties:
+                for end in self._entity_set.association_set_ends:
+                    if navigation_prop.to_role.role == end.role:
+                        self._entity_set_name = navigation_prop.name
+                        break
 
 
 def is_method(obj):
@@ -1597,36 +1636,60 @@ def remove_logical_from_group(option_value, group_id, logical_id):
 def get_principal_entities(data_model, entity_set):
     principal_entities = []
     for association_set in data_model.association_sets:
-        principal_entity = get_principal_from_ends(association_set, entity_set)
+        ends_principal_getter = EndsPrincipal(association_set, entity_set)
+        principal_entity = ends_principal_getter.get()
         if principal_entity:
             principal_entities.append(principal_entity)
+        else:
+            multiplicity_principal_getter = MultiplicityPrincipal(association_set, entity_set)
+            principal_entity = multiplicity_principal_getter.get()
+            if principal_entity:
+                principal_entities.append(principal_entity)
     return principal_entities
 
 
-def get_principal_from_ends(association_set, entity_set):
-    principal_entity = None
-    if may_contain_principal_entity(association_set):
-        index = 0
-        for end in association_set.ends:
-            if end.entity_set.name == entity_set.name:
-                principal_entity_index = index ^ 1
-                principal_entity = get_principal_entity_set(association_set, principal_entity_index)
-                break
-            index += 1
-    return principal_entity
+class PrincipalGetter(metaclass=ABCMeta):
+    def __init__(self, association_set, entity_set):
+        self._association_set = association_set
+        self._entity_set = entity_set
+
+    def get(self):
+        principal_entity = None
+        if self.may_contain_principal_entity():
+            index = 0
+            for end in self._association_set.ends:
+                if end.entity_set.name == self._entity_set.name:
+                    principal_entity_index = index ^ 1
+                    principal_entity = self.get_principal(principal_entity_index)
+                    break
+                index += 1
+        return principal_entity
+
+    def may_contain_principal_entity(self):
+        return len(self._association_set.ends) == 2
+
+    @abstractmethod
+    def get_principal(self, index):
+        pass
 
 
-def may_contain_principal_entity(association_set):
-    return len(association_set.ends) == 2
+class EndsPrincipal(PrincipalGetter):
+    def get_principal(self, index):
+        principal_entity = None
+        principal_end = self._association_set.ends[index]
+        principal = getattr(self._association_set.association_type.referential_constraint, 'principal', None)
+        if principal and principal.name == principal_end.role:
+            principal_entity = principal_end.entity_set
+        return principal_entity
 
 
-def get_principal_entity_set(association_set, index):
-    principal_entity = None
-    principal_end = association_set.ends[index]
-    principal = getattr(association_set.association_type.referential_constraint, 'principal', None)
-    if principal and principal.name == principal_end.role:
-        principal_entity = principal_end.entity_set
-    return principal_entity
+class MultiplicityPrincipal(PrincipalGetter):
+    def get_principal(self, index):
+        principal_entity = None
+        association_set_end = self._association_set.ends[index]
+        if self._association_set.association_type.end_by_role(association_set_end.role).multiplicity == '1':
+            principal_entity = association_set_end.entity_set
+        return principal_entity
 
 
 def generate_accessible_entity_key_values(containing_entity_set):

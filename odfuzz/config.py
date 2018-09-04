@@ -14,11 +14,11 @@ class Config(object):
 
     @staticmethod
     def retrieve_config():
-        confi = ConfigParser(FUZZER_CONFIG_PATH).get_section(CONFIG_SECTION)
-        Config.client = confi.client
-        Config.format = confi.format
-        Config.pool_size = confi.pool_size
-        Config.seed_size = confi.seed_size
+        config = ConfigParser(FUZZER_CONFIG_PATH).get_section(CONFIG_SECTION)
+        Config.client = config.client
+        Config.format = config.format
+        Config.pool_size = config.pool_size
+        Config.seed_size = config.seed_size
 
 
 class ConfigParser(object):
@@ -49,6 +49,7 @@ class SectionConfig(object):
         self._pool_size = None
         self._client = None
         self._format = None
+
         self._init_config()
 
     def _init_config(self):

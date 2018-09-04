@@ -888,7 +888,9 @@ class Schema(object):
                 for end in assoc_set.ends:
                     # Check if entity set exists in current scheme
                     try:
-                        end.entity_set = schema.entity_set(end.entity_set_name, namespace)
+                        entity_set = schema.entity_set(end.entity_set_name, namespace)
+                        end.entity_set = entity_set
+                        entity_set.append_association_set_end(end)
                     except KeyError:
                         raise PyODataModelError('EntitySet {} does not exist in Schema Namespace {}'
                                                 .format(end.entity_set_name, namespace))
@@ -1061,6 +1063,8 @@ class EntitySet(Identifier):
         self._topable = topable
         self._req_filter = req_filter
 
+        self._association_set_ends = []
+
     @property
     def entity_type_info(self):
         return self._entity_type_info
@@ -1114,6 +1118,13 @@ class EntitySet(Identifier):
     @property
     def requires_filter(self):
         return self._req_filter
+
+    @property
+    def association_set_ends(self):
+        return self._association_set_ends
+
+    def append_association_set_end(self, value):
+        self._association_set_ends.append(value)
 
     @staticmethod
     def from_etree(entity_set_node):
@@ -1764,8 +1775,10 @@ class ValueHelper(Annotation):
                 try:
                     param.list_property = etype.proprty(param.list_property_name)
                 except KeyError:
-                    raise RuntimeError('{0} of {1} points to an non existing ValueListProperty {2} of {3}'.format(
+                    logging.error('{0} of {1} points to an non existing ValueListProperty {2} of {3}'.format(
                         param, self, param.list_property_name, etype))
+                    # raise RuntimeError('{0} of {1} points to an non existing ValueListProperty {2} of {3}'.format(
+                    #    param, self, param.list_property_name, etype))
 
     @property
     def label(self):
