@@ -138,9 +138,6 @@ ODfuzz may be used to test OData services outside the SAP network. There are two
 2. You **do know** the path of the HTTPS certificate:
     - change line [8](https://github.wdf.sap.corp/I342520/ODfuzz/blob/master/odfuzz/constants.py#L8).
 
-#### Known bugs
-- While inserting a document to mongoDB, the **pymongo.errors.DocumentTooLarge** exception is sometimes raised.
-
 #### TODO
 - Generate filter strings for complex types.
 - Add heuristics for generators based on associations.
@@ -150,5 +147,4 @@ ODfuzz may be used to test OData services outside the SAP network. There are two
 - Add support for the sap:display-format attribute. This attribute helps to determine whether a property is a type of integer or a string. For example, property FiscalPeriod is type of Edm.String with attributes MaxLength="3" and sap:display-format="NonNegative". This means that the property holds a non-negative integer value which is converted to the string.
 - Add support for function imports.
 - Add option for generation of invalid values.
-- Add support for the $expand query option.
 - Create a database of test cases (e.g. invalid UTF-8 characters) that triggered an undefined behavior in the past.
