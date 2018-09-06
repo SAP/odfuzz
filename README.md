@@ -64,7 +64,7 @@ $ python3 odfuzz.py --help
 positional arguments:
   service               An OData service URL
 optional arguments:
-  -h, --help            show this help message and exit
+  -h, --help            Show this help message and exit
   -l LOGS, --logs LOGS  A logs directory
   -s STATS, --stats STATS
                         A statistics directory
@@ -72,6 +72,8 @@ optional arguments:
                         A user defined restrictions
   -t TIMEOUT, --timeout TIMEOUT
                         A general timeout in seconds for a fuzzing
+  -c USERNAME:PASSWORD, --credentials USERNAME:PASSWORD
+                        User name and password used for authentication
   -a, --async           Allow ODfuzz to send HTTP requests asynchronously
 ```
 

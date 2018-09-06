@@ -34,7 +34,7 @@ class Manager(object):
     """A class for managing the fuzzer runtime."""
 
     def __init__(self, arguments, collection_name):
-        self._dispatcher = Dispatcher(arguments.service, has_certificate=True)
+        self._dispatcher = Dispatcher(arguments, has_certificate=True)
         self._async = getattr(arguments, 'async')
         Config.retrieve_config()
 
@@ -891,17 +891,17 @@ class Query(object):
 class Dispatcher(object):
     """A dispatcher for sending HTTP requests to the particular OData service."""
 
-    def __init__(self, service, has_certificate=False):
+    def __init__(self, arguments, has_certificate=False):
         self._logger = logging.getLogger(FUZZER_LOGGER)
-        self._service = service.rstrip('/') + '/'
+        self._service = arguments.service.rstrip('/') + '/'
         self._has_certificate = has_certificate
 
         self._session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(pool_connections=Config.pool_size, pool_maxsize=Config.pool_size)
         self._session.mount(ACCESS_PROTOCOL, adapter)
-        self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
         self._session.verify = self._get_sap_certificate()
         self._session.headers.update({'user-agent': 'odfuzz/1.0'})
+        self._init_auth_credentials(arguments.credentials)
 
     @property
     def session(self):
@@ -938,6 +938,16 @@ class Dispatcher(object):
                 return None
             certificate_path = candidate_path
         return certificate_path
+
+    def _init_auth_credentials(self, credentials):
+        if credentials:
+            try:
+                username, password = credentials.split(':')
+            except ValueError:
+                raise DispatcherError('Entered credentials {} are not valid'.format(credentials))
+            self._session.auth = (username, password)
+        else:
+            self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
 
 
 def is_filter_crossable(query1, query2):

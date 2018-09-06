@@ -33,6 +33,8 @@ class ArgParser(object):
                                   help='A general timeout in seconds for a fuzzing')
         self._parser.add_argument('-a', '--async', action='store_true', default=False,
                                   help='Allow ODfuzz to send HTTP requests asynchronously')
+        self._parser.add_argument('-c', '--credentials', type=str, metavar='USERNAME:PASSWORD',
+                                  help='User name and password used for authentication')
 
     def _handle_help_option(self, arguments):
         if '-h' in arguments or '--help' in arguments:
