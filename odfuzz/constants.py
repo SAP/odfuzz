@@ -74,6 +74,8 @@ CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;opera
 
 INFINITY_TIMEOUT = -1
 YEAR_IN_SECONDS = 31622400
+REQUEST_TIMEOUT = 600
+RETRY_TIMEOUT = 100
 
 HEX_BINARY = 'ABCDEFabcdef0123456789'
 BASE_CHARSET = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789~!$@^*()_+-–—=' \

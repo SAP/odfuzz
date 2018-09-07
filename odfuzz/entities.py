@@ -51,7 +51,7 @@ class Builder(object):
     def _get_metadata_from_service(self):
         metadata_request = '$metadata?' + 'sap-client=' + Config.client
         try:
-            metadata_response = self._dispatcher.get(metadata_request)
+            metadata_response = self._dispatcher.get(metadata_request, timeout=5)
         except DispatcherError as disp_error:
             raise BuilderError('An exception occurred while retrieving metadata: {}'.format(disp_error))
         if metadata_response.status_code != 200:
@@ -401,8 +401,8 @@ class TopQuery(QueryOption):
 
     def _get_total_entities(self):
         try:
-            response = self._dispatcher.get(
-                self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client, timeout=3)
+            url = self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client
+            response = self._dispatcher.get(url, timeout=5)
         except DispatcherError:
             total_entities = INT_MAX
         else:

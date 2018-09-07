@@ -5,6 +5,7 @@ import io
 import os
 import sys
 import logging
+import gevent
 import requests
 import requests.adapters
 
@@ -20,7 +21,7 @@ from pyodata.v2.model import NAMESPACES
 from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
     OrderbyOptionBuilder, OrderbyOption
 from odfuzz.restrictions import RestrictionsGroup
-from odfuzz.statistics import Stats, StatsPrinter
+from odfuzz.statistics import Stats
 from odfuzz.mongos import MongoClient
 from odfuzz.mutators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
@@ -83,6 +84,20 @@ class Fuzzer(object):
 
         Stats.tests_num = 0
         Stats.fails_num = 0
+        Stats.exceptions_num = 0
+
+        # This step is required to redirect printing of stack trace by greenlets. I haven't
+        # found any other conventional way to suppress such a printing. In the past, it was
+        # possible to set which type of exceptions shouldn't be printed by:
+        # gevent.hub.Hub.NOT_ERROR=(Exception,)
+        # Source: https://github.com/gevent/gevent/issues/55
+        #
+        # If anybody in the future will want to print output to the standard error output,
+        # he/she will be required to set sys.stderr back to its default value by:
+        # sys.stderr = sys.__stderr__
+        # Source: https://docs.python.org/3/library/sys.html#sys.__stderr__
+        devnull = open(os.devnull, 'w')
+        sys.stderr = devnull
 
     def run(self):
         time_seed = datetime.now()
@@ -110,7 +125,7 @@ class Fuzzer(object):
             for _ in range(seed_range):
                 q = self._queryable_factory(queryable, self._logger)
                 queries = q.generate()
-                self._dispatch(queries)
+                self._send_queries(queries)
                 self._analyze_queries(queries)
                 self._save_queries(queries)
 
@@ -122,14 +137,14 @@ class Fuzzer(object):
                 self._logger.info('Crossing parents...')
                 q = self._queryable_factory(selection.queryable, self._logger)
                 queries = q.crossover(selection.crossable)
-                self._dispatch(queries)
+                self._send_queries(queries)
                 analyzed_queries = self._analyze_queries(queries)
                 self._remove_weak_queries(analyzed_queries, queries)
             else:
                 self._logger.info('Generating new queries...')
                 q = self._queryable_factory(selection.queryable, self._logger)
                 queries = q.generate()
-                self._dispatch(queries)
+                self._send_queries(queries)
                 self._analyze_queries(queries)
                 self._slay_weakest_individuals(len(queries))
             self._save_queries(queries)
@@ -139,30 +154,47 @@ class Fuzzer(object):
         self._save_to_database(queries)
         print_tests_num()
 
+    def _send_queries(self, queries):
+        while True:
+            success = self._dispatch(queries)
+            if success:
+                break
+
     def _get_multiple_responses(self, queries):
-        responses = []
         pool = Pool(Config.pool_size)
         for query in queries:
-            responses.append(pool.spawn(self._get_response, query))
+            pool.spawn(self._get_response, query)
         try:
             pool.join(raise_error=True)
-        except Exception:
-            stats = StatsPrinter(self._collection_name)
-            stats.write()
-            sys.exit(1)
+        except DispatcherError:
+            pool.kill()
+            self._handle_dispatcher_exception()
+            return False
+        return True
 
     def _get_single_response(self, queries):
         query = queries[0]
-        self._get_response(query)
+        try:
+            self._get_response(query)
+        except DispatcherError:
+            self._handle_dispatcher_exception()
+            return False
+        return True
 
     def _get_response(self, query):
-        query.response = self._dispatcher.get(query.query_string)
+        query.response = self._dispatcher.get(query.query_string, timeout=REQUEST_TIMEOUT)
         if query.response.status_code != 200:
             self._set_error_attributes(query)
             Stats.fails_num += 1
         else:
             setattr(query.response, 'error_code', '')
             setattr(query.response, 'error_message', '')
+
+    def _handle_dispatcher_exception(self):
+        Stats.exceptions_num += 1
+        print_tests_num()
+        self._logger.info('Retrying in {} seconds...'.format(RETRY_TIMEOUT))
+        gevent.sleep(RETRY_TIMEOUT)
 
     def _analyze_queries(self, queries):
         analyzed_offsprings = []
@@ -916,7 +948,7 @@ class Dispatcher(object):
         try:
             response = self._session.request(method, url, **kwargs)
         except requests.exceptions.RequestException as requests_ex:
-            self._logger.info('An exception {} was raised'.format(requests_ex))
+            self._logger.error('An exception {} was raised'.format(requests_ex))
             raise DispatcherError('An exception was raised while sending HTTP {}: {}'
                                   .format(method, requests_ex))
         self._logger.info('Received HTTP {} from {}'.format(response.status_code, url))
@@ -998,9 +1030,9 @@ def build_xpath_format_string(*args):
 
 
 def print_tests_num():
-    sys.stdout.write('Generated tests: {} | Failed tests: {} \r'
-                     .format(Stats.tests_num, Stats.fails_num))
     sys.stdout.flush()
+    sys.stdout.write('Generated tests: {} | Failed tests: {} | Raised exceptions: {} \r'
+                     .format(Stats.tests_num, Stats.fails_num, Stats.exceptions_num))
 
 
 def is_removable(option_value, part_id):

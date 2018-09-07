@@ -13,6 +13,7 @@ class Stats(object):
 
     tests_num = 0
     fails_num = 0
+    exceptions_num = 0
     created_by_mutation = 0
     created_by_crossover = 0
     directory = None
@@ -43,6 +44,7 @@ class StatsPrinter(object):
         formatted_output = (
             'Generated tests: ' + str(self._stats.tests_num) + '\n'
             'Failed tests: ' + str(self._stats.fails_num) + '\n'
+            'Raised exceptions: ' + str(self._stats.exceptions_num) + '\n'
             'Created by mutation: ' + str(self._stats.created_by_mutation) + '\n'
             'Created by crossover: ' + str(self._stats.created_by_crossover) + '\n'
             'Runtime: ' + str(datetime.now() - self._stats.start_datetime) + '\n'
