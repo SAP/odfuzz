@@ -3,32 +3,45 @@
 import random
 import logging
 
-from pyodata.v2.model import VariableDeclaration
+from pyodata.v2.model import VariableDeclaration, ComplexType
 from odfuzz.generators import RandomGenerator
 from odfuzz.mutators import StringMutator, NumberMutator, GuidMutator, BooleanMutator, DecimalMutator, DateTimeMutator
 from odfuzz.constants import BOOLEAN_OPERATORS, EXPRESSION_OPERATORS, INTERVAL_OPERATORS
 
 MAX_STRING_LENGTH = 100
+MAX_PRECISION = 20
+MAX_SCALE = 10
 
 
-def patch_proprties(entity_set):
-    for proprty in entity_set.entity_type.proprties():
+def patch_proprties(proprties):
+    for proprty in proprties:
+        patch_complex_types(proprty)
         patch_proprty_max_length(proprty)
+        patch_proprty_precision_scale(proprty)
         patch_proprty_generator(proprty)
         patch_proprty_mutator(proprty)
         patch_proprty_operator(proprty)
 
 
+def patch_complex_types(proprty):
+    if type(proprty.typ) is ComplexType:
+        patch_proprties(proprty.typ.proprties())
+
+
 def patch_proprty_max_length(proprty):
     proprty_type = proprty.typ.name
     if proprty_type == 'Edm.String':
-        proprty.max_string_length = max_string_length(proprty.max_length)
+        if not proprty.max_length or proprty.max_length == VariableDeclaration.MAXIMUM_LENGTH:
+            proprty._max_length = MAX_STRING_LENGTH
 
 
-def max_string_length(max_length):
-    if not max_length or max_length == VariableDeclaration.MAXIMUM_LENGTH:
-        return MAX_STRING_LENGTH
-    return max_length
+def patch_proprty_precision_scale(proprty):
+    proprty_type = proprty.typ.name
+    if proprty_type == 'Edm.Decimal':
+        if proprty.precision == 0:
+            proprty._precision = MAX_PRECISION
+        if proprty.scale == 0:
+            proprty._scale = MAX_SCALE
 
 
 def patch_proprty_generator(proprty):

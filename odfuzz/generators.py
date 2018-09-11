@@ -70,7 +70,7 @@ class RandomGenerator(object):
 
     @staticmethod
     def edm_string(self):
-        string_length = round(random.random() * self.max_string_length)
+        string_length = round(random.random() * self.max_length)
         string = ''.join(random.choice(BASE_CHARSET) for _ in range(string_length))
         return '\'{}\''.format(string)
 

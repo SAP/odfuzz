@@ -8,7 +8,7 @@ import uuid
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
-from pyodata.v2.model import Edmx
+from pyodata.v2.model import Edmx, ComplexType
 from pyodata.exceptions import PyODataException
 
 from odfuzz.exceptions import BuilderError, DispatcherError
@@ -18,7 +18,7 @@ from odfuzz.config import Config
 from odfuzz.constants import *
 
 NullEntity = namedtuple('NullEntity', 'name')
-StringSelf = namedtuple('StringSelf', 'max_string_length')
+StringSelf = namedtuple('StringSelf', 'max_length')
 OptionRestriction = namedtuple('OptionRestriction', 'restr is_not_restricted')
 
 
@@ -33,7 +33,7 @@ class Builder(object):
     def build(self):
         data_model = self._get_data_model()
         for entity_set in data_model.entity_sets:
-            patch_proprties(entity_set)
+            patch_proprties(entity_set.entity_type.proprties())
             principal_entities = get_principal_entities(data_model, entity_set)
             query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher, principal_entities)
             if query_group.query_options():
@@ -158,6 +158,7 @@ class QueryGroup(object):
             draft_properties = []
             needs_filter = self._entity_set.requires_filter
         entity_set = self._delete_restricted_proprties(exclude_restrictions, 'filterable', draft_properties)
+        self._expand_complex_proprties(entity_set)
         self._entity_set._req_filter = entity_set._req_filter = needs_filter
 
         if option_restr.is_not_restricted and entity_set.entity_type.proprties() or draft_properties:
@@ -240,8 +241,22 @@ class QueryGroup(object):
             if (proprty.name in restr_proprty_list or not getattr(proprty, attribute)) \
                     and proprty.name not in draft_proprties:
                 del entity_set.entity_type._properties[proprty.name]
-
         return entity_set
+
+    def _expand_complex_proprties(self, entity_set):
+        for proprty in entity_set.entity_type.proprties():
+            if type(proprty.typ) is ComplexType:
+                self._expand_complex_proprty(entity_set, proprty.typ, proprty.typ.name)
+                del entity_set.entity_type._properties[proprty.name]
+
+    def _expand_complex_proprty(self, entity_set, complex_proprty, prefix):
+        for proprty in complex_proprty.proprties():
+            if type(proprty.typ) is ComplexType:
+                self._expand_complex_proprty(entity_set, complex_proprty, prefix + '/' + proprty.typ.name)
+                del entity_set.entity_type._properties[proprty.name]
+            else:
+                proprty._name = prefix + '/' + proprty.name
+                entity_set.entity_type._properties[proprty.name] = proprty
 
     def _init_accessible_entity_path(self):
         if self._entity_set.addressable:
@@ -1383,20 +1398,20 @@ class StringFilterFunctions(FilterFunctions):
 
     def func_concat(self):
         proprty = self._random_generator.choice(self._proprties)
+        max_length = 0
         if self._random_generator.random() > 0.5:
             value = self._random_generator.edm_string(proprty)
             proprty_list = [proprty.name]
+            max_length += proprty.max_length
             param_list = [value]
             generated_string = 'concat({}, {})'.format(proprty.name, value)
         else:
             proprty2 = self._random_generator.choice(self._proprties)
             proprty_list = [proprty.name, proprty2.name]
+            max_length += proprty2.max_length
             param_list = None
             generated_string = 'concat({}, {})'.format(proprty.name, proprty2.name)
 
-        max_length = 0
-        for proprty in proprty_list:
-            max_length += proprty.max_string_length
         return FilterFunction(proprty_list, param_list, generated_string,
                               FunctionsString('concat', StringSelf(max_length)))
 
@@ -1495,10 +1510,6 @@ class AddressableEntity(EntitySet):
 
 
 class NonAddressableEntity(EntitySet):
-    def __init__(self, entity_set, principal_entities):
-        super(NonAddressableEntity, self).__init__(entity_set, principal_entities)
-        patch_proprties(entity_set)
-
     def get_queryable_entity(self):
         if random.random() > EMPTY_ENTITY_PROB:
             if self._principal_entities and random.random() < ASSOCIATED_ENTITY_PROB:

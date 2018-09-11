@@ -1,6 +1,6 @@
 import random
 
-from odfuzz.constants import BASE_CHARSET, HEX_BINARY
+from odfuzz.constants import BASE_CHARSET, HEX_BINARY, INT_MAX
 
 GUID_DASH_INDEXES = (8, 13, 18, 23)
 
@@ -75,7 +75,7 @@ class StringMutator:
         index = round(random.random() * (len(string)))
         new_char = random.choice(BASE_CHARSET)
         generated_string = ''.join([string[:index], new_char, string[index:]])
-        if self.max_string_length < len(generated_string):
+        if self.max_length < len(generated_string):
             generated_string = generated_string[:-1]
         return '\'' + generated_string + '\''
 
@@ -105,7 +105,11 @@ class NumberMutator:
             string_number = string_number[:-1]
         else:
             appendix = ''
-        return str(int(string_number) + 1) + appendix
+
+        number = int(string_number) + 1
+        if number > INT_MAX:
+            number = 1
+        return str(number) + appendix
 
     @staticmethod
     def decrement_value(self, string_number):
@@ -131,7 +135,11 @@ class NumberMutator:
         digit = round(random.random() * 9)
         position = round(random.random() * len(string_number))
         string_number = ''.join([string_number[:position], str(digit), string_number[position:]])
-        return string_number + appendix
+
+        number = int(string_number)
+        if number > INT_MAX:
+            number = number - INT_MAX
+        return str(number) + appendix
 
     @staticmethod
     def delete_digit(self, string_number):

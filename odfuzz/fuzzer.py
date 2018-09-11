@@ -28,7 +28,7 @@ from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
 from odfuzz.constants import *
 
-SelfMock = namedtuple('SelfMock', 'max_string_length')
+SelfMock = namedtuple('SelfMock', 'max_length')
 
 
 class Manager(object):
@@ -96,8 +96,7 @@ class Fuzzer(object):
         # he/she will be required to set sys.stderr back to its default value by:
         # sys.stderr = sys.__stderr__
         # Source: https://docs.python.org/3/library/sys.html#sys.__stderr__
-        devnull = open(os.devnull, 'w')
-        sys.stderr = devnull
+        sys.stderr = LoggerErrorWritter(self._logger)
 
     def run(self):
         time_seed = datetime.now()
@@ -403,7 +402,7 @@ class Queryable(object):
             if part['return_type'] == 'Edm.Boolean':
                 part['operand'] = 'true' if part['operand'] == 'false' else 'false'
             elif part['return_type'] == 'Edm.String':
-                part['operand'] = self._mutate_value(StringMutator, part['operand'], SelfMock(max_string_length=5))
+                part['operand'] = self._mutate_value(StringMutator, part['operand'], SelfMock(max_length=5))
                 part['operand'] = '\'' + part['operand'] + '\''
             elif part['return_type'].startswith('Edm.Int'):
                 part['operand'] = self._mutate_value(NumberMutator, part['operand'])
@@ -980,6 +979,14 @@ class Dispatcher(object):
             self._session.auth = (username, password)
         else:
             self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
+
+
+class LoggerErrorWritter:
+    def __init__(self, logger):
+        self._logger = logger
+
+    def write(self, message):
+        self._logger.error(message)
 
 
 def is_filter_crossable(query1, query2):
