@@ -494,7 +494,7 @@ class StatsLogger(object):
     def _log_formatted_stats(self, query, query_dict, proprty):
         self._stats_logger.info(
             '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{AccessibleSet};{AccessibleKeys};'
-            '{Property};{orderby};{top};{skip};"{filter}";{expand};{search}'.format(
+            '{Property};{orderby};{top};{skip};"{filter}";{expand};"{search}"'.format(
                 StatusCode=query.response.status_code,
                 ErrorCode=query.response.error_code,
                 ErrorMessage=query.response.error_message.replace('"', '""'),

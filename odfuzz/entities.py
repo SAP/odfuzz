@@ -325,7 +325,12 @@ class SearchQuery(QueryOption):
 
     def generate(self, depending_data):
         option = Option()
-        option.option_string = RandomGenerator.random_string(SEARCH_MAX_LEN)
+        if random.random() <= FUZZY_SEARCH_EQUAL_PROB:
+            quotes = '"'
+        else:
+            quotes = ''
+
+        option.option_string = quotes + RandomGenerator.random_string(SEARCH_MAX_LEN)
         if random.random() <= FUZZY_SEARCH_WILDCARD_PROB:
             option.option_string += random.choice(['*', '%'])
         elif random.random() <= FUZZY_SEARCH_OR_PROB:
@@ -333,7 +338,8 @@ class SearchQuery(QueryOption):
                 option.option_string += ' OR ' + RandomGenerator.random_string(SEARCH_MAX_LEN)
 
         if random.random() <= FUZZY_SEARCH_WITHOUT:
-            option.option_string += ' -' + RandomGenerator.random_string(SEARCH_MAX_LEN)
+            option.option_string += ' "-{}"'.format(RandomGenerator.random_string(SEARCH_MAX_LEN))
+        option.option_string += quotes
 
         return option
 
