@@ -115,6 +115,10 @@ NOTE: ODfuzz uses a custom header **user-agent=odfuzz/1.0** in all HTTP requests
 With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following YAML format:
 ```
 [ Exclude | Include ]:
+    [ $FORBID$ ]:
+        - $filter
+        - $orderby
+        ...
     [ $filter | $orderby | $skip | ... ]:
         EntitySet name:
             - Property name
@@ -139,7 +143,7 @@ ODfuzz creates a new collection in the database at each run. Run the command `db
 
 ODfuzz may be used to test OData services outside the SAP network. There are two ways to enable ODfuzz to work on such services:
 1. You **do not know** a path to the particular HTTPS certificate:
-    - Change the **has_certificate** parameter at line [37](https://github.wdf.sap.corp/I342520/ODfuzz/blob/master/odfuzz/fuzzer.py#L37) to **False**. 
+    - Change the **has_certificate** parameter at line [38](https://github.wdf.sap.corp/I342520/ODfuzz/blob/master/odfuzz/fuzzer.py#L38) to **False**. 
     - Set the following environment variable to suppress warning messages (InsecureRequestWarning: Unverified HTTPS request is being made. Adding certificate verification is strongly advised.):
         ```
         PYTHONWARNINGS=ignore:Unverified HTTPS request

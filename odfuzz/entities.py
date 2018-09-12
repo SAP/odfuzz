@@ -136,6 +136,9 @@ class QueryGroup(object):
         self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher)
 
     def _init_query_type(self, option_name, metadata_attr, query_object, dispatcher):
+        if option_name in self._restrictions.forbidden_options():
+            return
+
         option_restr = self._get_restrictions(option_name)
         is_queryable = getattr(self._entity_set, metadata_attr)
 
@@ -148,6 +151,9 @@ class QueryGroup(object):
                 self._query_options_list.append(self._query_options[option_name])
 
     def _init_filter_query(self):
+        if FILTER in self._restrictions.forbidden_options():
+            return
+
         option_restr = self._get_restrictions(FILTER)
         if option_restr.restr:
             exclude_restrictions = option_restr.restr.exclude
@@ -174,6 +180,9 @@ class QueryGroup(object):
         return draft_restrictions
 
     def _init_orderby_query(self):
+        if ORDERBY in self._restrictions.forbidden_options():
+            return
+
         option_restr = self._get_restrictions(ORDERBY)
         if option_restr.restr:
             exclude_restrictions = option_restr.restr.exclude
@@ -186,6 +195,9 @@ class QueryGroup(object):
             self._query_options_list.append(self._query_options[ORDERBY])
 
     def _init_expand_query(self):
+        if EXPAND in self._restrictions.forbidden_options():
+            return
+
         option_restr = self._get_restrictions(EXPAND)
         if option_restr.restr:
             entity_set = self._delete_restricted_nav_proprties(option_restr.restr)
