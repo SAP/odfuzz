@@ -28,19 +28,26 @@ ORDERBY = '$orderby'
 TOP = '$top'
 SKIP = '$skip'
 FILTER = '$filter'
+SEARCH = 'search'
 GLOBAL_ENTITY = '$E_ALL$'
 GLOBAL_FUNCTION = '$F_ALL$'
 GLOBAL_PROPRTY = '$P_ALL$'
 DRAFT_OBJECTS = '$DRAFT$'
 NAV_PROPRTY = '$NAV_PROP$'
 
-QUERY_OPTIONS = [FILTER, ORDERBY, TOP, SKIP, EXPAND]
+QUERY_OPTIONS = [FILTER, ORDERBY, TOP, SKIP, EXPAND, SEARCH]
 
 STRING_FUNC_PROB = 0.70
 MATH_FUNC_PROB = 0.15
 DATE_FUNC_PROB = 0.15
 FUNCTION_WEIGHT = 0.3
 SINGLE_VALUE_PROB = 0.2
+
+SEARCH_MAX_LEN = 20
+FUZZY_SEARCH_WILDCARD_PROB = 0.2
+FUZZY_SEARCH_WITHOUT = 0.2
+FUZZY_SEARCH_OR_PROB = 0.2
+MAX_FUZZY_SEARCH_ORS = 3
 
 LOGICAL_OPERATORS = {'and': 0.5, 'or': 0.5}
 BOOLEAN_OPERATORS = {'eq': 0.5, 'ne': 0.5}
@@ -69,7 +76,7 @@ MAX_EXPAND_VALUES = 3
 FILTER_SAMPLE_SIZE = 30
 TOP_ENTITIES = 20
 
-CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand'
+CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search'
 CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'
 
 INFINITY_TIMEOUT = -1

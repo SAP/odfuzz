@@ -4,7 +4,7 @@ import random
 import logging
 
 from pyodata.v2.model import VariableDeclaration, ComplexType
-from odfuzz.generators import RandomGenerator
+from odfuzz.generators import EdmGenerator
 from odfuzz.mutators import StringMutator, NumberMutator, GuidMutator, BooleanMutator, DecimalMutator, DateTimeMutator
 from odfuzz.constants import BOOLEAN_OPERATORS, EXPRESSION_OPERATORS, INTERVAL_OPERATORS
 
@@ -47,34 +47,34 @@ def patch_proprty_precision_scale(proprty):
 def patch_proprty_generator(proprty):
     proprty_type = proprty.typ.name
     if proprty_type == 'Edm.String':
-        proprty.generate = RandomGenerator.edm_string.__get__(proprty, None)
+        proprty.generate = EdmGenerator.edm_string.__get__(proprty, None)
     elif proprty_type == 'Edm.DateTime':
-        proprty.generate = RandomGenerator.edm_datetime
+        proprty.generate = EdmGenerator.edm_datetime
     elif proprty_type == 'Edm.Boolean':
-        proprty.generate = RandomGenerator.edm_boolean
+        proprty.generate = EdmGenerator.edm_boolean
     elif proprty_type == 'Edm.Byte':
-        proprty.generate = RandomGenerator.edm_byte
+        proprty.generate = EdmGenerator.edm_byte
     elif proprty_type == 'Edm.SByte':
-        proprty.generate = RandomGenerator.edm_sbyte
+        proprty.generate = EdmGenerator.edm_sbyte
     elif proprty_type == 'Edm.Single':
-        proprty.generate = RandomGenerator.edm_single
+        proprty.generate = EdmGenerator.edm_single
     elif proprty_type == 'Edm.Guid':
-        proprty.generate = RandomGenerator.edm_guid
+        proprty.generate = EdmGenerator.edm_guid
     elif proprty_type == 'Edm.Decimal':
-        proprty.generate = RandomGenerator.edm_decimal.__get__(proprty, None)
+        proprty.generate = EdmGenerator.edm_decimal.__get__(proprty, None)
     elif proprty_type == 'Edm.DateTimeOffset':
-        proprty.generate = RandomGenerator.edm_datetimeoffset
+        proprty.generate = EdmGenerator.edm_datetimeoffset
     elif proprty_type == 'Edm.Time':
-        proprty.generate = RandomGenerator.edm_time
+        proprty.generate = EdmGenerator.edm_time
     elif proprty_type == 'Edm.Binary':
-        proprty.generate = RandomGenerator.edm_binary
+        proprty.generate = EdmGenerator.edm_binary
     elif proprty_type.startswith('Edm.Int'):
         if proprty_type.endswith('16'):
-            proprty.generate = RandomGenerator.edm_int16
+            proprty.generate = EdmGenerator.edm_int16
         elif proprty_type.endswith('32'):
-            proprty.generate = RandomGenerator.edm_int32
+            proprty.generate = EdmGenerator.edm_int32
         elif proprty_type.endswith('64'):
-            proprty.generate = RandomGenerator.edm_int64
+            proprty.generate = EdmGenerator.edm_int64
         else:
             logging.error('Property type {} is not supported by generator yet'.format(proprty_type))
     else:

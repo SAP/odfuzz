@@ -368,6 +368,9 @@ class Queryable(object):
         elif option_name == EXPAND:
             # TODO: implement mutator for expand method
             pass
+        elif option_name == SEARCH:
+            # TODO: implement mutator for search method
+            pass
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
 
@@ -491,7 +494,7 @@ class StatsLogger(object):
     def _log_formatted_stats(self, query, query_dict, proprty):
         self._stats_logger.info(
             '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{AccessibleSet};{AccessibleKeys};'
-            '{Property};{orderby};{top};{skip};"{filter}";{expand}'.format(
+            '{Property};{orderby};{top};{skip};"{filter}";{expand};{search}'.format(
                 StatusCode=query.response.status_code,
                 ErrorCode=query.response.error_code,
                 ErrorMessage=query.response.error_message.replace('"', '""'),
@@ -503,7 +506,8 @@ class StatsLogger(object):
                 top=query.options_strings['$top'],
                 skip=query.options_strings['$skip'],
                 filter=query.options_strings['$filter'].replace('"', '""'),
-                expand=query.options_strings['$expand']
+                expand=query.options_strings['$expand'],
+                search=query.options_strings['search'].replace('"', '""')
             )
         )
 
@@ -790,7 +794,8 @@ class Query(object):
         self._response = None
         self._parts = 0
         self._id = ObjectId()
-        self._options_strings = {'$orderby': '', '$filter': '', '$skip': '', '$top': '', '$expand': ''}
+        self._options_strings = {'$orderby': '', '$filter': '', '$skip': '', '$top': '', '$expand': '',
+                                 'search': ''}
 
     @property
     def entity_name(self):
@@ -909,7 +914,8 @@ class Query(object):
             '_$top': self._options.get(TOP),
             '_$skip': self._options.get(SKIP),
             '_$filter': self._options.get(FILTER),
-            '_$expand': self._options.get(EXPAND)
+            '_$expand': self._options.get(EXPAND),
+            '_search': self._options.get(SEARCH)
         }
 
     def _add_appendix(self):

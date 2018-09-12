@@ -12,7 +12,7 @@ from pyodata.v2.model import Edmx, ComplexType
 from pyodata.exceptions import PyODataException
 
 from odfuzz.exceptions import BuilderError, DispatcherError
-from odfuzz.generators import RandomGenerator
+from odfuzz.generators import EdmGenerator, RandomGenerator
 from odfuzz.monkey import patch_proprties
 from odfuzz.config import Config
 from odfuzz.constants import *
@@ -133,6 +133,7 @@ class QueryGroup(object):
         self._init_expand_query()
         self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher)
         self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher)
+        self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher)
 
     def _init_query_type(self, option_name, metadata_attr, query_object, dispatcher):
         option_restr = self._get_restrictions(option_name)
@@ -303,6 +304,31 @@ class QueryOption(metaclass=ABCMeta):
         pass
 
 
+class SearchQuery(QueryOption):
+    def __init__(self, entity, restrictions, dispatcher):
+        super(SearchQuery, self).__init__(entity, SEARCH, '', restrictions)
+
+    def apply_restrictions(self):
+        pass
+
+    def generate(self, depending_data):
+        option = Option()
+        option.option_string = RandomGenerator.random_string(SEARCH_MAX_LEN)
+        if random.random() <= FUZZY_SEARCH_WILDCARD_PROB:
+            option.option_string += random.choice(['*', '%'])
+        elif random.random() <= FUZZY_SEARCH_OR_PROB:
+            for _ in range(MAX_FUZZY_SEARCH_ORS):
+                option.option_string += ' OR ' + RandomGenerator.random_string(SEARCH_MAX_LEN)
+
+        if random.random() <= FUZZY_SEARCH_WITHOUT:
+            option.option_string += ' -' + RandomGenerator.random_string(SEARCH_MAX_LEN)
+
+        return option
+
+    def get_depending_data(self):
+        pass
+
+
 class ExpandQuery(QueryOption):
     def __init__(self, entity, restrictions):
         super(ExpandQuery, self).__init__(entity, EXPAND, '$', restrictions)
@@ -382,7 +408,7 @@ class TopQuery(QueryOption):
         self._set_max_range()
 
     def generate(self, depending_data):
-        option = TopOption()
+        option = Option()
         selected_value = weighted_random(self._max_range_prob.items())
         skip_value = depending_data.get(SKIP)
         if skip_value and skip_value + selected_value > INT_MAX:
@@ -442,7 +468,7 @@ class SkipQuery(QueryOption):
         self._set_max_range()
 
     def generate(self, depending_data):
-        option = SkipOption()
+        option = Option()
         selected_value = weighted_random(self._max_range_prob.items())
         top_value = depending_data.get(TOP)
         if top_value and top_value + selected_value > INT_MAX:
@@ -823,9 +849,8 @@ class Option(metaclass=ABCMeta):
         self._option_string = value
 
     @property
-    @abstractmethod
     def data(self):
-        pass
+        return self._option_string
 
 
 class ExpandOption(Option):
@@ -839,22 +864,6 @@ class ExpandOption(Option):
 
     def add_entity_paths(self, entity_paths):
         self._entity_paths.update(entity_paths)
-
-
-class SkipOption(Option):
-    """A skip option container holding an integer value."""
-
-    @property
-    def data(self):
-        return self._option_string
-
-
-class TopOption(Option):
-    """A top option container holding an integer value."""
-
-    @property
-    def data(self):
-        return self._option_string
 
 
 class OrderbyOption(Option):
@@ -1249,7 +1258,7 @@ class FunctionsGenerator:
         return func_wrap
 
     def edm_string(self, proprty):
-        return RandomGenerator.edm_string(proprty)
+        return EdmGenerator.edm_string(proprty)
 
 
 class FilterFunctions:
@@ -1443,13 +1452,13 @@ class FunctionsReturnType(object):
 
 class FunctionsInt(FunctionsReturnType):
     def __init__(self, name):
-        super(FunctionsInt, self).__init__('Edm.Int32', EXPRESSION_OPERATORS, name, RandomGenerator.edm_int32)
+        super(FunctionsInt, self).__init__('Edm.Int32', EXPRESSION_OPERATORS, name, EdmGenerator.edm_int32)
 
 
 class FunctionsString(FunctionsReturnType):
     def __init__(self, name, proprty):
         self._proprty = proprty
-        super(FunctionsString, self).__init__('Edm.String', EXPRESSION_OPERATORS, name, RandomGenerator.edm_string)
+        super(FunctionsString, self).__init__('Edm.String', EXPRESSION_OPERATORS, name, EdmGenerator.edm_string)
 
     def generate(self):
         return self._generator(self._proprty)
@@ -1457,7 +1466,7 @@ class FunctionsString(FunctionsReturnType):
 
 class FunctionsBool(FunctionsReturnType):
     def __init__(self, name):
-        super(FunctionsBool, self).__init__('Edm.Boolean', BOOLEAN_OPERATORS, name, RandomGenerator.edm_boolean)
+        super(FunctionsBool, self).__init__('Edm.Boolean', BOOLEAN_OPERATORS, name, EdmGenerator.edm_boolean)
 
 
 class FilterFunction(object):

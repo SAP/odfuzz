@@ -11,7 +11,7 @@ END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
 DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
 
 
-class RandomGenerator(object):
+class EdmGenerator:
     @staticmethod
     def edm_binary():
         prefix = 'X' if random.random() < 0.5 else 'binary'
@@ -70,9 +70,8 @@ class RandomGenerator(object):
 
     @staticmethod
     def edm_string(self):
-        string_length = round(random.random() * self.max_length)
-        string = ''.join(random.choice(BASE_CHARSET) for _ in range(string_length))
-        return '\'{}\''.format(string)
+        generated_string = RandomGenerator.random_string(self.max_length)
+        return '\'{}\''.format(generated_string)
 
     @staticmethod
     def edm_time():
@@ -86,3 +85,11 @@ class RandomGenerator(object):
         formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
         offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
         return 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
+
+
+class RandomGenerator:
+    @staticmethod
+    def random_string(max_length):
+        string_length = round(random.random() * max_length)
+        generated_string = ''.join(random.choice(BASE_CHARSET) for _ in range(string_length))
+        return generated_string
