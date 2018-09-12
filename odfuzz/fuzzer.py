@@ -896,6 +896,7 @@ class Query(object):
                 option_string = ','.join(self._options[option_name[1:]])
             else:
                 option_string = self._options[option_name[1:]]
+                option_string = replace_special_characters(option_string)
             self._options_strings[option_name[1:]] = option_string
             self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
@@ -1024,15 +1025,15 @@ def build_filter_string(filter_data):
 def replace_forbidden_characters(parts):
     for data in parts:
         if data['operand'].startswith('\''):
-            data['operand'] = '\'' + replace(data['operand'][1:-1]) + '\''
+            data['operand'] = '\'' + replace_special_characters(data['operand'][1:-1]) + '\''
         if 'params' in data:
             if data['params']:
                 for index, param in enumerate(data['params']):
                     if param.startswith('\''):
-                        data['params'][index] = '\'' + replace(param[1:-1]) + '\''
+                        data['params'][index] = '\'' + replace_special_characters(param[1:-1]) + '\''
 
 
-def replace(replacing_string):
+def replace_special_characters(replacing_string):
     replacing_string = replacing_string.replace('%', '%25')
     replacing_string = replacing_string.replace('&', '%26')
     replacing_string = replacing_string.replace('#', '%23')

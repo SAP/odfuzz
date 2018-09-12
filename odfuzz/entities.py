@@ -332,7 +332,7 @@ class SearchQuery(QueryOption):
 
         option.option_string = quotes + RandomGenerator.random_string(SEARCH_MAX_LEN)
         if random.random() <= FUZZY_SEARCH_WILDCARD_PROB:
-            option.option_string += random.choice(['*', '%'])
+            option.option_string += random.choice(SEARCH_WILDCARDS)
         elif random.random() <= FUZZY_SEARCH_OR_PROB:
             for _ in range(MAX_FUZZY_SEARCH_ORS):
                 option.option_string += ' OR ' + RandomGenerator.random_string(SEARCH_MAX_LEN)
