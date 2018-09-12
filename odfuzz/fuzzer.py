@@ -411,10 +411,19 @@ class Queryable(object):
                 part['operand'] = self._mutate_value(NumberMutator, part['operand'])
 
     def _mutate_orderby_part(self, option_value):
-        proprties_num = len(option_value['proprties']) - 1
+        proprties_num = len(option_value) - 1
         if proprties_num > 1 and random.random() < ORDERBY_DEL_PROB:
-            option_value['proprties'].pop(round(random.random() * proprties_num))
-        option_value['order'] = 'asc' if option_value['order'] == 'desc' else 'desc'
+            remove_index = round(random.random() * proprties_num)
+            del option_value[remove_index]
+
+        self._mutate_proprty_order(option_value)
+
+    def _mutate_proprty_order(self, option_value):
+        random_proprty = random.choice(option_value)
+        current_order = random_proprty[1]
+        possible_orders = {'asc', 'desc', ''}
+        possible_orders.remove(current_order)
+        random_proprty[1] = random.choice(list(possible_orders))
 
     def _mutate_value(self, mutator_class, value, self_mock=None):
         mutators = self._get_mutators(mutator_class)
@@ -518,7 +527,7 @@ class StatsLogger(object):
             proprties.update(self._get_filter_proprties(filter_option))
         orderby_option = query_dict.get('_$orderby')
         if orderby_option:
-            for proprty in orderby_option['proprties']:
+            for proprty, _ in orderby_option:
                 proprties.update([proprty])
         if not proprties:
             return [None]
@@ -881,7 +890,7 @@ class Query(object):
                 option_string = build_filter_string(filter_data)
             elif option_name.endswith('orderby'):
                 orderby_data = self._options[option_name[1:]]
-                orderby_option = OrderbyOption(orderby_data['proprties'], orderby_data['order'])
+                orderby_option = OrderbyOption(orderby_data)
                 option_string = OrderbyOptionBuilder(orderby_option).build()
             elif option_name.endswith('expand'):
                 option_string = ','.join(self._options[option_name[1:]])

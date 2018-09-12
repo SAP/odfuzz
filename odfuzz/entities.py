@@ -396,15 +396,15 @@ class OrderbyQuery(QueryOption):
         pass
 
     def generate(self, depending_data):
-        option = OrderbyOption([], '')
+        option = OrderbyOption([])
         total_proprties = len(self._proprties)
-        if total_proprties > 3:
-            total_proprties = 3
+        if total_proprties > ORDERBY_MAX_PROPS:
+            total_proprties = ORDERBY_MAX_PROPS
         sample_size = round(random.random() * (total_proprties - 1)) + 1
 
         for proprty in random.sample(self._proprties, sample_size):
-            option.add_proprty(proprty)
-        option.order = random.choice(['asc', 'desc'])
+            order = random.choice(['asc', 'desc', ''])
+            option.add_proprty(proprty, order)
         option.option_string = OrderbyOptionBuilder(option).build()
         return option
 
@@ -887,26 +887,17 @@ class ExpandOption(Option):
 class OrderbyOption(Option):
     """An orderby option container holding a list of used properties and type of order operation."""
 
-    def __init__(self, proprties, order):
+    def __init__(self, proprties):
         super(OrderbyOption, self).__init__()
         self._proprties = proprties
-        self._order = order
 
     @property
     def data(self):
-        data_dict = {'proprties': self._proprties, 'order': self._order}
-        return data_dict
+        return self._proprties
 
-    @property
-    def order(self):
-        return self._order
-
-    @order.setter
-    def order(self, value):
-        self._order = value
-
-    def add_proprty(self, proprty_name):
-        self._proprties.append(proprty_name)
+    def add_proprty(self, proprty_name, order):
+        data_tuple = (proprty_name, order)
+        self._proprties.append(data_tuple)
 
 
 class FilterOption(Option):
@@ -945,8 +936,7 @@ class FilterOption(Option):
 
     @property
     def data(self):
-        data_dict = {'groups': self._groups, 'logicals': self._logicals,
-                     'parts': self._parts}
+        data_dict = {'groups': self._groups, 'logicals': self._logicals, 'parts': self._parts}
         return data_dict
 
     @last_part.setter
@@ -1043,10 +1033,12 @@ class OrderbyOptionBuilder(object):
         if not self._option_string:
             self._option_string = ''
             option_data = self._option.data
-            for proprty in option_data['proprties']:
-                self._option_string += proprty + ','
+            for proprty, order in option_data:
+                if order:
+                    self._option_string += '{} {},'.format(proprty, order)
+                else:
+                    self._option_string += '{},'.format(proprty)
             self._option_string = self._option_string.rstrip(',')
-            self._option_string += ' ' + option_data['order']
         return self._option_string
 
 

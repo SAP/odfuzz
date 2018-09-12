@@ -7,7 +7,7 @@ import uuid
 import pymongo
 import pymongo.errors
 
-from odfuzz.constants import MONGODB_NAME, PARTS_NUM, FILTER_SAMPLE_SIZE
+from odfuzz.constants import MONGODB_NAME, FILTER_PARTS_NUM, FILTER_SAMPLE_SIZE
 
 
 class CollectionCreator(object):
@@ -76,7 +76,7 @@ class MongoClient(object):
             [
                 {'$match': {'entity_set': entity_set_name, '_id': {'$ne': without},
                             '_$filter.parts': {'$exists': True},
-                            '$expr': {'$gte': [{'$size': '$_$filter.parts'}, PARTS_NUM]}}},
+                            '$expr': {'$gte': [{'$size': '$_$filter.parts'}, FILTER_PARTS_NUM]}}},
                 {'$sample': {'size': FILTER_SAMPLE_SIZE}},
                 {'$sort': {'score': pymongo.DESCENDING}},
                 {'$limit': 1}
