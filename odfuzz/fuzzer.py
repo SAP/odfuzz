@@ -106,8 +106,8 @@ class Fuzzer(object):
         self._mongodb.remove_collection()
         self.seed_population()
         if self._mongodb.total_queries() == 0:
-            self._logger.info('OData service is empty.')
-            sys.stdout.write('OData service does not contain any entities. Exiting...\n')
+            self._logger.info('There are no queries generated yet.')
+            sys.stdout.write('OData service does not contain any queryable entities. Exiting...\n')
             sys.exit(0)
 
         self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
@@ -258,7 +258,12 @@ class Queryable(object):
 
     def generate_options(self, query):
         depending_data = {}
-        for option in self._queryable.random_options():
+        if query.targets_single_entity():
+            options_list = self._queryable.random_single_entity_options()
+        else:
+            options_list = self._queryable.random_options()
+
+        for option in options_list:
             generated_option = option.generate(depending_data)
             query.add_option(option.name, generated_option.data)
             depending_data[option.name] = option.get_depending_data()
@@ -310,7 +315,8 @@ class Queryable(object):
         return query1
 
     def build_offspring(self, offspring):
-        query = Query(self._queryable.get_accessible_entity_set())
+        accessible_entity = self._queryable.get_accessible_entity_set()
+        query = Query(accessible_entity)
         for option in offspring['order']:
             query.add_option(option[1:], offspring[option])
         return query
@@ -866,6 +872,9 @@ class Query(object):
     @accessible_entity.setter
     def accessible_entity(self, value):
         self._accessible_entity = value
+
+    def targets_single_entity(self):
+        return self._accessible_entity.targets_single_entity()
 
     def is_option_deletable(self, name):
         return not (name == FILTER and self._accessible_entity.entity_set.requires_filter)

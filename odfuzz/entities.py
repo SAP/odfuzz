@@ -90,6 +90,9 @@ class QueryGroup(object):
 
         self._query_options_list = []
         self._required_options = []
+        self._single_entity_query_options = []
+        self._single_entity_required_options = []
+
         self._init_group()
         self._init_accessible_entity_path()
 
@@ -118,13 +121,19 @@ class QueryGroup(object):
         return self._query_options[option_name]
 
     def random_options(self):
-        list_length = len(self._query_options_list)
+        return self._get_random_options(self._query_options_list, self._required_options)
+
+    def random_single_entity_options(self):
+        return self._get_random_options(self._single_entity_query_options, self._single_entity_required_options)
+
+    def _get_random_options(self, query_options, required_options):
+        list_length = len(query_options)
         if list_length == 0:
             sample_length = 0
         else:
             sample_length = round(random.random() * (list_length - 1)) + 1
-        sample_options = random.sample(self._query_options_list, sample_length)
-        selected_options = sample_options + self._required_options
+        sample_options = random.sample(query_options, sample_length)
+        selected_options = sample_options + required_options
         random.shuffle(selected_options)
         return selected_options
 
@@ -135,6 +144,7 @@ class QueryGroup(object):
         self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher)
         self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher)
         self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher)
+        self._init_single_entity_options()
 
     def _init_query_type(self, option_name, metadata_attr, query_object, dispatcher):
         if option_name in self._restrictions.forbidden_options():
@@ -277,6 +287,15 @@ class QueryGroup(object):
             self._accessible_entity = AddressableEntity(self._entity_set, self._principal_entities)
         else:
             self._accessible_entity = NonAddressableEntity(self._entity_set, self._principal_entities)
+
+    def _init_single_entity_options(self):
+        self._init_options_from_main_list(self._query_options_list, self._single_entity_query_options)
+        self._init_options_from_main_list(self._required_options, self._single_entity_required_options)
+
+    def _init_options_from_main_list(self, main_query_options_list, single_entity_query_options):
+        for option in main_query_options_list:
+            if option.name in SINGLE_ENTITY_ALLOWED_OPTIONS:
+                single_entity_query_options.append(option)
 
 
 class QueryOption(metaclass=ABCMeta):
@@ -1525,7 +1544,10 @@ class EntitySet(metaclass=ABCMeta):
 
 class AddressableEntity(EntitySet):
     def get_queryable_entity(self):
-        accessible_entity = AccessibleEntity(self._entity_set, {}, NullEntityType(None, NullNavProperties([])))
+        key_pairs = {}
+        if random.random() <= SINGLE_ENTITY_PROB:
+            key_pairs = generate_accessible_entity_key_values(self._entity_set)
+        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, NullEntityType(None, NullNavProperties([])))
         return accessible_entity
 
 
@@ -1586,7 +1608,7 @@ class AccessibleEntity(object):
         return self._accessible_entity_path
 
     def targets_single_entity(self):
-        return bool(self._key_pairs)
+        return self._key_pairs and self._accessible_entity_path != self._entity_set.name
 
     def _build_entity_path(self):
         if self._key_pairs:

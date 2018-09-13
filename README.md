@@ -152,7 +152,6 @@ ODfuzz may be used to test OData services outside the SAP network. There are two
     - change line [8](https://github.wdf.sap.corp/I342520/ODfuzz/blob/master/odfuzz/constants.py#L8).
 
 #### TODO
-- Generate filter strings for complex types.
 - Add heuristics for generators based on associations.
 - Create a database of valid inputs, e.g. for 'Language', 'Location', etc. (may be defined in restrictions file).
 - Add unit tests. (30% done)
