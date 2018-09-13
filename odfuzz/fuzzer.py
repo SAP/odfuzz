@@ -19,7 +19,7 @@ from bson.objectid import ObjectId
 
 from pyodata.v2.model import NAMESPACES
 from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
-    OrderbyOptionBuilder, OrderbyOption
+    OrderbyOptionBuilder, OrderbyOption, KeyValuesBuilder
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats
 from odfuzz.mongos import MongoClient
@@ -509,7 +509,7 @@ class StatsLogger(object):
                 ErrorMessage=query.response.error_message.replace('"', '""'),
                 EntitySet=query_dict['entity_set'],
                 AccessibleSet=query_dict['accessible_set'],
-                AccessibleKeys=query_dict['accessible_keys'],
+                AccessibleKeys=KeyValuesBuilder.build_string(query_dict['accessible_keys']),
                 Property=proprty,
                 orderby=query.options_strings['$orderby'],
                 top=query.options_strings['$top'],
@@ -914,8 +914,8 @@ class Query(object):
             'error_code': self._response.error_code,
             'error_message': self._response.error_message,
             'entity_set': self._accessible_entity.entity_set_name,
-            'accessible_set': self._accessible_entity.principal_entity_name or None,
-            'accessible_keys': self._accessible_entity.data or None,
+            'accessible_set': self._accessible_entity.principal_entity_name,
+            'accessible_keys': self._accessible_entity.key_pairs,
             'predecessors': self._predecessors,
             'string': self._query_string,
             'score': self._score,

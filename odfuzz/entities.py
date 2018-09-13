@@ -17,7 +17,8 @@ from odfuzz.monkey import patch_proprties
 from odfuzz.config import Config
 from odfuzz.constants import *
 
-NullEntity = namedtuple('NullEntity', 'name')
+NullNavProperties = namedtuple('NullNavProprties', 'nav_proprties')
+NullEntityType = namedtuple('NullEntityType', 'name entity_type')
 StringSelf = namedtuple('StringSelf', 'max_length')
 OptionRestriction = namedtuple('OptionRestriction', 'restr is_not_restricted')
 
@@ -1524,23 +1525,23 @@ class EntitySet(metaclass=ABCMeta):
 
 class AddressableEntity(EntitySet):
     def get_queryable_entity(self):
-        accessible_entity = AccessibleEntity(self._entity_set, {}, NullEntity(''))
+        accessible_entity = AccessibleEntity(self._entity_set, {}, NullEntityType(None, NullNavProperties([])))
         return accessible_entity
 
 
 class NonAddressableEntity(EntitySet):
     def get_queryable_entity(self):
-        if random.random() > EMPTY_ENTITY_PROB:
-            if self._principal_entities and random.random() < ASSOCIATED_ENTITY_PROB:
+        if random.random() <= EMPTY_ENTITY_PROB:
+            principal_entity_set = NullEntityType(None, NullNavProperties([]))
+            key_pairs = {}
+        else:
+            if self._principal_entities and random.random() <= ASSOCIATED_ENTITY_PROB:
                 containing_entity_set = random.choice(self._principal_entities)
                 principal_entity_set = containing_entity_set
             else:
                 containing_entity_set = self._entity_set
-                principal_entity_set = NullEntity('')
+                principal_entity_set = NullEntityType(None, NullNavProperties([]))
             key_pairs = generate_accessible_entity_key_values(containing_entity_set)
-        else:
-            principal_entity_set = NullEntity('')
-            key_pairs = {}
 
         accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set)
         return accessible_entity
@@ -1552,9 +1553,16 @@ class AccessibleEntity(object):
         self._key_pairs = key_pairs
         self._principal_entity_set = principal_entity_set
         self._accessible_entity_path = ''
+        self._printable_key_pairs = None
 
-        self._entity_set_name = None
-        self._init_entity_set_name()
+        self._entity_set_name = self._get_entity_set_name()
+
+    def _get_entity_set_name(self):
+        for navigation_prop in self._principal_entity_set.entity_type.nav_proprties:
+            for end in self._entity_set.association_set_ends:
+                if navigation_prop.to_role.role == end.role:
+                    return navigation_prop.name
+        return None
 
     @property
     def entity_set(self):
@@ -1569,13 +1577,16 @@ class AccessibleEntity(object):
         return self._principal_entity_set.name
 
     @property
-    def data(self):
+    def key_pairs(self):
         return self._key_pairs
 
     @property
     def path(self):
         self._build_entity_path()
         return self._accessible_entity_path
+
+    def targets_single_entity(self):
+        return bool(self._key_pairs)
 
     def _build_entity_path(self):
         if self._key_pairs:
@@ -1584,31 +1595,26 @@ class AccessibleEntity(object):
             self._accessible_entity_path = self._entity_set.name
 
     def _generate_addressable_path(self):
-        if self._principal_entity_set.name:
-            path = self._principal_entity_set.name + self._build_key_values() + '/' + self._entity_set_name
+        key_values_string = KeyValuesBuilder.build_string(self._key_pairs)
+        if self._entity_set_name:
+            path = self._principal_entity_set.name + key_values_string + '/' + self._entity_set_name
         else:
-            path = self._entity_set.name + self._build_key_values()
+            path = self._entity_set.name + key_values_string
         return path
 
-    def _build_key_values(self):
-        key_values = '(' + self._generate_key_pairs() + ')'
-        return key_values
 
-    def _generate_key_pairs(self):
-        entity_path = ''
-        for proprty_name, proprty_value in self._key_pairs.items():
-            entity_path += proprty_name + '=' + proprty_value + ','
-        entity_path = entity_path[:-1]
-        return entity_path
+class KeyValuesBuilder:
+    @staticmethod
+    def build_string(key_pairs):
+        if not key_pairs:
+            return ''
 
-    def _init_entity_set_name(self):
-        # TODO: this is useless check
-        if self._principal_entity_set.name:
-            for navigation_prop in self._principal_entity_set.entity_type.nav_proprties:
-                for end in self._entity_set.association_set_ends:
-                    if navigation_prop.to_role.role == end.role:
-                        self._entity_set_name = navigation_prop.name
-                        break
+        keys_string = '('
+        for proprty_name, proprty_value in key_pairs.items():
+            keys_string += proprty_name + '=' + proprty_value + ','
+        keys_string = keys_string[:-1]
+        keys_string += ')'
+        return keys_string
 
 
 def is_method(obj):
