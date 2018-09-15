@@ -3,7 +3,7 @@
 import yaml
 
 from odfuzz.exceptions import RestrictionsError
-from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION
+from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION, GLOBAL_ENTITY
 
 
 class RestrictionsGroup(object):
@@ -11,18 +11,14 @@ class RestrictionsGroup(object):
 
     def __init__(self, restrictions_file):
         self._restrictions_file = restrictions_file
-        self._draft = {}
-        self._restrictions = {}
-        self._parse_restrictions()
+        self._forbidden_options = []
+        self._option_restrictions = {}
 
-    def restrictions(self):
-        return self._restrictions.values()
-
-    def forbidden_options(self):
-        return self._restrictions[FORBID_OPTION]
-
-    def restriction(self, query_name):
-        return self._restrictions[query_name]
+        if self._restrictions_file:
+            parsed_restrictions = self._parse_restrictions()
+        else:
+            parsed_restrictions = {}
+        self._init_restrictions(parsed_restrictions)
 
     def _parse_restrictions(self):
         try:
@@ -31,30 +27,36 @@ class RestrictionsGroup(object):
         except (EnvironmentError, yaml.YAMLError) as error:
             raise RestrictionsError('An exception was raised while parsing the restrictions file \'{}\': {}'
                                     .format(self._restrictions_file, error))
-        self._init_restrictions(restrictions_dict)
+        return restrictions_dict
 
     def _init_restrictions(self, restrictions_dict):
-        exclude_restr = restrictions_dict.get(EXCLUDE, None)
-        include_restr = restrictions_dict.get(INCLUDE, None)
-        self._restrictions[FORBID_OPTION] = exclude_restr.get(FORBID_OPTION, [])
+        exclude_restr = restrictions_dict.get(EXCLUDE, {})
+        include_restr = restrictions_dict.get(INCLUDE, {})
 
         for query_option in QUERY_OPTIONS:
-            query_exclude_restr = None
-            query_include_restr = None
-            if exclude_restr:
-                query_exclude_restr = exclude_restr.get(query_option, None)
-            if include_restr:
-                query_include_restr = include_restr.get(query_option, None)
+            query_exclude_restr = exclude_restr.get(query_option, {})
+            query_include_restr = include_restr.get(query_option, {})
+            self._option_restrictions[query_option] = QueryRestrictions(query_exclude_restr, query_include_restr)
 
-            self._restrictions[query_option] = QueryRestrictions(
-                query_exclude_restr, query_include_restr
-            )
-
+        self._forbidden_options = exclude_restr.get(FORBID_OPTION, [])
         self._init_draft_objects(include_restr)
 
     def _init_draft_objects(self, include_restr):
         if include_restr:
-            self._restrictions[DRAFT_OBJECTS] = include_restr.get(DRAFT_OBJECTS, {})
+            self._option_restrictions[DRAFT_OBJECTS] = include_restr.get(DRAFT_OBJECTS, {})
+
+    def add_restricted_entity_set(self, entity_set_name):
+        for query_restriction in self.option_restrictions():
+            query_restriction.append_exclude_global_entity_set(entity_set_name)
+
+    def option_restrictions(self):
+        return self._option_restrictions.values()
+
+    def forbidden_options(self):
+        return self._forbidden_options
+
+    def restriction(self, query_name):
+        return self._option_restrictions[query_name]
 
 
 class QueryRestrictions(object):
@@ -71,3 +73,11 @@ class QueryRestrictions(object):
     @property
     def exclude(self):
         return self._exclude
+
+    def append_exclude_global_entity_set(self, entity_set_name):
+        try:
+            global_entity_sets = self._exclude[GLOBAL_ENTITY]
+        except KeyError:
+            global_entity_sets = []
+        global_entity_sets.append(entity_set_name)
+        self._exclude[GLOBAL_ENTITY] = global_entity_sets

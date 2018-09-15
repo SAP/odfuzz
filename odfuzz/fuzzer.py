@@ -36,21 +36,17 @@ class Manager(object):
 
     def __init__(self, arguments, collection_name):
         self._dispatcher = Dispatcher(arguments, has_certificate=True)
-        self._async = getattr(arguments, 'async')
-        Config.retrieve_config()
-
-        restrictions_file = getattr(arguments, 'restr')
-        if restrictions_file:
-            self._restrictions = RestrictionsGroup(restrictions_file)
-        else:
-            self._restrictions = None
-
+        self._async = arguments.async
+        self._first_touch = arguments.first_touch
+        self._restrictions = RestrictionsGroup(arguments.restr)
         self._collection_name = collection_name
+
+        Config.retrieve_config()
 
     def start(self):
         print('Collection: {}'.format(self._collection_name))
         print('Initializing queryable entities...')
-        builder = Builder(self._dispatcher, self._restrictions)
+        builder = Builder(self._dispatcher, self._restrictions, self._first_touch)
         entities = builder.build()
 
         print('Fuzzing...')

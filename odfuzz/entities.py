@@ -4,6 +4,7 @@ import copy
 import random
 import inspect
 import uuid
+import requests
 
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
@@ -23,20 +24,26 @@ StringSelf = namedtuple('StringSelf', 'max_length')
 OptionRestriction = namedtuple('OptionRestriction', 'restr is_not_restricted')
 
 
-class Builder(object):
+class Builder:
     """A class for building and initializing all queryable entities."""
 
-    def __init__(self, dispatcher, restrictions):
-        self._restrictions = restrictions
+    def __init__(self, dispatcher, restrictions, first_touch):
         self._dispatcher = dispatcher
         self._queryable = QueryableEntities()
 
+        if first_touch:
+            self._first_touch = FirstTouch(restrictions, dispatcher)
+        else:
+            self._first_touch = NullFirstTouch(restrictions)
+
     def build(self):
         data_model = self._get_data_model()
+
         for entity_set in data_model.entity_sets:
             patch_proprties(entity_set.entity_type.proprties())
             principal_entities = get_principal_entities(data_model, entity_set)
-            query_group = QueryGroup(entity_set, self._restrictions, self._dispatcher, principal_entities)
+            restrictions = self._first_touch.analyze(entity_set, principal_entities)
+            query_group = QueryGroup(entity_set, restrictions, self._dispatcher, principal_entities)
             if query_group.query_options():
                 self._queryable.add(query_group)
         return self._queryable
@@ -59,6 +66,49 @@ class Builder(object):
             raise BuilderError('Cannot retrieve metadata from {}. Status code is {}'.format(
                 self._dispatcher.service, metadata_response.status_code))
         return metadata_response
+
+
+class FirstTouch:
+    def __init__(self, restrictions, dispatcher):
+        self._restrictions = restrictions
+        self._dispatcher = dispatcher
+
+    def analyze(self, entity_set, principal_entities):
+        self.check_empty_entity_set(entity_set)
+        self.check_empty_entity(entity_set)
+        self.check_query_options_for_entity_set(entity_set)
+        self.check_query_options_for_entity(entity_set)
+        self.check_associated_entity_sets(entity_set, principal_entities)
+        self.check_query_options_for_associations(entity_set, principal_entities)
+        return self._restrictions
+
+    def check_empty_entity_set(self, entity_set):
+        response = self._dispatcher.get(entity_set.name)
+        if response.status_code == requests.codes.not_implemented:
+            self._restrictions.add_restricted_entity_set(entity_set.name)
+
+    def check_empty_entity(self, entity_set):
+        pass
+
+    def check_query_options_for_entity_set(self, entity_set):
+        pass
+
+    def check_query_options_for_entity(self, entity_set):
+        pass
+
+    def check_associated_entity_sets(self, entity_set, principal_entities):
+        pass
+
+    def check_query_options_for_associations(self, entity_set, principal_entities):
+        pass
+
+
+class NullFirstTouch:
+    def __init__(self, restrictions):
+        self._restrictions = restrictions
+
+    def analyze(self, entity_set, principal_entities):
+        return self._restrictions
 
 
 class QueryableEntities(object):
