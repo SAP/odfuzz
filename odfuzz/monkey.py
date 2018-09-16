@@ -40,8 +40,8 @@ def patch_proprty_precision_scale(proprty):
     if proprty_type == 'Edm.Decimal':
         if proprty.precision == 0:
             proprty._precision = MAX_PRECISION
-        if proprty.scale == 0:
-            proprty._scale = MAX_SCALE
+            if proprty.scale == 0:
+                proprty._scale = MAX_SCALE
 
 
 def patch_proprty_generator(proprty):
