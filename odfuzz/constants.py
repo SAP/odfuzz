@@ -3,6 +3,8 @@
 FUZZER_LOGS_NAME = 'logs'
 STATS_LOGS_NAME = 'stats_overall'
 FILTER_LOGS_NAME = 'stats_filter'
+DATA_RESPONSES_NAME = 'data_responses'
+DATA_RESPONSES_PLOT_NAME = 'responses_plot.html'
 RUNTIME_FILE_NAME = 'runtime_info.txt'
 LOGGING_CONFIG_PATH = 'config/logging/logging.conf'
 CERTIFICATE_PATH = 'config/security/ca_sap_root_base64.crt'

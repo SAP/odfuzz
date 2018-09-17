@@ -8,7 +8,8 @@ import logging.config
 from datetime import datetime
 from collections import namedtuple
 
-from odfuzz.constants import FUZZER_LOGS_NAME, STATS_LOGS_NAME, FILTER_LOGS_NAME, LOGGING_CONFIG_PATH
+from odfuzz.constants import FUZZER_LOGS_NAME, STATS_LOGS_NAME, FILTER_LOGS_NAME, LOGGING_CONFIG_PATH,\
+    DATA_RESPONSES_NAME
 
 NONE_TYPE_POSSIBLE = 'n'
 
@@ -43,8 +44,9 @@ def create_config_defaults(logs_path, stats_path):
     fuzzer = log_file_path(logs_path, FUZZER_LOGS_NAME, 'txt')
     stats_overall = log_file_path(stats_path, STATS_LOGS_NAME, 'csv')
     stats_filter = log_file_path(stats_path, FILTER_LOGS_NAME, 'csv')
+    data_response = log_file_path(stats_path, DATA_RESPONSES_NAME, 'csv')
     config_defaults = {'logs_file': fuzzer, 'stats_file': stats_overall,
-                       'filter_file': stats_filter}
+                       'filter_file': stats_filter, 'data_file': data_response}
     return config_defaults
 
 

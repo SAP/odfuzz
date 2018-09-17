@@ -60,6 +60,9 @@ class Fuzzer(object):
     def __init__(self, dispatcher, entities, collection_name, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._stats_logger = StatsLogger()
+        self._data_logger = logging.getLogger('data')
+        self._data_logger.info('Time;Data;EntitySet;URL;Color')
+        self._colors = {}
 
         self._dispatcher = dispatcher
         self._entities = entities
@@ -182,6 +185,7 @@ class Fuzzer(object):
             self._set_error_attributes(query)
             Stats.fails_num += 1
         else:
+            self._log_response_time_and_data(query.response, query)
             setattr(query.response, 'error_code', '')
             setattr(query.response, 'error_message', '')
 
@@ -238,6 +242,24 @@ class Fuzzer(object):
         value = parsed_etree.xpath(xpath_string, namespaces=NAMESPACES)[0]
         self._logger.info('Fetched \'{}\' from XML'.format(value))
         return value
+
+    def _log_response_time_and_data(self, response, query):
+        json_respone = response.json()
+        try:
+            results = len(json_respone['d']['results'])
+        except Exception:
+            print(response.request.url)
+            print(json_respone)
+            return
+        if results != 0:
+            try:
+                color = self._colors[query.entity_name]
+            except KeyError:
+                r = lambda: random.randint(0,255)
+                color = self._colors[query.entity_name] = '#%02X%02X%02X' % (r(),r(),r())
+            self._data_logger.info('{};{};{};"{}";"{}"'.format(
+                response.elapsed.total_seconds(), results, query.entity_name,
+                query.response.request.url.replace('"', '""'), color))
 
 
 class Queryable(object):

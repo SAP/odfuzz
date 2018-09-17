@@ -29,6 +29,7 @@ from odfuzz.arguments import ArgParser
 from odfuzz.fuzzer import Manager
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers, DirectoriesCreator
+from odfuzz.scatter import ScatterPlotter
 from odfuzz.mongos import CollectionCreator
 from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.exceptions import ArgParserError, ODfuzzException
@@ -100,6 +101,10 @@ def signal_handler(db_collection_name):
     logging.info('Program interrupted. Exiting...')
     stats = StatsPrinter(db_collection_name)
     stats.write()
+
+    scatter = ScatterPlotter(Stats.directory)
+    scatter.create_plot()
+
     sys.exit(0)
 
 
