@@ -61,7 +61,7 @@ class Fuzzer(object):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._stats_logger = StatsLogger()
         self._data_logger = logging.getLogger('data')
-        self._data_logger.info('Time;Data;EntitySet;URL;Color')
+        self._data_logger.info('Time;Data;EntitySet;URL')
         self._colors = {}
 
         self._dispatcher = dispatcher
@@ -252,14 +252,9 @@ class Fuzzer(object):
             print(json_respone)
             return
         if results != 0:
-            try:
-                color = self._colors[query.entity_name]
-            except KeyError:
-                r = lambda: random.randint(0,255)
-                color = self._colors[query.entity_name] = '#%02X%02X%02X' % (r(),r(),r())
-            self._data_logger.info('{};{};{};"{}";"{}"'.format(
+            self._data_logger.info('{};{};{};"{}"'.format(
                 response.elapsed.total_seconds(), results, query.entity_name,
-                query.response.request.url.replace('"', '""'), color))
+                query.response.request.url.replace('"', '""')))
 
 
 class Queryable(object):

@@ -11,31 +11,27 @@ from odfuzz.constants import DATA_RESPONSES_NAME, DATA_RESPONSES_PLOT_NAME
 
 events = {
     'plotly_click': """
-function plotly_click(data) {
-    var tmpElem = document.createElement('textArea');
-    tmpElem.value = (data['points'][0]['text']);
+        function plotly_click(data) {
+            var tmpElem = document.createElement('textArea');
+            tmpElem.value = (data['points'][0]['text']);
 
-    tmpElem.setAttribute('readonly', '');
-    tmpElem.style = {position: 'absolute', left: '-9999px'};
-    document.body.appendChild(tmpElem);
+            tmpElem.setAttribute('readonly', '');
+            tmpElem.style = {position: 'absolute', left: '-9999px'};
+            document.body.appendChild(tmpElem);
 
-    tmpElem.select();
-    document.execCommand('copy');
-    
-    document.body.removeChild(tmpElem);
-    
-    alert('URL copied into clipboard');
+            tmpElem.select();
+            document.execCommand('copy');
+            
+            document.body.removeChild(tmpElem);
+            alert('URL copied into clipboard');
+        }
+    """
 }
-"""
-}
 
 
-def add_custom_plotly_events(filename):
-    # what the value we're looking for the javascript
+def add_plotly_events(filename):
     find_string = "Plotly.newPlot"
-
-    # stop if we find this value
-    stop_string = "then(function(myPlot)"
+    stop_string = "then(function(eventPlot)"
 
     def locate_newplot_script_tag(soup):
         script_tag = soup.find_all(string=re.compile(find_string))
@@ -63,7 +59,7 @@ def add_custom_plotly_events(filename):
     def register_on_events(events):
         on_events_registration = []
         for function_name in events:
-            on_events_registration.append("myPlot.on('{}', {})".format(
+            on_events_registration.append("eventPlot.on('{}', {})".format(
                 function_name, function_name
             ))
         return on_events_registration
@@ -84,7 +80,7 @@ def add_custom_plotly_events(filename):
     # using + to concat the strings as {} in format
     # causes fun times with {} as the brackets in js
     # could possibly overcome this with in ES6 arrows and such
-    line_text = line_text + ".then(function(myPlot) { " + join_javascript_lines(on_events_registration)\
+    line_text = line_text + ".then(function(eventPlot) { " + join_javascript_lines(on_events_registration)\
                           + "  })".replace('\n', ' ').replace('\r', '')
 
     # now add the function bodies we've register in the on handles
@@ -111,14 +107,16 @@ class ScatterPlotter:
     def create_plot(self):
         data = pandas.read_csv(self._csv_file_path + '.csv', delimiter=';')
 
-        trace = go.Scattergl(
-            x=data['Time'],
-            y=data['Data'],
-            text=data['URL'],
-            mode='markers',
-            hovertext=data['EntitySet'],
-            marker={'color': data['Color']}
-        )
+        traces = []
+        for entity_set in data['EntitySet'].unique():
+            trace = go.Scattergl(
+                name=entity_set,
+                x=data[data['EntitySet'].isin([entity_set])]['Time'],
+                y=data[data['EntitySet'].isin([entity_set])]['Data'],
+                text=data[data['EntitySet'].isin([entity_set])]['URL'],
+                mode='markers'
+            )
+            traces.append(trace)
         layout = go.Layout(
             title='Response time overview',
             hovermode='closest',
@@ -126,6 +124,6 @@ class ScatterPlotter:
             yaxis={'title': 'Data'}
         )
 
-        figure = go.Figure(data=[trace], layout=layout, )
+        figure = go.Figure(data=traces, layout=layout)
         plotly.offline.plot(figure, filename=self._html_plot_path, auto_open=False)
-        add_custom_plotly_events(self._html_plot_path)
+        add_plotly_events(self._html_plot_path)
