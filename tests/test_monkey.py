@@ -1,34 +1,31 @@
-import pytest
 import unittest.mock
 import odfuzz.monkey as monkey
 
 from odfuzz.generators import EdmGenerator
-from odfuzz.mutators import StringMutator, NumberMutator
 
 
 def test_defined_max_length_patch(master_entity_type):
     key_property = master_entity_type.proprty('Key')
     monkey.patch_proprty_max_length(key_property)
-    assert key_property.max_string_length == 5
+    assert key_property.max_length == 5
 
 
 def test_non_existent_max_length_patch(master_entity_type):
     data_type_property = master_entity_type.proprty('DataType')
     monkey.patch_proprty_max_length(data_type_property)
-    assert data_type_property.max_string_length == monkey.MAX_STRING_LENGTH
+    assert data_type_property.max_length == monkey.MAX_STRING_LENGTH
 
 
 def test_property_with_max_keyword_length_patch(master_entity_type):
     data_property = master_entity_type.proprty('Data')
     monkey.patch_proprty_max_length(data_property)
-    assert data_property.max_string_length == monkey.MAX_STRING_LENGTH
+    assert data_property.max_length == monkey.MAX_STRING_LENGTH
 
 
 def test_int_type_max_length_patch(master_entity_type):
     fiscal_year_property = master_entity_type.proprty('FiscalYear')
     monkey.patch_proprty_max_length(fiscal_year_property)
-    with pytest.raises(AttributeError):
-        assert fiscal_year_property.max_string_length == 'FAIL'
+    assert fiscal_year_property.max_length == None
 
 
 def test_string_property_generator_patch(master_entity_type):

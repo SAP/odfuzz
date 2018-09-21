@@ -608,10 +608,10 @@ class ResponseTimeLogger:
         except etree.XMLSyntaxError as xml_error:
             self._main_logger.error('An error occurred while parsing XML respones {}'.format(xml_error))
         else:
-            count = self._get_xml_data_count(parsed_xml)
+            count = self.get_xml_data_count(parsed_xml)
             self.log_data(response.elapsed.total_seconds(), count, entity_set_name, response.request.url)
 
-    def _get_xml_data_count(self, parsed_xml):
+    def get_xml_data_count(self, parsed_xml):
         count = len(parsed_xml.xpath("//atom:entry", namespaces=NAMESPACES))
         return count
 
@@ -621,17 +621,29 @@ class ResponseTimeLogger:
         except ValueError:
             self._main_logger.error('JSON response cannot be loaded.')
         else:
-            count = self._get_json_data_count(json_response)
+            count = self.get_json_data_count(json_response)
             self.log_data(response.elapsed.total_seconds(), count, entity_set_name, response.request.url)
 
-    def _get_json_data_count(self, json_response):
+    def get_json_data_count(self, json_response):
+        count = 0
         try:
-            count = len(json_response['d']['results'])
+            root = json_response['d']
         except KeyError:
-            self._main_logger.info('Response does not contain element \'results\' in second layer.')
+            self._main_logger.error('JSON response does not contain root key \'d\'')
         else:
-            return count
-        return 0
+            multiple_entities = root.get('results')
+            if multiple_entities:
+                count = len(multiple_entities)
+            else:
+                count = self._get_json_count_from_single_entity(root)
+        return count
+
+    def _get_json_count_from_single_entity(self, root):
+        count = 1
+        for value in root.values():
+            if isinstance(value, dict) and value.get('results'):
+                count += len(value['results'])
+        return count
 
     def log_data(self, elapsed_seconds, total_count, entity_set_name, url):
         self._data_logger.info('{};{};{};"{}"'.format(
