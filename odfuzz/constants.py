@@ -16,6 +16,7 @@ CONFIG_SECTION = 'default'
 FUZZER_LOGGER = 'fuzzer'
 STATS_LOGGER = 'stats'
 FILTER_LOGGER = 'filter'
+RESPONSE_LOGGER = 'data'
 
 MONGODB_NAME = 'odfuzz'
 ACCESS_PROTOCOL = 'https://'
@@ -87,6 +88,7 @@ TOP_ENTITIES = 20
 
 CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search'
 CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'
+CSV_RESPONSES_HEADER = 'Time;Data;EntitySet;URL'
 
 INFINITY_TIMEOUT = -1
 YEAR_IN_SECONDS = 31622400

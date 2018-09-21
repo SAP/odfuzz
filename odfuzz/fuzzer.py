@@ -60,9 +60,7 @@ class Fuzzer(object):
     def __init__(self, dispatcher, entities, collection_name, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._stats_logger = StatsLogger()
-        self._data_logger = logging.getLogger('data')
-        self._data_logger.info('Time;Data;EntitySet;URL')
-        self._colors = {}
+        self._response_logger = ResponseTimeLogger()
 
         self._dispatcher = dispatcher
         self._entities = entities
@@ -185,7 +183,7 @@ class Fuzzer(object):
             self._set_error_attributes(query)
             Stats.fails_num += 1
         else:
-            self._log_response_time_and_data(query.response, query)
+            self._response_logger.log_response_time_and_data(query.response, 'json', query.entity_name)
             setattr(query.response, 'error_code', '')
             setattr(query.response, 'error_message', '')
 
@@ -242,19 +240,6 @@ class Fuzzer(object):
         value = parsed_etree.xpath(xpath_string, namespaces=NAMESPACES)[0]
         self._logger.info('Fetched \'{}\' from XML'.format(value))
         return value
-
-    def _log_response_time_and_data(self, response, query):
-        json_respone = response.json()
-        try:
-            results = len(json_respone['d']['results'])
-        except Exception:
-            print(response.request.url)
-            print(json_respone)
-            return
-        if results != 0:
-            self._data_logger.info('{};{};{};"{}"'.format(
-                response.elapsed.total_seconds(), results, query.entity_name,
-                query.response.request.url.replace('"', '""')))
 
 
 class Queryable(object):
@@ -601,6 +586,56 @@ class StatsLogger(object):
                 operand=part['operand'].replace('"', '""')
             )
         )
+
+
+class ResponseTimeLogger:
+    def __init__(self):
+        self._main_logger = logging.getLogger(FUZZER_LOGGER)
+        self._data_logger = logging.getLogger(RESPONSE_LOGGER)
+        self._data_logger.info(CSV_RESPONSES_HEADER)
+
+    def log_response_time_and_data(self, response, data_type, entity_set_name):
+        if data_type == 'xml':
+            self.log_xml_data(response, entity_set_name)
+        elif data_type == 'json':
+            self.log_json_data(response, entity_set_name)
+        else:
+            self._main_logger.error('Format \'{}\' is not supported yet.'.format(data_type))
+
+    def log_xml_data(self, response, entity_set_name):
+        try:
+            parsed_xml = etree.fromstring(response.content)
+        except etree.XMLSyntaxError as xml_error:
+            self._main_logger.error('An error occurred while parsing XML respones {}'.format(xml_error))
+        else:
+            count = self._get_xml_data_count(parsed_xml)
+            self.log_data(response.elapsed.total_seconds(), count, entity_set_name, response.request.url)
+
+    def _get_xml_data_count(self, parsed_xml):
+        count = len(parsed_xml.xpath("//atom:entry", namespaces=NAMESPACES))
+        return count
+
+    def log_json_data(self, response, entity_set_name):
+        try:
+            json_response = response.json()
+        except ValueError:
+            self._main_logger.error('JSON response cannot be loaded.')
+        else:
+            count = self._get_json_data_count(json_response)
+            self.log_data(response.elapsed.total_seconds(), count, entity_set_name, response.request.url)
+
+    def _get_json_data_count(self, json_response):
+        try:
+            count = len(json_response['d']['results'])
+        except KeyError:
+            self._main_logger.info('Response does not contain element \'results\' in second layer.')
+        else:
+            return count
+        return 0
+
+    def log_data(self, elapsed_seconds, total_count, entity_set_name, url):
+        self._data_logger.info('{};{};{};"{}"'.format(
+            elapsed_seconds, total_count, entity_set_name, url.replace('"', '""')))
 
 
 class Selector(object):

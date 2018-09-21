@@ -2022,7 +2022,8 @@ NAMESPACES = {
     'm': 'http://schemas.microsoft.com/ado/2007/08/dataservices/metadata',
     'sap': 'http://www.sap.com/Protocols/SAPData',
     'edmx': 'http://schemas.microsoft.com/ado/2007/06/edmx',
-    'edm': 'http://schemas.microsoft.com/ado/2008/09/edm'
+    'edm': 'http://schemas.microsoft.com/ado/2008/09/edm',
+    'atom': 'http://www.w3.org/2005/Atom'
 }
 
 ANNOTATION_NAMESPACES = {'edm': 'http://docs.oasis-open.org/odata/ns/edm'}
