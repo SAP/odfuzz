@@ -1,8 +1,10 @@
 import os
+import sys
 
 import plotly
 import plotly.graph_objs as go
 import pandas
+import pandas.errors
 
 import bs4
 import re
@@ -30,19 +32,19 @@ events = {
 
 
 def add_plotly_events(filename):
-    find_string = "Plotly.newPlot"
-    stop_string = "then(function(eventPlot)"
+    find_string = 'Plotly.newPlot'
+    stop_string = 'then(function(eventPlot)'
 
     def locate_newplot_script_tag(soup):
         script_tag = soup.find_all(string=re.compile(find_string))
 
         if len(script_tag) == 0:
-            raise ValueError("Couldn't locate the newPlot javascript in {}".format(filename))
+            raise ValueError('Cannot locate the newPlot javascript in {}'.format(filename))
         elif len(script_tag) > 1:
-            raise ValueError("Located multiple newPlot javascript in {}".format(filename))
+            raise ValueError('Located multiple newPlot javascript in {}'.format(filename))
 
         if script_tag[0].find(stop_string) > -1:
-            raise ValueError("Already updated javascript, it contains:", stop_string)
+            raise ValueError('The file contains already updated javascript: {}'.format(stop_string))
 
         return script_tag[0]
 
@@ -50,52 +52,44 @@ def add_plotly_events(filename):
         for index, line in enumerate(javascript_lines):
             if line.find(find_string) > -1:
                 return index, line
-        raise ValueError("Missing new plot creation in javascript, couldn't find:", find_string)
+        raise ValueError('Missing new plot creation in javascript, cannot find: {}'.format(find_string))
 
     def join_javascript_lines(javascript_lines):
-        # join the lines with javascript line terminator ;
-        return ";".join(javascript_lines)
+        return ';'.join(javascript_lines)
 
     def register_on_events(events):
         on_events_registration = []
         for function_name in events:
-            on_events_registration.append("eventPlot.on('{}', {})".format(
-                function_name, function_name
-            ))
+            on_events_registration.append('eventPlot.on(\'{}\', {})'.format(function_name, function_name))
         return on_events_registration
 
-    # load the file
-    with open(filename) as inf:
-        txt = inf.read()
-        soup = bs4.BeautifulSoup(txt, "lxml")
+    with open(filename) as html_file:
+        txt = html_file.read()
+        soup = bs4.BeautifulSoup(txt, 'lxml')
 
     new_plot_script_tag = locate_newplot_script_tag(soup)
     javascript_lines = new_plot_script_tag.string.split(";")
 
     line_index, line_text = find_newplot_creation_line(javascript_lines)
-
     on_events_registration = register_on_events(events)
 
-    # replace whitespace characters with actual whitespace
-    # using + to concat the strings as {} in format
-    # causes fun times with {} as the brackets in js
-    # could possibly overcome this with in ES6 arrows and such
-    line_text = line_text + ".then(function(eventPlot) { " + join_javascript_lines(on_events_registration)\
-                          + "  })".replace('\n', ' ').replace('\r', '')
+    # replace whitespace characters with actual whitespace using + to concatenate the strings
+    line_text = line_text + '.then(function(eventPlot) { ' + join_javascript_lines(on_events_registration)\
+                          + '  })'.replace('\n', ' ').replace('\r', '')
 
-    # now add the function bodies we've register in the on handles
+    # add the function bodies we've register in the on handles
     for function_name in events:
         javascript_lines.append(events[function_name])
 
-    # update the specific line
+    # update the line with created function
     javascript_lines[line_index] = line_text
 
     # update the text of the script tag
     new_plot_script_tag.string.replace_with(join_javascript_lines(javascript_lines))
 
     # save the file again
-    with open(filename, "w") as outf:
-        outf.write(str(soup))
+    with open(filename, 'w') as html_file:
+        html_file.write(str(soup))
 
 
 class ScatterPlotter:
@@ -105,8 +99,14 @@ class ScatterPlotter:
         self._html_plot_path = os.path.join(self._stats_directory, DATA_RESPONSES_PLOT_NAME)
 
     def create_plot(self):
-        data = pandas.read_csv(self._csv_file_path + '.csv', delimiter=';')
+        try:
+            data = pandas.read_csv(self._csv_file_path + '.csv', delimiter=';')
+        except pandas.errors.ParserError as pandas_error:
+            sys.stderr.write('An error occurred while reading CSV: {}'.format(pandas_error))
+        else:
+            self.plot_graph(data)
 
+    def plot_graph(self, data):
         traces = []
         for entity_set in data['EntitySet'].unique():
             trace = go.Scattergl(

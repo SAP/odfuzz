@@ -38,7 +38,8 @@ class Manager(object):
         self._dispatcher = Dispatcher(arguments, has_certificate=True)
         self._async = arguments.async
         self._first_touch = arguments.first_touch
-        self._restrictions = RestrictionsGroup(arguments.restr)
+        self._plot_graph = arguments.plot
+        self._restrictions = RestrictionsGroup(arguments.restrictions)
         self._collection_name = collection_name
 
         Config.retrieve_config()
@@ -50,7 +51,7 @@ class Manager(object):
         entities = builder.build()
 
         print('Fuzzing...')
-        fuzzer = Fuzzer(self._dispatcher, entities, self._collection_name, async=self._async)
+        fuzzer = Fuzzer(self._dispatcher, entities, self._collection_name, async=self._async, plot=self._plot_graph)
         fuzzer.run()
 
 
@@ -60,7 +61,11 @@ class Fuzzer(object):
     def __init__(self, dispatcher, entities, collection_name, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._stats_logger = StatsLogger()
-        self._response_logger = ResponseTimeLogger()
+
+        if kwargs.get('plot'):
+            self._response_logger = ResponseTimeLogger()
+        else:
+            self._response_logger = NullOjbect()
 
         self._dispatcher = dispatcher
         self._entities = entities
@@ -183,7 +188,7 @@ class Fuzzer(object):
             self._set_error_attributes(query)
             Stats.fails_num += 1
         else:
-            self._response_logger.log_response_time_and_data(query.response, 'json', query.entity_name)
+            self._response_logger.log_response_time_and_data(query.response, Config.format, query.entity_name)
             setattr(query.response, 'error_code', '')
             setattr(query.response, 'error_message', '')
 
@@ -1072,6 +1077,14 @@ class LoggerErrorWritter:
 
     def write(self, message):
         self._logger.error(message)
+
+
+class NullOjbect:
+    def __call__(self, *args, **kwargs):
+        return self
+
+    def __getattr__(self, item):
+        return self
 
 
 def is_filter_crossable(query1, query2):

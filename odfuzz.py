@@ -46,7 +46,7 @@ def main():
     init_logging(parsed_arguments)
 
     collection_name = create_collection_name(parsed_arguments)
-    set_signal_handler(collection_name)
+    set_signal_handler(collection_name, parsed_arguments.plot)
 
     run_fuzzer(parsed_arguments, collection_name)
 
@@ -79,8 +79,8 @@ def create_collection_name(parsed_arguments):
     return collection_name
 
 
-def set_signal_handler(db_collection_name):
-    gevent.signal(signal.SIGINT, partial(signal_handler, db_collection_name))
+def set_signal_handler(db_collection_name, plot_graph):
+    gevent.signal(signal.SIGINT, partial(signal_handler, db_collection_name, plot_graph))
 
 
 def run_fuzzer(parsed_arguments, collection_name):
@@ -94,16 +94,17 @@ def run_fuzzer(parsed_arguments, collection_name):
         sys.stderr.write(str(ex))
         sys.exit(1)
     except gevent.Timeout:
-        signal_handler(collection_name)
+        signal_handler(collection_name, parsed_arguments.plot)
 
 
-def signal_handler(db_collection_name):
+def signal_handler(db_collection_name, plot_graph):
     logging.info('Program interrupted. Exiting...')
     stats = StatsPrinter(db_collection_name)
     stats.write()
 
-    scatter = ScatterPlotter(Stats.directory)
-    scatter.create_plot()
+    if plot_graph:
+        scatter = ScatterPlotter(Stats.directory)
+        scatter.create_plot()
 
     sys.exit(0)
 

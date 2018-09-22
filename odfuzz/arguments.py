@@ -28,13 +28,15 @@ class ArgParser(object):
         self._parser.add_argument('service', type=str, help='An OData service URL')
         self._parser.add_argument('-l', '--logs', type=str, help='A logs directory')
         self._parser.add_argument('-s', '--stats', type=str, help='A statistics directory')
-        self._parser.add_argument('-r', '--restr', type=str, help='A user defined restrictions')
+        self._parser.add_argument('-r', '--restrictions', type=str, help='A user defined restrictions')
         self._parser.add_argument('-t', '--timeout', type=int, default=INFINITY_TIMEOUT,
                                   help='A general timeout in seconds for a fuzzing')
         self._parser.add_argument('-a', '--async', action='store_true', default=False,
                                   help='Allow ODfuzz to send HTTP requests asynchronously')
         self._parser.add_argument('-f', '--first-touch', action='store_true', default=False,
                                   help='Automatically determine which entities are queryable')
+        self._parser.add_argument('-p', '--plot', action='store_true', default=False,
+                                  help='Log response time and data, and create a scatter plot')
         self._parser.add_argument('-c', '--credentials', type=str, metavar='USERNAME:PASSWORD',
                                   help='User name and password used for authentication')
 
