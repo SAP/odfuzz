@@ -161,8 +161,8 @@ class QueryGroup(object):
                 found_entity = entity
         return found_entity
 
-    def get_accessible_entity_set(self):
-        return self._accessible_entity.get_queryable_entity()
+    def get_accessible_entity_set(self, can_be_single):
+        return self._accessible_entity.get_queryable_entity(can_be_single)
 
     def query_options(self):
         return self._query_options.values()
@@ -1588,21 +1588,21 @@ class EntitySet(metaclass=ABCMeta):
         self._principal_entities = principal_entities
 
     @abstractmethod
-    def get_queryable_entity(self):
+    def get_queryable_entity(self, can_be_single):
         pass
 
 
 class AddressableEntity(EntitySet):
-    def get_queryable_entity(self):
+    def get_queryable_entity(self, can_be_single):
         key_pairs = {}
-        if random.random() <= SINGLE_ENTITY_PROB:
+        if can_be_single and random.random() <= SINGLE_ENTITY_PROB:
             key_pairs = generate_accessible_entity_key_values(self._entity_set)
         accessible_entity = AccessibleEntity(self._entity_set, key_pairs, NullEntityType(None, NullNavProperties([])))
         return accessible_entity
 
 
 class NonAddressableEntity(EntitySet):
-    def get_queryable_entity(self):
+    def get_queryable_entity(self, can_be_single):
         if random.random() <= EMPTY_ENTITY_PROB:
             principal_entity_set = NullEntityType(None, NullNavProperties([]))
             key_pairs = {}

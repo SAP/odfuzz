@@ -253,7 +253,7 @@ class Queryable(object):
         self._logger = logger
 
     def generate_query(self):
-        accessible_entity = self._queryable.get_accessible_entity_set()
+        accessible_entity = self._queryable.get_accessible_entity_set(True)
         query = Query(accessible_entity)
         self.generate_options(query)
         Stats.tests_num += 1
@@ -318,7 +318,7 @@ class Queryable(object):
         return query1
 
     def build_offspring(self, offspring):
-        accessible_entity = self._queryable.get_accessible_entity_set()
+        accessible_entity = self._queryable.get_accessible_entity_set(False)
         query = Query(accessible_entity)
         for option in offspring['order']:
             query.add_option(option[1:], offspring[option])
