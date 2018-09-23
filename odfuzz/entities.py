@@ -1603,17 +1603,13 @@ class AddressableEntity(EntitySet):
 
 class NonAddressableEntity(EntitySet):
     def get_queryable_entity(self, can_be_single):
-        if random.random() <= EMPTY_ENTITY_PROB:
-            principal_entity_set = NullEntityType(None, NullNavProperties([]))
-            key_pairs = {}
+        if self._principal_entities and random.random() <= ASSOCIATED_ENTITY_PROB:
+            containing_entity_set = random.choice(self._principal_entities)
+            principal_entity_set = containing_entity_set
         else:
-            if self._principal_entities and random.random() <= ASSOCIATED_ENTITY_PROB:
-                containing_entity_set = random.choice(self._principal_entities)
-                principal_entity_set = containing_entity_set
-            else:
-                containing_entity_set = self._entity_set
-                principal_entity_set = NullEntityType(None, NullNavProperties([]))
-            key_pairs = generate_accessible_entity_key_values(containing_entity_set)
+            containing_entity_set = self._entity_set
+            principal_entity_set = NullEntityType(None, NullNavProperties([]))
+        key_pairs = generate_accessible_entity_key_values(containing_entity_set)
 
         accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set)
         return accessible_entity
