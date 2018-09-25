@@ -3,7 +3,7 @@
 import yaml
 
 from odfuzz.exceptions import RestrictionsError
-from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION, GLOBAL_ENTITY
+from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION
 
 
 class RestrictionsGroup(object):
@@ -42,12 +42,12 @@ class RestrictionsGroup(object):
         self._init_draft_objects(include_restr)
 
     def _init_draft_objects(self, include_restr):
-        if include_restr:
-            self._option_restrictions[DRAFT_OBJECTS] = include_restr.get(DRAFT_OBJECTS, {})
+        restriction = QueryRestrictions({}, include_restr.get(DRAFT_OBJECTS, {}))
+        self._option_restrictions[DRAFT_OBJECTS] = restriction
 
-    def add_restricted_entity_set(self, entity_set_name):
+    def add_exclude_restriction(self, value, restriction_key):
         for query_restriction in self.option_restrictions():
-            query_restriction.append_exclude_global_entity_set(entity_set_name)
+            query_restriction.add_exclude_restriction(value, restriction_key)
 
     def option_restrictions(self):
         return self._option_restrictions.values()
@@ -74,10 +74,12 @@ class QueryRestrictions(object):
     def exclude(self):
         return self._exclude
 
-    def append_exclude_global_entity_set(self, entity_set_name):
+    def add_exclude_restriction(self, value, restriction_key):
         try:
-            global_entity_sets = self._exclude[GLOBAL_ENTITY]
+            restrictions = self._exclude[restriction_key]
         except KeyError:
-            global_entity_sets = []
-        global_entity_sets.append(entity_set_name)
-        self._exclude[GLOBAL_ENTITY] = global_entity_sets
+            restrictions = []
+        restrictions.append(value)
+
+        unique_values = list(set(restrictions))
+        self._exclude[restriction_key] = unique_values

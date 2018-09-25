@@ -253,7 +253,7 @@ class Queryable(object):
         self._logger = logger
 
     def generate_query(self):
-        accessible_entity = self._queryable.get_accessible_entity_set(True)
+        accessible_entity = self._queryable.get_accessible_entity()
         query = Query(accessible_entity)
         self.generate_options(query)
         Stats.tests_num += 1
@@ -261,12 +261,7 @@ class Queryable(object):
 
     def generate_options(self, query):
         depending_data = {}
-        if query.targets_single_entity():
-            options_list = self._queryable.random_single_entity_options()
-        else:
-            options_list = self._queryable.random_options()
-
-        for option in options_list:
+        for option in self._queryable.random_options():
             generated_option = option.generate(depending_data)
             query.add_option(option.name, generated_option.data)
             depending_data[option.name] = option.get_depending_data()
@@ -283,6 +278,7 @@ class Queryable(object):
         else:
             offspring = self._crossover_options(query1, query2)
         Stats.created_by_crossover += 1
+
         query = self.build_offspring(deepcopy(offspring))
         self._mutate_query(query)
         query.add_predecessor(query1['_id'])
@@ -318,7 +314,8 @@ class Queryable(object):
         return query1
 
     def build_offspring(self, offspring):
-        accessible_entity = self._queryable.get_accessible_entity_set(False)
+        accessible_entity = self._queryable.get_existing_accessible_entity(
+            offspring['accessible_keys'], offspring['accessible_set'])
         query = Query(accessible_entity)
         for option in offspring['order']:
             query.add_option(option[1:], offspring[option])
@@ -637,7 +634,7 @@ class ResponseTimeLogger:
             self._main_logger.error('JSON response does not contain root key \'d\'')
         else:
             multiple_entities = root.get('results')
-            if multiple_entities:
+            if multiple_entities is not None:
                 count = len(multiple_entities)
             else:
                 count = self._get_json_count_from_single_entity(root)
@@ -937,9 +934,6 @@ class Query(object):
     @accessible_entity.setter
     def accessible_entity(self, value):
         self._accessible_entity = value
-
-    def targets_single_entity(self):
-        return self._accessible_entity.targets_single_entity()
 
     def is_option_deletable(self, name):
         return not (name == FILTER and self._accessible_entity.entity_set.requires_filter)

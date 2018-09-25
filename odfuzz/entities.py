@@ -21,7 +21,7 @@ from odfuzz.constants import *
 NullNavProperties = namedtuple('NullNavProprties', 'nav_proprties')
 NullEntityType = namedtuple('NullEntityType', 'name entity_type')
 StringSelf = namedtuple('StringSelf', 'max_length')
-OptionRestriction = namedtuple('OptionRestriction', 'restr is_not_restricted')
+OptionRestriction = namedtuple('OptionRestriction', 'restr is_restricted')
 
 
 class Builder:
@@ -42,10 +42,11 @@ class Builder:
         for entity_set in data_model.entity_sets:
             patch_proprties(entity_set.entity_type.proprties())
             principal_entities = get_principal_entities(data_model, entity_set)
-            restrictions = self._first_touch.analyze(entity_set, principal_entities)
-            query_group = QueryGroup(entity_set, restrictions, self._dispatcher, principal_entities)
-            if query_group.query_options():
-                self._queryable.add(query_group)
+            restrictions = self._first_touch.analyze(entity_set)
+
+            query_group_data = QueryGroupData(entity_set, principal_entities, restrictions, self._dispatcher)
+            self._append_queryable(query_group_data)
+
         return self._queryable
 
     def _get_data_model(self):
@@ -67,47 +68,47 @@ class Builder:
                 self._dispatcher.service, metadata_response.status_code))
         return metadata_response
 
+    def _append_queryable(self, query_group_data):
+        self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
+        self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
+
+        if query_group_data.principal_entities:
+            self._append_corresponding_queryable(QueryGroupAssociation(query_group_data))
+
+    def _append_corresponding_queryable(self, query_group):
+        if query_group.query_options():
+            self._queryable.add(query_group)
+
 
 class FirstTouch:
     def __init__(self, restrictions, dispatcher):
         self._restrictions = restrictions
         self._dispatcher = dispatcher
 
-    def analyze(self, entity_set, principal_entities):
+    def analyze(self, entity_set):
         self.check_empty_entity_set(entity_set)
         self.check_empty_entity(entity_set)
-        self.check_query_options_for_entity_set(entity_set)
-        self.check_query_options_for_entity(entity_set)
-        self.check_associated_entity_sets(entity_set, principal_entities)
-        self.check_query_options_for_associations(entity_set, principal_entities)
         return self._restrictions
 
     def check_empty_entity_set(self, entity_set):
         response = self._dispatcher.get(entity_set.name)
         if response.status_code == requests.codes.not_implemented:
-            self._restrictions.add_restricted_entity_set(entity_set.name)
+            self._restrictions.add_exclude_restriction(entity_set.name, GLOBAL_ENTITY_SET)
 
     def check_empty_entity(self, entity_set):
-        pass
+        non_addressable_entity = SingleEntity(entity_set)
+        queryable_entity = non_addressable_entity.generate_accessible_entity()
 
-    def check_query_options_for_entity_set(self, entity_set):
-        pass
-
-    def check_query_options_for_entity(self, entity_set):
-        pass
-
-    def check_associated_entity_sets(self, entity_set, principal_entities):
-        pass
-
-    def check_query_options_for_associations(self, entity_set, principal_entities):
-        pass
+        response = self._dispatcher.get(queryable_entity.path)
+        if response.status_code == requests.codes.not_implemented:
+            self._restrictions.add_exclude_restriction(entity_set.name, GLOBAL_ENTITY)
 
 
 class NullFirstTouch:
     def __init__(self, restrictions):
         self._restrictions = restrictions
 
-    def analyze(self, entity_set, principal_entities):
+    def analyze(self, entity_set):
         return self._restrictions
 
 
@@ -115,36 +116,21 @@ class QueryableEntities(object):
     """A wrapper that holds a reference to all queryable entities."""
 
     def __init__(self):
-        self._entities = {}
+        self._entities = []
 
     def add(self, query_group):
-        self._entities[query_group.entity_set.name] = query_group
-
-    def get_entity(self, entity_name):
-        return self._entities[entity_name]
+        self._entities.append(query_group)
 
     def all(self):
-        return self._entities.values()
+        return self._entities
 
 
-class QueryGroup(object):
-    """A group of query options applicable to one entity set."""
-
-    def __init__(self, entity_set, restrictions, dispatcher, principal_entities):
+class QueryGroupData:
+    def __init__(self, entity_set, principal_entities, restrictions, dispatcher):
         self._entity_set = entity_set
+        self._principal_entities = principal_entities
         self._restrictions = restrictions
         self._dispatcher = dispatcher
-        self._principal_entities = principal_entities
-        self._query_options = {}
-        self._accessible_entity = None
-
-        self._query_options_list = []
-        self._required_options = []
-        self._single_entity_query_options = []
-        self._single_entity_required_options = []
-
-        self._init_group()
-        self._init_accessible_entity_path()
 
     @property
     def entity_set(self):
@@ -154,15 +140,41 @@ class QueryGroup(object):
     def principal_entities(self):
         return self._principal_entities
 
-    def principal_entity(self, entity_set_name):
-        found_entity = None
-        for entity in self._principal_entities:
-            if entity.name == entity_set_name:
-                found_entity = entity
-        return found_entity
+    @property
+    def restrictions(self):
+        return self._restrictions
 
-    def get_accessible_entity_set(self, can_be_single):
-        return self._accessible_entity.get_queryable_entity(can_be_single)
+    @property
+    def dispatcher(self):
+        return self._dispatcher
+
+
+class QueryGroup:
+    def __init__(self, query_group_data):
+        self._entity_set = query_group_data.entity_set
+        self._principal_entities = query_group_data.principal_entities
+        self._restrictions = query_group_data.restrictions
+        self._dispatcher = query_group_data.dispatcher
+
+        self._query_options = {}
+        self._optional_query_options = []
+        self._required_query_options = []
+
+        self._accessible_entity = None
+
+    @property
+    def entity_set(self):
+        return self._entity_set
+
+    @property
+    def principal_entities(self):
+        return self._principal_entities
+
+    def get_accessible_entity(self):
+        return self._accessible_entity.generate_accessible_entity()
+
+    def get_existing_accessible_entity(self, key_pairs, containing_entity):
+        return self._accessible_entity.generate_existing_entity(key_pairs, containing_entity)
 
     def query_options(self):
         return self._query_options.values()
@@ -171,54 +183,52 @@ class QueryGroup(object):
         return self._query_options[option_name]
 
     def random_options(self):
-        return self._get_random_options(self._query_options_list, self._required_options)
-
-    def random_single_entity_options(self):
-        return self._get_random_options(self._single_entity_query_options, self._single_entity_required_options)
-
-    def _get_random_options(self, query_options, required_options):
-        list_length = len(query_options)
+        list_length = len(self._optional_query_options)
         if list_length == 0:
             sample_length = 0
         else:
             sample_length = round(random.random() * (list_length - 1)) + 1
-        sample_options = random.sample(query_options, sample_length)
-        selected_options = sample_options + required_options
+
+        sample_options = random.sample(self._optional_query_options, sample_length)
+        selected_options = sample_options + self._required_query_options
+
         random.shuffle(selected_options)
         return selected_options
 
-    def _init_group(self):
-        self._init_filter_query()
-        self._init_orderby_query()
-        self._init_expand_query()
-        self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher)
-        self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher)
-        self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher)
-        self._init_single_entity_options()
+    def principal_entity(self, entity_set_name):
+        found_entity = None
+        for entity in self._principal_entities:
+            if entity.name == entity_set_name:
+                found_entity = entity
+        return found_entity
 
-    def _init_query_type(self, option_name, metadata_attr, query_object, dispatcher):
-        if option_name in self._restrictions.forbidden_options():
-            return
+    def get_restrictions(self, option_name, restr_type):
+        if self._restrictions:
+            query_restr = self._restrictions.restriction(option_name)
+            is_restricted = self.is_restricted(query_restr.exclude, restr_type)
+        else:
+            query_restr = None
+            is_restricted = False
+        return OptionRestriction(query_restr, is_restricted)
 
-        option_restr = self._get_restrictions(option_name)
-        is_queryable = getattr(self._entity_set, metadata_attr)
+    def is_restricted(self, exclude_restr, restr_type):
+        if not exclude_restr:
+            return False
 
-        if is_queryable and option_restr.is_not_restricted:
-            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr, dispatcher)
-            include_restrictions = getattr(option_restr.restr, 'include', None)
-            if include_restrictions and include_restrictions.get(self._entity_set.name):
-                self._required_options.append(self._query_options[option_name])
-            else:
-                self._query_options_list.append(self._query_options[option_name])
+        restricted_entities = exclude_restr.get(restr_type)
+        if restricted_entities:
+            if self._entity_set.name in restricted_entities:
+                return True
+        return False
 
-    def _init_filter_query(self):
+    def _init_filter_option(self, restriction_type):
         if FILTER in self._restrictions.forbidden_options():
             return
 
-        option_restr = self._get_restrictions(FILTER)
+        option_restr = self.get_restrictions(FILTER, restriction_type)
         if option_restr.restr:
             exclude_restrictions = option_restr.restr.exclude
-            draft_restrictions = self._get_draft_restrictions()
+            draft_restrictions = self._restrictions.restriction(DRAFT_OBJECTS)
             draft_properties = get_draft_properties(self._entity_set.name, draft_restrictions)
             needs_filter = True
         else:
@@ -229,79 +239,53 @@ class QueryGroup(object):
         self._expand_complex_proprties(entity_set)
         self._entity_set._req_filter = entity_set._req_filter = needs_filter
 
-        if option_restr.is_not_restricted and entity_set.entity_type.proprties() or draft_properties:
+        if not option_restr.is_restricted and entity_set.entity_type.proprties() or draft_properties:
             self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr, draft_properties)
             self._add_filter_option_to_list(entity_set)
 
-    def _get_draft_restrictions(self):
-        try:
-            draft_restrictions = self._restrictions.restriction(DRAFT_OBJECTS)
-        except KeyError:
-            draft_restrictions = None
-        return draft_restrictions
+    def _init_expand_option(self, restriction_type):
+        if EXPAND in self._restrictions.forbidden_options():
+            return
 
-    def _init_orderby_query(self):
+        option_restr = self.get_restrictions(EXPAND, restriction_type)
+        if option_restr.restr:
+            entity_set = self._delete_restricted_nav_proprties(option_restr.restr)
+        else:
+            entity_set = self._entity_set
+
+        if not option_restr.is_restricted and self._entity_set.entity_type.nav_proprties:
+            self._query_options[EXPAND] = ExpandQuery(entity_set, option_restr.restr)
+            self._required_query_options.append(self._query_options[EXPAND])
+
+    def _init_orderby_query(self, restriction_type):
         if ORDERBY in self._restrictions.forbidden_options():
             return
 
-        option_restr = self._get_restrictions(ORDERBY)
+        option_restr = self.get_restrictions(ORDERBY, restriction_type)
         if option_restr.restr:
             exclude_restrictions = option_restr.restr.exclude
         else:
             exclude_restrictions = []
         entity_set = self._delete_restricted_proprties(exclude_restrictions, 'sortable', [])
 
-        if option_restr.is_not_restricted and entity_set.entity_type.proprties():
+        if not option_restr.is_restricted and entity_set.entity_type.proprties():
             self._query_options[ORDERBY] = OrderbyQuery(entity_set, option_restr.restr)
-            self._query_options_list.append(self._query_options[ORDERBY])
+            self._optional_query_options.append(self._query_options[ORDERBY])
 
-    def _init_expand_query(self):
-        if EXPAND in self._restrictions.forbidden_options():
+    def _init_query_type(self, option_name, metadata_attr, query_object, dispatcher, restriction_type):
+        if option_name in self._restrictions.forbidden_options():
             return
 
-        option_restr = self._get_restrictions(EXPAND)
-        if option_restr.restr:
-            entity_set = self._delete_restricted_nav_proprties(option_restr.restr)
-        else:
-            entity_set = self._entity_set
-        if option_restr.is_not_restricted and self._entity_set.entity_type.nav_proprties:
-            self._query_options[EXPAND] = ExpandQuery(entity_set, option_restr.restr)
-            self._query_options_list.append(self._query_options[EXPAND])
+        option_restr = self.get_restrictions(option_name, restriction_type)
+        is_queryable = getattr(self._entity_set, metadata_attr)
 
-    def _delete_restricted_nav_proprties(self, option_restrictions):
-        entity_set = self._entity_set
-        if option_restrictions.exclude:
-            entity_set = copy.deepcopy(self._entity_set)
-            restricted_proprties = set(option_restrictions.exclude.get(NAV_PROPRTY, []))
-            restricted_proprties |= set(option_restrictions.exclude.get(self._entity_set.name, []))
-            for navigation_proprty in self._entity_set.entity_type.nav_proprties:
-                if navigation_proprty.name in restricted_proprties:
-                    del entity_set.entity_type._nav_properties[navigation_proprty.name]
-        return entity_set
-
-    def _get_restrictions(self, option_name):
-        if self._restrictions:
-            query_restr = self._restrictions.restriction(option_name)
-            is_not_restricted = self._is_not_restricted(query_restr.exclude)
-        else:
-            query_restr = None
-            is_not_restricted = True
-        return OptionRestriction(query_restr, is_not_restricted)
-
-    def _add_filter_option_to_list(self, entity_set):
-        if entity_set.requires_filter:
-            self._required_options.append(self._query_options[FILTER])
-        else:
-            self._query_options_list.append(self._query_options[FILTER])
-
-    def _is_not_restricted(self, exclude_restr):
-        if not exclude_restr:
-            return True
-        restricted_entities = exclude_restr.get(GLOBAL_ENTITY)
-        if restricted_entities:
-            if self._entity_set.name in restricted_entities:
-                return False
-        return True
+        if is_queryable and not option_restr.is_restricted:
+            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr, dispatcher)
+            include_restrictions = getattr(option_restr.restr, 'include', None)
+            if include_restrictions and include_restrictions.get(self._entity_set.name):
+                self._required_query_options.append(self._query_options[option_name])
+            else:
+                self._optional_query_options.append(self._query_options[option_name])
 
     def _delete_restricted_proprties(self, exclude_restr, attribute, draft_proprties):
         entity_set = copy.deepcopy(self._entity_set)
@@ -332,20 +316,74 @@ class QueryGroup(object):
                 proprty._name = prefix + '/' + proprty.name
                 entity_set.entity_type._properties[proprty.name] = proprty
 
-    def _init_accessible_entity_path(self):
-        if self._entity_set.addressable:
-            self._accessible_entity = AddressableEntity(self._entity_set, self._principal_entities)
+    def _add_filter_option_to_list(self, entity_set):
+        if entity_set.requires_filter:
+            self._required_query_options.append(self._query_options[FILTER])
         else:
-            self._accessible_entity = NonAddressableEntity(self._entity_set, self._principal_entities)
+            self._optional_query_options.append(self._query_options[FILTER])
 
-    def _init_single_entity_options(self):
-        self._init_options_from_main_list(self._query_options_list, self._single_entity_query_options)
-        self._init_options_from_main_list(self._required_options, self._single_entity_required_options)
+    def _delete_restricted_nav_proprties(self, option_restrictions):
+        entity_set = self._entity_set
+        if option_restrictions.exclude:
+            entity_set = copy.deepcopy(self._entity_set)
+            restricted_proprties = set(option_restrictions.exclude.get(NAV_PROPRTY, []))
+            restricted_proprties |= set(option_restrictions.exclude.get(self._entity_set.name, []))
+            for navigation_proprty in self._entity_set.entity_type.nav_proprties:
+                if navigation_proprty.name in restricted_proprties:
+                    del entity_set.entity_type._nav_properties[navigation_proprty.name]
+        return entity_set
 
-    def _init_options_from_main_list(self, main_query_options_list, single_entity_query_options):
-        for option in main_query_options_list:
-            if option.name in SINGLE_ENTITY_ALLOWED_OPTIONS:
-                single_entity_query_options.append(option)
+
+class QueryGroupSingle(QueryGroup):
+    def __init__(self, query_group_data):
+        super(QueryGroupSingle, self).__init__(query_group_data)
+        self._init_group()
+        self._init_accessible_entity()
+
+    def _init_group(self):
+        self._init_filter_option(GLOBAL_ENTITY)
+        self._init_expand_option(GLOBAL_ENTITY)
+
+    def _init_accessible_entity(self):
+        self._accessible_entity = SingleEntity(self._entity_set)
+
+
+class QueryGroupMultiple(QueryGroup):
+    """A group of query options applicable to one entity set."""
+
+    def __init__(self, query_group_data):
+        super(QueryGroupMultiple, self).__init__(query_group_data)
+        self._init_group()
+        self._init_accessible_entity()
+
+    def _init_group(self):
+        self._init_filter_option(GLOBAL_ENTITY_SET)
+        self._init_expand_option(GLOBAL_ENTITY_SET)
+        self._init_orderby_query(GLOBAL_ENTITY_SET)
+        self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher, GLOBAL_ENTITY_SET)
+        self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher, GLOBAL_ENTITY_SET)
+        self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher, GLOBAL_ENTITY_SET)
+
+    def _init_accessible_entity(self):
+        self._accessible_entity = MultipleEntities(self._entity_set)
+
+
+class QueryGroupAssociation(QueryGroup):
+    def __init__(self, query_group_data):
+        super(QueryGroupAssociation, self).__init__(query_group_data)
+        self._init_group()
+        self._init_accessible_entity()
+
+    def _init_group(self):
+        self._init_filter_option(GLOBAL_ENTITY_ASSOC)
+        self._init_expand_option(GLOBAL_ENTITY_ASSOC)
+        self._init_orderby_query(GLOBAL_ENTITY_ASSOC)
+        self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher, GLOBAL_ENTITY_ASSOC)
+        self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher, GLOBAL_ENTITY_ASSOC)
+        self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher, GLOBAL_ENTITY_ASSOC)
+
+    def _init_accessible_entity(self):
+        self._accessible_entity = AssociatedEntities(self._entity_set, self._principal_entities)
 
 
 class QueryOption(metaclass=ABCMeta):
@@ -1582,6 +1620,7 @@ class FilterFunction(object):
         return self._function_type.generate()
 
 
+'''
 class EntitySet(metaclass=ABCMeta):
     def __init__(self, entity_set, principal_entities):
         self._entity_set = entity_set
@@ -1612,6 +1651,59 @@ class NonAddressableEntity(EntitySet):
         key_pairs = generate_accessible_entity_key_values(containing_entity_set)
 
         accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set)
+        return accessible_entity
+'''
+
+class EntitySetRequest(metaclass=ABCMeta):
+    def __init__(self, entity_set, principal_entities=None):
+        self._entity_set = entity_set
+
+        if principal_entities is None:
+            self._principal_entities = []
+        else:
+            self._principal_entities = principal_entities
+
+    def generate_existing_entity(self, key_pairs, containing_entity):
+        if containing_entity:
+            principal_entity_set = self._get_containing_entity(containing_entity)
+        else:
+            principal_entity_set = NullEntityType(None, NullNavProperties([]))
+
+        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set)
+        return accessible_entity
+
+    def _get_containing_entity(self, containing_entity):
+        for entity_set in self._principal_entities:
+            if containing_entity == entity_set.name:
+                return entity_set
+        return NullEntityType(None, NullNavProperties([]))
+
+    @abstractmethod
+    def generate_accessible_entity(self):
+        pass
+
+
+class SingleEntity(EntitySetRequest):
+    def generate_accessible_entity(self):
+        key_pairs = generate_accessible_entity_key_values(self._entity_set)
+        null_principal_entity = NullEntityType(None, NullNavProperties([]))
+        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, null_principal_entity)
+        return accessible_entity
+
+
+class MultipleEntities(EntitySetRequest):
+    def generate_accessible_entity(self):
+        key_pairs = {}
+        null_principal_entity = NullEntityType(None, NullNavProperties([]))
+        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, null_principal_entity)
+        return accessible_entity
+
+
+class AssociatedEntities(EntitySetRequest):
+    def generate_accessible_entity(self):
+        containing_entity = random.choice(self._principal_entities)
+        key_pairs = generate_accessible_entity_key_values(containing_entity)
+        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, containing_entity)
         return accessible_entity
 
 
@@ -1652,9 +1744,6 @@ class AccessibleEntity(object):
     def path(self):
         self._build_entity_path()
         return self._accessible_entity_path
-
-    def targets_single_entity(self):
-        return self._key_pairs and self._accessible_entity_path != self._entity_set.name
 
     def _build_entity_path(self):
         if self._key_pairs:
@@ -1804,7 +1893,5 @@ def generate_accessible_entity_key_values(containing_entity_set):
 
 
 def get_draft_properties(entity_set_name, draft_objects):
-    draft_properties = []
-    if draft_objects:
-        draft_properties = draft_objects.get(entity_set_name, [])
+    draft_properties = draft_objects.include.get(entity_set_name, [])
     return draft_properties

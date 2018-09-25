@@ -101,8 +101,10 @@ class ScatterPlotter:
     def create_plot(self):
         try:
             data = pandas.read_csv(self._csv_file_path + '.csv', delimiter=';')
+        except pandas.errors.EmptyDataError:
+            sys.stderr.write('Cannot read empty CSV file\n')
         except pandas.errors.ParserError as pandas_error:
-            sys.stderr.write('An error occurred while reading CSV: {}'.format(pandas_error))
+            sys.stderr.write('An error occurred while reading CSV: {}\n'.format(pandas_error))
         else:
             self.plot_graph(data)
 
