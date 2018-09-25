@@ -7,15 +7,17 @@ from odfuzz.arguments import ArgParserError
 def test_argument_parsing(argparser):
     parsed_arguments = argparser.parse(
         ['https://www.odata.org/', '-s', 'stats', '-l', 'logs', '-a', '-r', 'restrict', '-t', '1000',
-         '-c', 'Username:Password'])
+         '-c', 'Username:Password', '-p', '-f'])
 
     assert parsed_arguments.service == 'https://www.odata.org/'
     assert parsed_arguments.stats == 'stats'
     assert parsed_arguments.logs == 'logs'
-    assert parsed_arguments.restr == 'restrict'
+    assert parsed_arguments.restrictions == 'restrict'
     assert parsed_arguments.credentials == 'Username:Password'
     assert parsed_arguments.timeout == 1000
     assert parsed_arguments.async
+    assert parsed_arguments.plot
+    assert parsed_arguments.first_touch
 
 
 def test_default_timeout_value(argparser):

@@ -335,6 +335,28 @@ def expanded_entity_set_xml():
 
 
 @pytest.fixture
+def no_entity_sets_xml():
+    return etree.fromstring("""
+     <feed xmlns="http://www.w3.org/2005/Atom" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xml:base="https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV/">
+      <id>
+       https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV/VL_SH_H_T012
+      </id>
+      <title type="text">VL_SH_H_T012</title>
+      <updated>2018-09-24T11:55:20Z</updated>
+      <author>
+       <name/>
+      </author>
+      <link href="VL_SH_H_T012" rel="self" title="VL_SH_H_T012"/>
+      <m:count>0</m:count>
+     </feed>""")
+
+
+@pytest.fixture
+def no_entity_sets_json():
+    return json.loads("""{"d":{"__count":"0","results":[]}}""")
+
+
+@pytest.fixture
 def single_entity_json():
     return json.loads("""
     {"d":{"__metadata":{"id":"https://example.com/EXAMPLE_SRV/EntitySet(Event='SAP06',VariantId='SAP06',Id='SAP06')",

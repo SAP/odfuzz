@@ -16,6 +16,16 @@ def test_expanded_entities_xml_response_count(expanded_entity_set_xml):
     assert count == 4
 
 
+def test_no_entities_xml_response_count(no_entity_sets_xml):
+    count = ResponseTimeLogger().get_xml_data_count(no_entity_sets_xml)
+    assert count == 0
+
+
+def test_no_entities_json_response_count(no_entity_sets_json):
+    count = ResponseTimeLogger().get_json_data_count(no_entity_sets_json)
+    assert count == 0
+
+
 def test_single_entity_json_responses_count(single_entity_json):
     count = ResponseTimeLogger().get_json_data_count(single_entity_json)
     assert count == 1
