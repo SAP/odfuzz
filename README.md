@@ -75,6 +75,8 @@ optional arguments:
   -c USERNAME:PASSWORD, --credentials USERNAME:PASSWORD
                         User name and password used for authentication
   -a, --async           Allow ODfuzz to send HTTP requests asynchronously
+  -f, --first-touch     Automatically determine which entities are queryable
+  -p, --plot            Log response time and data, and create a scatter plot
 ```
 
 ### Runtime
@@ -106,10 +108,10 @@ python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRES
 2. Let it run for a couple of hours (or minutes). Cancel execution of the fuzzer with CTRL + C.
 3. Browse overall stats, for example, by the following scenario:
     - You want to discover what type of queries triggers undefined behaviour. Open the *stats_overall.csv* file via [Pivot](https://github.wdf.sap.corp/I342520/Pivot). Select entities you want to examine, select an HTTP status code you want to consider (e.g. 500), select names of Properties, etc. You may notice that the filter query option caused a lot of errors. Open the *stats_filter.csv* file again via [Pivot](https://github.wdf.sap.corp/I342520/Pivot) to discover what logical operators or operands caused an internal server error.
-    - Queries which produced the errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
-    - Open SAP Logon and browse errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
+    - Queries which produced errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
+    - Open SAP Logon and browse the errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
 
-NOTE: ODfuzz uses a custom header **user-agent=odfuzz/1.0** in all HTTP requests. You may be able to filter internet traffic based on this header.
+NOTE: ODfuzz uses a custom header **user-agent=odfuzz/1.0** in all HTTP requests. You may be able to filter the internet traffic based on this header.
 
 ### Restrictions
 With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following YAML format:
@@ -119,12 +121,12 @@ With restrictions, a user is able to define rules which forbid a usage of some e
         - $filter
         - $orderby
         ...
-    [ $filter | $orderby | $skip | ... ]:
+    [ $filter | $orderby | $skip | $top | $expand | ... ]:
         EntitySet name:
             - Property name
             - Property name
             ...
-        [ $F_ALL$ | $E_ALL$ | $P_ALL$ | ... ]:
+        [ $ENTITY_SET$ | $ENTITY$ | $ENTITY_ASSOC$ | $F_ALL$ | $P_ALL$ | ... ]:
             - [ Function name | EntitySet name | Property name ]
             ...
 ```
