@@ -188,7 +188,7 @@ class Fuzzer(object):
             self._set_error_attributes(query)
             Stats.fails_num += 1
         else:
-            self._response_logger.log_response_time_and_data(query.response, Config.format, query.entity_name)
+            self._response_logger.log_response_time_and_data(query, Config.format)
             setattr(query.response, 'error_code', '')
             setattr(query.response, 'error_message', '')
 
@@ -596,35 +596,35 @@ class ResponseTimeLogger:
         self._data_logger = logging.getLogger(RESPONSE_LOGGER)
         self._data_logger.info(CSV_RESPONSES_HEADER)
 
-    def log_response_time_and_data(self, response, data_type, entity_set_name):
+    def log_response_time_and_data(self, query, data_type):
         if data_type == 'xml':
-            self.log_xml_data(response, entity_set_name)
+            self.log_xml_data(query)
         elif data_type == 'json':
-            self.log_json_data(response, entity_set_name)
+            self.log_json_data(query)
         else:
             self._main_logger.error('Format \'{}\' is not supported yet.'.format(data_type))
 
-    def log_xml_data(self, response, entity_set_name):
+    def log_xml_data(self, query):
         try:
-            parsed_xml = etree.fromstring(response.content)
+            parsed_xml = etree.fromstring(query.response.content)
         except etree.XMLSyntaxError as xml_error:
             self._main_logger.error('An error occurred while parsing XML respones {}'.format(xml_error))
         else:
             count = self.get_xml_data_count(parsed_xml)
-            self.log_data(response.elapsed.total_seconds(), count, entity_set_name, response.request.url)
+            self.log_data(query, count)
 
     def get_xml_data_count(self, parsed_xml):
         count = len(parsed_xml.xpath("//atom:entry", namespaces=NAMESPACES))
         return count
 
-    def log_json_data(self, response, entity_set_name):
+    def log_json_data(self, query):
         try:
-            json_response = response.json()
+            json_response = query.response.json()
         except ValueError:
             self._main_logger.error('JSON response cannot be loaded.')
         else:
             count = self.get_json_data_count(json_response)
-            self.log_data(response.elapsed.total_seconds(), count, entity_set_name, response.request.url)
+            self.log_data(query, count)
 
     def get_json_data_count(self, json_response):
         count = 0
@@ -647,9 +647,17 @@ class ResponseTimeLogger:
                 count += len(value['results'])
         return count
 
-    def log_data(self, elapsed_seconds, total_count, entity_set_name, url):
-        self._data_logger.info('{};{};{};"{}"'.format(
-            elapsed_seconds, total_count, entity_set_name, url.replace('"', '""')))
+    def log_data(self, query, count):
+        elapsed_seconds = query.response.elapsed.total_seconds()
+        response_size = len(query.response.content)
+        entity_set_name = query.entity_name
+        url = query.response.request.url
+
+        query_options = '+'.join([query_option for query_option in query.options])
+        brief_info = '{} {} ({})'.format(entity_set_name, query_options, count)
+
+        self._data_logger.info('{};{};{};"{}";{}'.format(
+            elapsed_seconds, response_size, entity_set_name, url.replace('"', '""'), brief_info))
 
 
 class Selector(object):

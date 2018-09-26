@@ -90,7 +90,7 @@ TOP_ENTITIES = 20
 
 CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search'
 CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'
-CSV_RESPONSES_HEADER = 'Time;Data;EntitySet;URL'
+CSV_RESPONSES_HEADER = 'Time;Data;EntitySet;URL;Brief'
 
 INFINITY_TIMEOUT = -1
 YEAR_IN_SECONDS = 31622400

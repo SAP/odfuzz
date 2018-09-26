@@ -116,14 +116,17 @@ class ScatterPlotter:
                 x=data[data['EntitySet'].isin([entity_set])]['Time'],
                 y=data[data['EntitySet'].isin([entity_set])]['Data'],
                 text=data[data['EntitySet'].isin([entity_set])]['URL'],
+                hovertext=data[data['EntitySet'].isin([entity_set])]['Brief'],
+                hoverinfo='x+y+text',
                 mode='markers'
             )
             traces.append(trace)
+
         layout = go.Layout(
             title='Response time overview',
             hovermode='closest',
-            xaxis={'title': 'Time'},
-            yaxis={'title': 'Data'}
+            xaxis={'title': 'Time (Seconds)'},
+            yaxis={'title': 'Data (Bytes)'}
         )
 
         figure = go.Figure(data=traces, layout=layout)
