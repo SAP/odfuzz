@@ -90,6 +90,9 @@ Output of the fuzzer is stored in the user defined directories (e.g. logs_direct
 - Simple
     - Requests that triggered an internal server error (HTTP 500) are written into multiple *.txt files. Name of the file is the name of the corresponding entity set in which the error occurred.
     - Runtime stats are saved to the *runtime_info.txt* file. This file contains various runtime information such as a number of generated tests (HTTP GET requests), number of failed tests (status code of the response is not equal to HTTP 200 OK), number of tests created by a crossover and number of tests created by a mutation.
+- Plotly
+    - Response time and data count are continuously logged.
+    - Data are stored in the *data_responses.csv* file. When the fuzzer ends, an interactive scatter plot is built via plotly library. The scatter plot is viewable by any conventional web browser. Learn more about [plotly](https://plot.ly/python/line-and-scatter/).
 
 When a connection is forcibly closed by a host (e.g. user was disconnected from VPN), ODfuzz ends with an error message, but still creates all necessary stats files.
 
