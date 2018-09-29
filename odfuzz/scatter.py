@@ -48,14 +48,11 @@ def add_plotly_events(filename):
 
         return script_tag[0]
 
-    def find_newplot_creation_line(javascript_lines):
-        for index, line in enumerate(javascript_lines):
-            if line.find(find_string) > -1:
-                return index, line
-        raise ValueError('Missing new plot creation in javascript, cannot find: {}'.format(find_string))
-
     def join_javascript_lines(javascript_lines):
         return ';'.join(javascript_lines)
+
+    def split_lines_by_newplot_tag(javascript_source):
+        return javascript_source.string.split('Plotly.newPlot')
 
     def register_on_events(events):
         on_events_registration = []
@@ -68,9 +65,9 @@ def add_plotly_events(filename):
         soup = bs4.BeautifulSoup(txt, 'lxml')
 
     new_plot_script_tag = locate_newplot_script_tag(soup)
-    javascript_lines = new_plot_script_tag.string.split(";")
+    javascript_lines = split_lines_by_newplot_tag(new_plot_script_tag)
 
-    line_index, line_text = find_newplot_creation_line(javascript_lines)
+    line_index, line_text = 1, javascript_lines[1]
     on_events_registration = register_on_events(events)
 
     # replace whitespace characters with actual whitespace using + to concatenate the strings
@@ -78,14 +75,15 @@ def add_plotly_events(filename):
                           + '  })'.replace('\n', ' ').replace('\r', '')
 
     # add the function bodies we've register in the on handles
+    functions = []
     for function_name in events:
-        javascript_lines.append(events[function_name])
+        functions.append(events[function_name])
 
-    # update the line with created function
-    javascript_lines[line_index] = line_text
+    # update the line with created functions
+    javascript_lines[line_index] = line_text + ';'.join(functions)
 
     # update the text of the script tag
-    new_plot_script_tag.string.replace_with(join_javascript_lines(javascript_lines))
+    new_plot_script_tag.string.replace_with('Plotly.newPlot'.join(javascript_lines))
 
     # save the file again
     with open(filename, 'w') as html_file:
