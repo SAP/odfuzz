@@ -31,7 +31,7 @@ class ArgParser(object):
         self._parser.add_argument('-r', '--restrictions', type=str, help='A user defined restrictions')
         self._parser.add_argument('-t', '--timeout', type=int, default=INFINITY_TIMEOUT,
                                   help='A general timeout in seconds for a fuzzing')
-        self._parser.add_argument('-a', '--async', action='store_true', default=False,
+        self._parser.add_argument('-a', '--asynchronous', action='store_true', default=False,
                                   help='Allow ODfuzz to send HTTP requests asynchronously')
         self._parser.add_argument('-f', '--first-touch', action='store_true', default=False,
                                   help='Automatically determine which entities are queryable')

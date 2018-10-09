@@ -15,7 +15,7 @@ def test_argument_parsing(argparser):
     assert parsed_arguments.restrictions == 'restrict'
     assert parsed_arguments.credentials == 'Username:Password'
     assert parsed_arguments.timeout == 1000
-    assert parsed_arguments.async
+    assert parsed_arguments.asynchronous
     assert parsed_arguments.plot
     assert parsed_arguments.first_touch
 

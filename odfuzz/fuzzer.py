@@ -36,7 +36,7 @@ class Manager(object):
 
     def __init__(self, arguments, collection_name):
         self._dispatcher = Dispatcher(arguments, has_certificate=True)
-        self._async = arguments.async
+        self._asynchronous = arguments.asynchronous
         self._first_touch = arguments.first_touch
         self._plot_graph = arguments.plot
         self._restrictions = RestrictionsGroup(arguments.restrictions)
@@ -51,7 +51,8 @@ class Manager(object):
         entities = builder.build()
 
         print('Fuzzing...')
-        fuzzer = Fuzzer(self._dispatcher, entities, self._collection_name, async=self._async, plot=self._plot_graph)
+        fuzzer = Fuzzer(self._dispatcher, entities, self._collection_name, asynchronous=self._asynchronous,
+                        plot=self._plot_graph)
         fuzzer.run()
 
 
@@ -76,8 +77,8 @@ class Fuzzer(object):
         self._analyzer = Analyzer(self._mongodb)
         self._selector = Selector(self._mongodb, self._entities)
 
-        self._async = kwargs.get('async')
-        if self._async:
+        self._asynchronous = kwargs.get('asynchronous')
+        if self._asynchronous:
             self._queryable_factory = MultipleQueryable
             self._dispatch = self._get_multiple_responses
         else:
@@ -119,7 +120,7 @@ class Fuzzer(object):
         self._logger.info('Seeding population with requests...')
         for queryable in self._entities.all():
             seed_range = len(queryable.entity_set.entity_type.proprties()) * Config.seed_size
-            if self._async:
+            if self._asynchronous:
                 seed_range = round(seed_range / Config.pool_size)
             self._logger.info('Population range for entity \'{}\' is set to {}'
                               .format(queryable.entity_set.name, seed_range))

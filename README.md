@@ -74,7 +74,7 @@ optional arguments:
                         A general timeout in seconds for a fuzzing
   -c USERNAME:PASSWORD, --credentials USERNAME:PASSWORD
                         User name and password used for authentication
-  -a, --async           Allow ODfuzz to send HTTP requests asynchronously
+  -a, --asynchronous    Allow ODfuzz to send HTTP requests asynchronously
   -f, --first-touch     Automatically determine which entities are queryable
   -p, --plot            Log response time and data, and create a scatter plot
 ```
