@@ -32,6 +32,7 @@ TOP = '$top'
 SKIP = '$skip'
 FILTER = '$filter'
 SEARCH = 'search'
+INLINECOUNT = '$inlinecount'
 
 GLOBAL_ENTITY_SET = '$ENTITY_SET$'
 GLOBAL_ENTITY = '$ENTITY$'
@@ -42,7 +43,7 @@ FORBID_OPTION = '$FORBID$'
 DRAFT_OBJECTS = '$DRAFT$'
 NAV_PROPRTY = '$NAV_PROP$'
 
-QUERY_OPTIONS = [FILTER, ORDERBY, TOP, SKIP, EXPAND, SEARCH]
+QUERY_OPTIONS = [FILTER, ORDERBY, TOP, SKIP, EXPAND, SEARCH, INLINECOUNT]
 SINGLE_ENTITY_ALLOWED_OPTIONS = [FILTER, EXPAND]
 
 STRING_FUNC_PROB = 0.70
@@ -51,6 +52,7 @@ DATE_FUNC_PROB = 0.15
 FUNCTION_WEIGHT = 0.3
 SINGLE_VALUE_PROB = 0.2
 SINGLE_ENTITY_PROB = 0.05
+INLINECOUNT_ALL_PAGES_PROB = 0.5
 
 SEARCH_MAX_LEN = 20
 FUZZY_SEARCH_WILDCARD_PROB = 0.2
@@ -88,7 +90,7 @@ MAX_EXPAND_VALUES = 3
 FILTER_SAMPLE_SIZE = 30
 TOP_ENTITIES = 20
 
-CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search'
+CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search;inlinecount'
 CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'
 CSV_RESPONSES_HEADER = 'Time;Data;EntitySet;URL;Brief'
 

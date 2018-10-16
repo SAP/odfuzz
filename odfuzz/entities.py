@@ -363,6 +363,7 @@ class QueryGroupMultiple(QueryGroup):
         self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher, GLOBAL_ENTITY_SET)
         self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher, GLOBAL_ENTITY_SET)
         self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher, GLOBAL_ENTITY_SET)
+        self._init_query_type(INLINECOUNT, 'countable', InlineCountQuery, self._dispatcher, GLOBAL_ENTITY_SET)
 
     def _init_accessible_entity(self):
         self._accessible_entity = MultipleEntities(self._entity_set)
@@ -381,6 +382,7 @@ class QueryGroupAssociation(QueryGroup):
         self._init_query_type(TOP, 'topable', TopQuery, self._dispatcher, GLOBAL_ENTITY_ASSOC)
         self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher, GLOBAL_ENTITY_ASSOC)
         self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher, GLOBAL_ENTITY_ASSOC)
+        self._init_query_type(INLINECOUNT, 'countable', InlineCountQuery, self._dispatcher, GLOBAL_ENTITY_SET)
 
     def _init_accessible_entity(self):
         self._accessible_entity = AssociatedEntities(self._entity_set, self._principal_entities)
@@ -420,6 +422,25 @@ class QueryOption(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def get_depending_data(self):
+        pass
+
+
+class InlineCountQuery(QueryOption):
+    def __init__(self, entity, restrictions, dispatcher):
+        super(InlineCountQuery, self).__init__(entity, INLINECOUNT, '$', restrictions)
+
+    def apply_restrictions(self):
+        pass
+
+    def generate(self, depending_data):
+        option = Option()
+        if random.random() <= INLINECOUNT_ALL_PAGES_PROB:
+            option.option_string = 'allpages'
+        else:
+            option.option_string = 'none'
+        return option
+
     def get_depending_data(self):
         pass
 
