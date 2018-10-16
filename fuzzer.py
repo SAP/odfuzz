@@ -26,7 +26,7 @@ from datetime import datetime
 from functools import partial
 
 from odfuzz.arguments import ArgParser
-from odfuzz.fuzzer import Manager
+from odfuzz.odfuzz import Manager
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers, DirectoriesCreator
 from odfuzz.scatter import ScatterPlotter
@@ -35,9 +35,8 @@ from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.exceptions import ArgParserError, ODfuzzException
 
 
-def main():
+def execute(arguments):
     arg_parser = ArgParser()
-    arguments = get_arguments()
     try:
         parsed_arguments = arg_parser.parse(arguments)
     except ArgParserError as argparser_error:
@@ -49,11 +48,6 @@ def main():
     set_signal_handler(collection_name, parsed_arguments.plot)
 
     run_fuzzer(parsed_arguments, collection_name)
-
-
-def get_arguments():
-    command_line_arguments = sys.argv[1:]
-    return command_line_arguments
 
 
 def init_logging(arguments):
@@ -110,4 +104,4 @@ def signal_handler(db_collection_name, plot_graph):
 
 
 if __name__ == '__main__':
-    main()
+    execute(sys.argv[1:])
