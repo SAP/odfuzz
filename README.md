@@ -106,8 +106,11 @@ Taking this into account, you have to set the fuzzer's output directories to /im
 ## Usage
 1. Run the fuzzer, for example, as:
 ```
-python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml
+python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml -a
 ```
+
+The option **-a** enables fuzzer to send asynchronous requests. A default number of the asynchronous requests can be changed. To do so, navigate to the file *config/fuzzer/fuzzer.ini* and modify value *pool*. Notice that some services do not support more than 10 asynchronous requests at the same time.
+
 2. Let it run for a couple of hours (or minutes). Cancel execution of the fuzzer with CTRL + C.
 3. Browse overall stats, for example, by the following scenario:
     - You want to discover what type of queries triggers undefined behaviour. Open the *stats_overall.csv* file via [Pivot](https://github.wdf.sap.corp/I342520/Pivot). Select entities you want to examine, select an HTTP status code you want to consider (e.g. 500), select names of Properties, etc. You may notice that the filter query option caused a lot of errors. Open the *stats_filter.csv* file again via [Pivot](https://github.wdf.sap.corp/I342520/Pivot) to discover what logical operators or operands caused an internal server error.
@@ -146,7 +149,8 @@ At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32 and 
 
 The fuzzer was developed for testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions. The same rule applies for functions that can be implemented in two different ways, like the function substring() which can take 2 or 3 parameters.
 
-ODfuzz creates a new collection in the database at each run. Run the command `db.getCollection("COLLECTION-NAME")` in the mongoDB shell in order to access a particular collection. To delete all collections, run the command `db.dropDatabase()`. 
+ODfuzz creates a new collection in the database at each run. To preview database, run `mongo` in a terminal and select a corresponding database via `use odfuzz`. Run the command `db.getCollection("COLLECTION-NAME").find({}).pretty()` in the mongoDB shell in order to access and browse a particular collection. To delete all collections, run the command `db.dropDatabase()`.
+
 
 ODfuzz may be used to test OData services outside the SAP network. There are two ways to enable ODfuzz to work on such services:
 1. You **do not know** a path to the particular HTTPS certificate:
