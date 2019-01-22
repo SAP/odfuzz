@@ -8,7 +8,7 @@ import logging.config
 from datetime import datetime
 from collections import namedtuple
 
-from odfuzz.constants import FUZZER_LOGS_NAME, STATS_LOGS_NAME, FILTER_LOGS_NAME, LOGGING_CONFIG_PATH,\
+from odfuzz.constants import FUZZER_LOGS_NAME, STATS_LOGS_NAME, FILTER_LOGS_NAME, FUZZER_LOGGING_CONFIG_PATH,\
     DATA_RESPONSES_NAME
 
 NONE_TYPE_POSSIBLE = 'n'
@@ -36,8 +36,7 @@ class DirectoriesCreator(object):
 
 def init_loggers(logs_directory, stats_directory):
     config_defaults = create_config_defaults(logs_directory, stats_directory)
-    relative_path = os.path.join(os.getcwd(), LOGGING_CONFIG_PATH)
-    logging.config.fileConfig(relative_path, disable_existing_loggers=False, defaults=config_defaults)
+    logging.config.fileConfig(FUZZER_LOGGING_CONFIG_PATH, disable_existing_loggers=False, defaults=config_defaults)
 
 
 def create_config_defaults(logs_path, stats_path):

@@ -1,14 +1,22 @@
 """This module contains global constants."""
 
+import os
+
+RELATIVE_CONFIG_PATH = 'config/fuzzer/fuzzer.ini'
+LOGGING_CONFIG_PATH = 'config/logging/logging.conf'
+CERTIFICATE_PATH = 'config/security/ca_sap_root_base64.crt'
+
+FUZZER_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir))
+FUZZER_CONFIG_PATH = os.path.join(FUZZER_PATH, RELATIVE_CONFIG_PATH)
+FUZZER_LOGGING_CONFIG_PATH = os.path.join(FUZZER_PATH, LOGGING_CONFIG_PATH)
+FUZZER_CERTIFICATE_PATH = os.path.join(FUZZER_PATH, CERTIFICATE_PATH)
+
 FUZZER_LOGS_NAME = 'logs'
 STATS_LOGS_NAME = 'stats_overall'
 FILTER_LOGS_NAME = 'stats_filter'
 DATA_RESPONSES_NAME = 'data_responses'
 DATA_RESPONSES_PLOT_NAME = 'responses_plot.html'
 RUNTIME_FILE_NAME = 'runtime_info.txt'
-LOGGING_CONFIG_PATH = 'config/logging/logging.conf'
-CERTIFICATE_PATH = 'config/security/ca_sap_root_base64.crt'
-FUZZER_CONFIG_PATH = 'config/fuzzer/fuzzer.ini'
 CONFIG_SECTION = 'default'
 
 # this set of constants must be equal to the corresponding

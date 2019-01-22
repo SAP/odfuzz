@@ -1077,9 +1077,7 @@ class Dispatcher(object):
     def _get_sap_certificate(self):
         certificate_path = None
         if self._has_certificate:
-            self_dir = os.path.dirname(__file__)
-            relative_path = os.path.join(os.getcwd(), CERTIFICATE_PATH)
-            candidate_path = os.path.join(self_dir, relative_path)
+            candidate_path = FUZZER_CERTIFICATE_PATH
             if not os.path.isfile(candidate_path):
                 return None
             certificate_path = candidate_path
