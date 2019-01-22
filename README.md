@@ -60,7 +60,7 @@ export SAP_PASSWORD=Password
 
 Command line arguments
 ```
-$ python3 odfuzz.py --help
+$ python3 fuzzer.py --help
 positional arguments:
   service               An OData service URL
 optional arguments:
@@ -119,7 +119,7 @@ Taking this into account, you have to set the fuzzer's output directories to /im
 ## Usage
 1. Run the fuzzer, for example, as:
 ```
-python3 odfuzz.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml -a
+python3 fuzzer.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml -a -f -p
 ```
 
 The option **-a** enables fuzzer to send asynchronous requests. A default number of the asynchronous requests can be changed. To do so, navigate to the file *config/fuzzer/fuzzer.ini* and modify value *pool*. Notice that some services do not support more than 10 asynchronous requests at the same time.
