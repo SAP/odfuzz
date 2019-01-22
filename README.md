@@ -96,6 +96,19 @@ Output of the fuzzer is stored in the user defined directories (e.g. logs_direct
 
 When a connection is forcibly closed by a host (e.g. user was disconnected from VPN), ODfuzz ends with an error message, but still creates all necessary stats files.
 
+##### Console output
+Brief information about the runtime is also printed to a console. Find below an example of such an output.
+
+```
+Collection: FI_CORRESPONDENCE_SRV-56482b5e-b76d-46eb-9f48-e13d1fe8eea2
+Initializing queryable entities...
+Connecting to the database...
+Fuzzing...
+Generated tests: 1300 | Failed tests: 27 | Raised exceptions: 0
+```
+
+*Collection* represents a name of a collection associated with mongoDB. *Raised exceptions* describes a number of raised exceptions within the runtime, for example, connection errors.
+
 #### Docker
 The output of ODfuzz is written into running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
 ```
@@ -171,3 +184,4 @@ ODfuzz may be used to test OData services outside the SAP network. There are two
 - Add support for function imports.
 - Add option for generation of invalid values.
 - Create a database of test cases (e.g. invalid UTF-8 characters) that triggered an undefined behavior in the past.
+- Random data sampling introduced by mongoDB cannot be reproduced by a seed.
