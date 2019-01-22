@@ -16,6 +16,7 @@ from abc import ABCMeta, abstractmethod
 from lxml import etree
 from gevent.pool import Pool
 from bson.objectid import ObjectId
+from pymongo.errors import ServerSelectionTimeoutError
 
 from pyodata.v2.model import NAMESPACES
 from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
@@ -24,6 +25,7 @@ from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats
 from odfuzz.mongos import MongoClient
 from odfuzz.mutators import NumberMutator, StringMutator
+from odfuzz.output import StandardOutput, BindOutput
 from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
 from odfuzz.constants import *
@@ -34,7 +36,7 @@ SelfMock = namedtuple('SelfMock', 'max_length')
 class Manager(object):
     """A class for managing the fuzzer runtime."""
 
-    def __init__(self, arguments, collection_name):
+    def __init__(self, bind, arguments, collection_name):
         self._dispatcher = Dispatcher(arguments, has_certificate=True)
         self._asynchronous = arguments.asynchronous
         self._first_touch = arguments.first_touch
@@ -44,22 +46,30 @@ class Manager(object):
 
         Config.retrieve_config()
 
+        if bind is None:
+            self._output_handler = StandardOutput(bind)
+        else:
+            self._output_handler = BindOutput(bind)
+
+
     def start(self):
-        print('Collection: {}'.format(self._collection_name))
-        print('Initializing queryable entities...')
+        self._output_handler.print_status('Collection: {}'.format(self._collection_name))
+        self._output_handler.print_status('Initializing queryable entities...')
+
         builder = Builder(self._dispatcher, self._restrictions, self._first_touch)
         entities = builder.build()
 
-        print('Fuzzing...')
-        fuzzer = Fuzzer(self._dispatcher, entities, self._collection_name, asynchronous=self._asynchronous,
-                        plot=self._plot_graph)
+        fuzzer = Fuzzer(self._dispatcher, entities, self._collection_name, self._output_handler,
+                        asynchronous=self._asynchronous, plot=self._plot_graph)
+
+        self._output_handler.print_status('Fuzzing...')
         fuzzer.run()
 
 
 class Fuzzer(object):
     """A main class that initiates a fuzzing process."""
 
-    def __init__(self, dispatcher, entities, collection_name, **kwargs):
+    def __init__(self, dispatcher, entities, collection_name, output_handler, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._stats_logger = StatsLogger()
 
@@ -70,10 +80,18 @@ class Fuzzer(object):
 
         self._dispatcher = dispatcher
         self._entities = entities
+        self._output_handler = output_handler
 
         self._logger.info('mongoDB collection set to {}'.format(collection_name))
         self._collection_name = collection_name
-        self._mongodb = MongoClient(collection_name)
+
+        self._output_handler.print_status('Connecting to the database...')
+        try:
+            self._mongodb = MongoClient(collection_name)
+        except ServerSelectionTimeoutError:
+            self._output_handler.print_status('ERROR: Cannot connect to mongoDB.')
+            sys.exit(1)
+
         self._analyzer = Analyzer(self._mongodb)
         self._selector = Selector(self._mongodb, self._entities)
 
@@ -154,7 +172,7 @@ class Fuzzer(object):
     def _save_queries(self, queries):
         self._stats_logger.log_stats(queries)
         self._save_to_database(queries)
-        print_tests_num()
+        self._output_handler.print_test_num()
 
     def _send_queries(self, queries):
         while True:
@@ -195,7 +213,7 @@ class Fuzzer(object):
 
     def _handle_dispatcher_exception(self):
         Stats.exceptions_num += 1
-        print_tests_num()
+        self._output_handler.print_test_num()
         self._logger.info('Retrying in {} seconds...'.format(RETRY_TIMEOUT))
         gevent.sleep(RETRY_TIMEOUT)
 
@@ -1140,12 +1158,6 @@ def build_xpath_format_string(*args):
         xpath_string += '/m:{}'.format(arg)
     xpath_string += '/text()'
     return xpath_string
-
-
-def print_tests_num():
-    sys.stdout.flush()
-    sys.stdout.write('Generated tests: {} | Failed tests: {} | Raised exceptions: {} \r'
-                     .format(Stats.tests_num, Stats.fails_num, Stats.exceptions_num))
 
 
 def is_removable(option_value, part_id):

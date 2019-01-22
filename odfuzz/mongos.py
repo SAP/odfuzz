@@ -29,6 +29,8 @@ class MongoClient(object):
 
     def __init__(self, collection_name):
         self._mongodb = pymongo.MongoClient()
+        self._mongodb.server_info()
+
         self._collection = self._mongodb[MONGODB_NAME][collection_name]
 
     @property

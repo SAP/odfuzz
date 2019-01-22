@@ -35,9 +35,8 @@ from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.exceptions import ArgParserError, ODfuzzException
 
 
-def main():
+def execute(arguments, bind=None):
     arg_parser = ArgParser()
-    arguments = get_arguments()
     try:
         parsed_arguments = arg_parser.parse(arguments)
     except ArgParserError as argparser_error:
@@ -48,12 +47,8 @@ def main():
     collection_name = create_collection_name(parsed_arguments)
     set_signal_handler(collection_name, parsed_arguments.plot)
 
-    run_fuzzer(parsed_arguments, collection_name)
-
-
-def get_arguments():
-    command_line_arguments = sys.argv[1:]
-    return command_line_arguments
+    # Argument 'bind' is used for binding the self instance of another process, e.g. celery
+    run_fuzzer(bind, parsed_arguments, collection_name)
 
 
 def init_logging(arguments):
@@ -83,8 +78,8 @@ def set_signal_handler(db_collection_name, plot_graph):
     gevent.signal(signal.SIGINT, partial(signal_handler, db_collection_name, plot_graph))
 
 
-def run_fuzzer(parsed_arguments, collection_name):
-    manager = Manager(parsed_arguments, collection_name)
+def run_fuzzer(bind, parsed_arguments, collection_name):
+    manager = Manager(bind, parsed_arguments, collection_name)
     try:
         if parsed_arguments.timeout == INFINITY_TIMEOUT:
             manager.start()
@@ -98,7 +93,10 @@ def run_fuzzer(parsed_arguments, collection_name):
 
 
 def signal_handler(db_collection_name, plot_graph):
-    logging.info('Program interrupted. Exiting...')
+    exit_message = 'Program interrupted. Exiting...'
+    logging.info(exit_message)
+    sys.stdout.write('\n' + exit_message + '\n')
+
     stats = StatsPrinter(db_collection_name)
     stats.write()
 
@@ -108,6 +106,5 @@ def signal_handler(db_collection_name, plot_graph):
 
     sys.exit(0)
 
-
 if __name__ == '__main__':
-    main()
+    execute(sys.argv[1:])
