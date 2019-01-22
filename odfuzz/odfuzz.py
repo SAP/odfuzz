@@ -373,8 +373,7 @@ class Queryable(object):
             accessible_entity_set = self._queryable.entity_set
 
         for proprty_name, value in key_values:
-            accessible_keys[proprty_name] = '\'' + accessible_entity_set.entity_type.proprty(proprty_name) \
-                .mutate(value[1:-1]) + '\''
+            accessible_keys[proprty_name] = accessible_entity_set.entity_type.proprty(proprty_name).mutate(value[1:-1])
 
     def _mutate_option(self, query, option_name, option_value):
         if option_name == FILTER:

@@ -72,8 +72,17 @@ class Builder:
         self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
         self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
 
+        self._append_associated_queryables(query_group_data)
+
+    def _append_associated_queryables(self, query_group_data):
         if query_group_data.principal_entities:
-            self._append_corresponding_queryable(QueryGroupAssociation(query_group_data))
+            principal_entities = query_group_data.principal_entities.multiplicity_one_entities
+            if principal_entities:
+                self._append_corresponding_queryable(QueryGroupAssociation(query_group_data, principal_entities))
+
+            principal_entities = query_group_data.principal_entities.multiplicity_many_entities
+            if principal_entities:
+                self._append_corresponding_queryable(QueryGroupAssociationSet(query_group_data, principal_entities))
 
     def _append_corresponding_queryable(self, query_group):
         if query_group.query_options():
@@ -152,7 +161,6 @@ class QueryGroupData:
 class QueryGroup:
     def __init__(self, query_group_data):
         self._entity_set = query_group_data.entity_set
-        self._principal_entities = query_group_data.principal_entities
         self._restrictions = query_group_data.restrictions
         self._dispatcher = query_group_data.dispatcher
 
@@ -161,6 +169,7 @@ class QueryGroup:
         self._required_query_options = []
 
         self._accessible_entity = None
+        self._principal_entities = [principal.entity for principal in query_group_data.principal_entities.all()]
 
     @property
     def entity_set(self):
@@ -369,9 +378,10 @@ class QueryGroupMultiple(QueryGroup):
         self._accessible_entity = MultipleEntities(self._entity_set)
 
 
-class QueryGroupAssociation(QueryGroup):
-    def __init__(self, query_group_data):
-        super(QueryGroupAssociation, self).__init__(query_group_data)
+class QueryGroupAssociationSet(QueryGroup):
+    def __init__(self, query_group_data, principal_entities):
+        super(QueryGroupAssociationSet, self).__init__(query_group_data)
+        self._principal_entities = principal_entities
         self._init_group()
         self._init_accessible_entity()
 
@@ -383,6 +393,21 @@ class QueryGroupAssociation(QueryGroup):
         self._init_query_type(SKIP, 'pageable', SkipQuery, self._dispatcher, GLOBAL_ENTITY_ASSOC)
         self._init_query_type(SEARCH, 'searchable', SearchQuery, self._dispatcher, GLOBAL_ENTITY_ASSOC)
         self._init_query_type(INLINECOUNT, 'countable', InlineCountQuery, self._dispatcher, GLOBAL_ENTITY_SET)
+
+    def _init_accessible_entity(self):
+        self._accessible_entity = AssociatedEntities(self._entity_set, self._principal_entities)
+
+
+class QueryGroupAssociation(QueryGroup):
+    def __init__(self, query_group_data, principal_entities):
+        super(QueryGroupAssociation, self).__init__(query_group_data)
+        self._principal_entities = principal_entities
+        self._init_group()
+        self._init_accessible_entity()
+
+    def _init_group(self):
+        self._init_filter_option(GLOBAL_ENTITY)
+        self._init_expand_option(GLOBAL_ENTITY)
 
     def _init_accessible_entity(self):
         self._accessible_entity = AssociatedEntities(self._entity_set, self._principal_entities)
@@ -1641,40 +1666,6 @@ class FilterFunction(object):
         return self._function_type.generate()
 
 
-'''
-class EntitySet(metaclass=ABCMeta):
-    def __init__(self, entity_set, principal_entities):
-        self._entity_set = entity_set
-        self._principal_entities = principal_entities
-
-    @abstractmethod
-    def get_queryable_entity(self, can_be_single):
-        pass
-
-
-class AddressableEntity(EntitySet):
-    def get_queryable_entity(self, can_be_single):
-        key_pairs = {}
-        if can_be_single and random.random() <= SINGLE_ENTITY_PROB:
-            key_pairs = generate_accessible_entity_key_values(self._entity_set)
-        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, NullEntityType(None, NullNavProperties([])))
-        return accessible_entity
-
-
-class NonAddressableEntity(EntitySet):
-    def get_queryable_entity(self, can_be_single):
-        if self._principal_entities and random.random() <= ASSOCIATED_ENTITY_PROB:
-            containing_entity_set = random.choice(self._principal_entities)
-            principal_entity_set = containing_entity_set
-        else:
-            containing_entity_set = self._entity_set
-            principal_entity_set = NullEntityType(None, NullNavProperties([]))
-        key_pairs = generate_accessible_entity_key_values(containing_entity_set)
-
-        accessible_entity = AccessibleEntity(self._entity_set, key_pairs, principal_entity_set)
-        return accessible_entity
-'''
-
 class EntitySetRequest(metaclass=ABCMeta):
     def __init__(self, entity_set, principal_entities=None):
         self._entity_set = entity_set
@@ -1851,15 +1842,15 @@ def get_principal_entities(data_model, entity_set):
     principal_entities = []
     for association_set in data_model.association_sets:
         ends_principal_getter = EndsPrincipal(association_set, entity_set)
-        principal_entity = ends_principal_getter.get()
-        if principal_entity:
-            principal_entities.append(principal_entity)
+        principal_data = ends_principal_getter.get()
+        if principal_data.entity:
+            principal_entities.append(principal_data)
         else:
             multiplicity_principal_getter = MultiplicityPrincipal(association_set, entity_set)
-            principal_entity = multiplicity_principal_getter.get()
-            if principal_entity:
-                principal_entities.append(principal_entity)
-    return principal_entities
+            principal_data = multiplicity_principal_getter.get()
+            if principal_data.entity:
+                principal_entities.append(principal_data)
+    return GroupedPrincipalEntities(principal_entities)
 
 
 class PrincipalGetter(metaclass=ABCMeta):
@@ -1867,17 +1858,22 @@ class PrincipalGetter(metaclass=ABCMeta):
         self._association_set = association_set
         self._entity_set = entity_set
 
+        self._association = self._association_set.association_type
+
     def get(self):
         principal_entity = None
+        dependent_entity_multiplicity = None
         if self.may_contain_principal_entity():
             index = 0
             for end in self._association_set.ends:
                 if end.entity_set.name == self._entity_set.name:
                     principal_entity_index = index ^ 1
                     principal_entity = self.get_principal(principal_entity_index)
+                    dependent_entity_multiplicity = self._retrieve_multiplicity(end.role)
                     break
                 index += 1
-        return principal_entity
+
+        return PrincipalData(principal_entity, dependent_entity_multiplicity)
 
     def may_contain_principal_entity(self):
         return len(self._association_set.ends) == 2
@@ -1885,6 +1881,12 @@ class PrincipalGetter(metaclass=ABCMeta):
     @abstractmethod
     def get_principal(self, index):
         pass
+
+    def _retrieve_multiplicity(self, end_role):
+        try:
+            return self._association.end_by_role(end_role).multiplicity
+        except KeyError:
+            return NON_EXISTING_MULTIPLICITY
 
 
 class EndsPrincipal(PrincipalGetter):
@@ -1904,6 +1906,46 @@ class MultiplicityPrincipal(PrincipalGetter):
         if self._association_set.association_type.end_by_role(association_set_end.role).multiplicity == '1':
             principal_entity = association_set_end.entity_set
         return principal_entity
+
+
+class PrincipalData:
+    def __init__(self, principal_entity, dependent_entity_multiplicity):
+        self._principal_entity = principal_entity
+        self._dependent_entity_multiplicity = dependent_entity_multiplicity
+
+    @property
+    def entity(self):
+        return self._principal_entity
+
+    @property
+    def dependent_multiplicity(self):
+        return self._dependent_entity_multiplicity
+
+
+class GroupedPrincipalEntities:
+    def __init__(self, principal_entities):
+        self._principal_entities = principal_entities
+        self._multiplicity_many_entities = []
+        self._multiplicity_one_entities = []
+        self._group_entities_by_multiplicity()
+
+    def _group_entities_by_multiplicity(self):
+        for data in self._principal_entities:
+            if data.dependent_multiplicity in ('1', '0..1'):
+                self._multiplicity_one_entities.append(data.entity)
+            else:
+                self._multiplicity_many_entities.append(data.entity)
+
+    def all(self):
+        return self._principal_entities
+
+    @property
+    def multiplicity_many_entities(self):
+        return self._multiplicity_many_entities
+
+    @property
+    def multiplicity_one_entities(self):
+        return self._multiplicity_one_entities
 
 
 def generate_accessible_entity_key_values(containing_entity_set):
