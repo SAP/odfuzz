@@ -9,6 +9,7 @@ setup(
     author_email='lubos.mjachky@sap.com',
     description='Fuzzer for testing applications communicating via the OData protocol',
     packages=find_packages(exclude=['tests', 'restrictions']),
+    scripts=['fuzzer.py'],
     zip_safe=False,
     install_requires=[
         'bs4>=0.0.1',
