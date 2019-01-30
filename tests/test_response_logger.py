@@ -1,4 +1,4 @@
-from odfuzz.odfuzz import ResponseTimeLogger
+from odfuzz.fuzzer import ResponseTimeLogger
 
 
 def test_single_entity_xml_responses_count(single_entity_xml):

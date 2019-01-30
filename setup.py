@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='odfuzz',
-    version='0.9.1',
+    version='0.10',
     license='Apache License Version 2.0',
     url='https://github.wdf.sap.corp/I342520/ODfuzz',
     author='Lubos Mjachky',
