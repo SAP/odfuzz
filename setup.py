@@ -9,6 +9,11 @@ setup(
     author_email='lubos.mjachky@sap.com',
     description='Fuzzer for testing applications communicating via the OData protocol',
     packages=find_packages(exclude=['tests', 'restrictions']),
+    data_files=[
+        ('config/fuzzer', ['config/fuzzer/fuzzer.ini']),
+        ('config/logging', ['config/logging/logging.conf']),
+        ('config/security', ['config/security/ca_sap_root_base64.crt']),
+    ],
     entry_points={
         'console_scripts': [
             'odfuzz = odfuzz.odfuzz:main'
