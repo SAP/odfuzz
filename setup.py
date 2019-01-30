@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='odfuzz',
-    version='0.10.1',
+    version='0.10.2',
     license='Apache License Version 2.0',
     url='https://github.wdf.sap.corp/I342520/ODfuzz',
     author='Lubos Mjachky',
@@ -10,11 +10,6 @@ setup(
     description='Fuzzer for testing applications communicating via the OData protocol',
     packages=find_packages(exclude=['tests', 'restrictions']),
     include_package_data=True,
-    data_files=[
-        ('config/fuzzer', ['config/fuzzer/fuzzer.ini']),
-        ('config/logging', ['config/logging/logging.conf']),
-        ('config/security', ['config/security/ca_sap_root_base64.crt']),
-    ],
     entry_points={
         'console_scripts': [
             'odfuzz = odfuzz.odfuzz:main'
