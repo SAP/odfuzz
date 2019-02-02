@@ -21,6 +21,9 @@ RUN apk update \
 		python3-dev \
 	&& python3 -m ensurepip \
 	&& pip3 install --upgrade pip \
+	&& pip3 install --upgrade setuptools \
+	&& pip3 install numpy \
+	&& pip3 install pandas \
 	&& pip3 install cffi \
 	&& pip3 install -r ODfuzz/requirements.txt \
 	&& apk del \
