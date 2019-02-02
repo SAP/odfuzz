@@ -16,39 +16,34 @@ C_Cpbupaemailvh?$top=81&$filter=ContactPerson eq 'Ý¿â†' and (RelationshipCa
 
 #### Requirements
 - [Python 3.6](https://www.python.org/downloads/)
-  - [Requests 2.18.4](http://docs.python-requests.org/en/master/)
-  - [Gevent 1.2.2](http://www.gevent.org/)
-  - [PyMongo 3.6.1](https://api.mongodb.com/python/3.6.1/)
-  - [lxml 3.7.3](https://github.com/lxml/lxml)
-  - [PyOData](https://github.wdf.sap.corp/I342520/ODfuzz/tree/master/pyodata)
 - [mongoDB 3.6](https://www.mongodb.com/)
 - [PivotTable](https://github.wdf.sap.corp/I342520/Pivot)
 
 ## Setup
-Clone this repository:
+1. Clone this repository:
 ```
 $ git clone https://github.wdf.sap.corp/I342520/ODfuzz && cd ODfuzz
 ```
+2. Install mongoDB:
+    1. Docker
+        1. Execute the following command to build a docker image:
+        ```
+        $ sudo docker build -t odfuzz:1.0 .
+        ```
+        2. Run the container:
+        ```
+        $ sudo docker run --dns=10.17.121.71 -ti odfuzz:1.0
+        ```
 
-### Docker
-1. Execute the following command to build a docker image:
+    2. Manual
+        1. [Download](https://www.mongodb.com/download-center#community) and [install](https://docs.mongodb.com/manual/administration/install-community/) the mongoDB server on your local machine.
+        2. [Download](https://github.wdf.sap.corp/I342520/Pivot) or clone a custom implementation of the Pivot table:
+        ```
+        $ git clone https://github.wdf.sap.corp/I342520/Pivot
+        ```
+3. Create executable script:
 ```
-$ sudo docker build -t odfuzz:1.0 .
-```
-2. Run the container:
-```
-$ sudo docker run --dns=10.17.121.71 -ti odfuzz:1.0
-```
-
-### Manual
-1. [Download](https://www.mongodb.com/download-center#community) and [install](https://docs.mongodb.com/manual/administration/install-community/) the mongoDB server on your local machine.
-2. [Download](https://github.wdf.sap.corp/I342520/Pivot) or clone a custom implementation of the Pivot table:
-```
-$ git clone https://github.wdf.sap.corp/I342520/Pivot
-```
-3. Install all python requirements:
-```
-$ pip install -r requirements.txt
+$ python3 setup.py install
 ```
 
 ## Run configuration
@@ -58,9 +53,9 @@ export SAP_USERNAME=Username
 export SAP_PASSWORD=Password
 ```
 
-Command line arguments
+If necessary, it is possible to specify the username and the password via command line arguments. Take a look at the optional arguments:
 ```
-$ python3 fuzzer.py --help
+$ odfuzz --help
 positional arguments:
   service               An OData service URL
 optional arguments:
@@ -83,7 +78,7 @@ optional arguments:
 ODfuzz runs in an **infinite loop**. You may cancel an execution of the fuzzer with a **keyboard interruption** (CTRL + C).
 
 ### Output
-Output of the fuzzer is stored in the user defined directories (e.g. logs_directory, stats_directory) or in a working directory. ODfuzz is creating stats about performed experiments and tests:
+Output of the fuzzer is stored in the directories set by a user (e.g. logs_directory, stats_directory) or in a current working directory. ODfuzz is creating stats about performed experiments and tests:
 - Pivot
     - These stats are continuously extended with the latest data while the fuzzer is running.
     - Stats are loaded into CSV files and may be visualised by the javascript Pivot table. See [README](https://github.wdf.sap.corp/I342520/Pivot/blob/master/README.md) to learn more.
@@ -94,9 +89,7 @@ Output of the fuzzer is stored in the user defined directories (e.g. logs_direct
     - Response time and data count are continuously logged.
     - Data are stored in the *data_responses.csv* file. When the fuzzer ends, an interactive scatter plot is built via plotly library. The scatter plot is viewable by any conventional web browser. Learn more about [plotly](https://plot.ly/python/line-and-scatter/).
 
-When a connection is forcibly closed by a host (e.g. user was disconnected from VPN), ODfuzz ends with an error message, but still creates all necessary stats files.
-
-##### Console output
+#### Console output
 Brief information about the runtime is also printed to a console. Find below an example of such an output.
 
 ```
@@ -109,22 +102,22 @@ Generated tests: 1300 | Failed tests: 27 | Raised exceptions: 0
 
 *Collection* represents a name of a collection associated with mongoDB. *Raised exceptions* describes a number of raised exceptions within the runtime, for example, connection errors.
 
-#### Docker
-The output of ODfuzz is written into running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
+#### Docker volumes
+The output of ODfuzz is written into a running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
 ```
-sudo docker run --dns=10.17.121.71 -v /host/absolute/path:/image/absolute/path -ti odfuzz:1.0
+$ sudo docker run --dns=10.17.121.71 -v /host/absolute/path:/image/absolute/path -ti odfuzz:1.0
 ```
 Taking this into account, you have to set the fuzzer's output directories to /image/absolute/path as well. For more, visit https://docs.docker.com/storage/volumes/.
 
 ## Usage
 1. Run the fuzzer, for example, as:
 ```
-python3 fuzzer.py https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml -a -f -p
+$ odfuzz https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml -a -f -p
 ```
 
 The option **-a** enables fuzzer to send asynchronous requests. A default number of the asynchronous requests can be changed. To do so, navigate to the file *config/fuzzer/fuzzer.ini* and modify value *pool*. Notice that some services do not support more than 10 asynchronous requests at the same time.
 
-2. Let it run for a couple of hours (or minutes). Cancel execution of the fuzzer with CTRL + C.
+2. Let it run for a couple of hours (or minutes). Cancel an execution of the fuzzer with CTRL + C.
 3. Browse overall stats, for example, by the following scenario:
     - You want to discover what type of queries triggers undefined behaviour. Open the *stats_overall.csv* file via [Pivot](https://github.wdf.sap.corp/I342520/Pivot). Select entities you want to examine, select an HTTP status code you want to consider (e.g. 500), select names of Properties, etc. You may notice that the filter query option caused a lot of errors. Open the *stats_filter.csv* file again via [Pivot](https://github.wdf.sap.corp/I342520/Pivot) to discover what logical operators or operands caused an internal server error.
     - Queries which produced errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
@@ -158,7 +151,7 @@ Bear in mind that some restrictions are related to the previous version of ODfuz
 OData services does not support some functions provided by the OData protocol (for example, day(), substring(), length()) or does not implement GET_ENTITYSET methods for all entities. By using the restrictions, one can easily decrease a number of queries that are worthless. Also, some services may implement handlers only for the $filter query option but does not declare that in the metadata document. Therefore, other query options cannot be used within the same request, otherwise various types of errors are produced (e.g. System query options '$orderby,$skip,$top,$skiptoken,$inlinecount' are not allowed in the requested URI). 
 
 ### Limitations
-At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32 and Edm.Guid. It is planned to support more types in the future.
+At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32, Edm.Decimal, Edm.Boolean, and Edm.Guid. It is planned to support more types in the future.
 
 The fuzzer was developed for testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions. The same rule applies for functions that can be implemented in two different ways, like the function substring() which can take 2 or 3 parameters.
 
