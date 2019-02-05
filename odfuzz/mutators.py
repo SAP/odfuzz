@@ -1,5 +1,8 @@
 import random
 
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+
 from odfuzz.constants import BASE_CHARSET, HEX_BINARY, INT_MAX
 
 GUID_DASH_INDEXES = (8, 13, 18, 23)
@@ -249,13 +252,45 @@ class DecimalMutator:
 
 
 class DateTimeMutator:
-    @staticmethod
-    def increment_day(date_time):
-        pass
+    _methods = []
 
     @staticmethod
-    def decrement_day(date_time):
-        pass
+    def _mutate(proprty, value):
+        if not DateTimeMutator._methods:
+            DateTimeMutator._methods = [func_name for func_name in DateTimeMutator.__dict__ if not func_name.startswith('_')]
+        func_name = random.choice(DateTimeMutator._methods)
+        mutated_value = getattr(DateTimeMutator, func_name)(proprty, value)
+        return mutated_value
+
+    @staticmethod
+    def _mutate_date(date_time, time_delta):
+        converted_date = datetime.strptime(date_time.replace('datetime', '').replace('\'', ''), '%Y-%m-%dT%I:%M:%S')
+        mutated_date = converted_date + time_delta
+        return 'datetime\'{}\''.format(datetime.strftime(mutated_date, '%Y-%m-%dT%I:%M:%S'))
+
+    @staticmethod
+    def increment_day(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, relativedelta(days=1))
+
+    @staticmethod
+    def decrement_day(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, -relativedelta(days=1))
+
+    @staticmethod
+    def increment_month(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, relativedelta(months=1))
+
+    @staticmethod
+    def decrement_month(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, -relativedelta(months=1))
+
+    @staticmethod
+    def increment_year(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, relativedelta(years=1))
+
+    @staticmethod
+    def decrement_year(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, -relativedelta(years=1))
 
 
 def normalize_surrogates(ord_char):
