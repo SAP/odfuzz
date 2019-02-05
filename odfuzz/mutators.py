@@ -6,9 +6,13 @@ GUID_DASH_INDEXES = (8, 13, 18, 23)
 
 
 class StringMutator:
+    _methods = []
+
     @staticmethod
     def _mutate(proprty, value):
-        func_name = random.choice([func_name for func_name in StringMutator.__dict__ if not func_name.startswith('_')])
+        if not StringMutator._methods:
+            StringMutator._methods = [func_name for func_name in StringMutator.__dict__ if not func_name.startswith('_')]
+        func_name = random.choice(StringMutator._methods)
         mutated_value = getattr(StringMutator, func_name)(proprty, value)
         return mutated_value
 
@@ -90,9 +94,13 @@ class StringMutator:
 
 
 class NumberMutator:
+    _methods = []
+
     @staticmethod
     def _mutate(proprty, value):
-        func_name = random.choice([func_name for func_name in NumberMutator.__dict__ if not func_name.startswith('_')])
+        if not NumberMutator._methods:
+            NumberMutator._methods = [func_name for func_name in NumberMutator.__dict__ if not func_name.startswith('_')]
+        func_name = random.choice(NumberMutator._methods)
         mutated_value = getattr(NumberMutator, func_name)(proprty, value)
         return mutated_value
 
@@ -178,10 +186,13 @@ class BooleanMutator:
 
 class DecimalMutator:
     _generator = random
+    _methods = []
 
     @staticmethod
     def _mutate(proprty, value):
-        func_name = random.choice([func_name for func_name in DecimalMutator.__dict__ if not func_name.startswith('_')])
+        if not DecimalMutator._methods:
+            DecimalMutator._methods = [func_name for func_name in DecimalMutator.__dict__ if not func_name.startswith('_')]
+        func_name = random.choice(DecimalMutator._methods)
         mutated_value = getattr(DecimalMutator, func_name)(proprty, value)
         return mutated_value
 
