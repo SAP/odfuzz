@@ -10,7 +10,7 @@ import pymongo.errors
 from odfuzz.constants import MONGODB_NAME, FILTER_PARTS_NUM, FILTER_SAMPLE_SIZE
 
 
-class CollectionCreator(object):
+class CollectionCreator:
     def __init__(self, service_name):
         self._service_name = service_name
         self._collection_name = None
@@ -24,7 +24,7 @@ class CollectionCreator(object):
         return self._collection_name
 
 
-class MongoClient(object):
+class MongoClient:
     """A NoSQL database client."""
 
     def __init__(self, collection_name):
@@ -109,7 +109,7 @@ class MongoClient(object):
         return entities
 
     def sorted_queries_by_entity(self, entity_set_name, queries_num):
-        cursor = self._collection.find({'entity_set': entity_set_name,'http': '500'})\
+        cursor = self._collection.find({'entity_set': entity_set_name, 'http': '500'})\
             .sort([('score', -1)]).limit(queries_num)
         return list(cursor)
 

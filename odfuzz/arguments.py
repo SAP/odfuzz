@@ -9,7 +9,7 @@ from odfuzz.exceptions import ArgParserError
 FUZZER_DESC = 'Fuzzer for testing applications communicating via the OData protocol'
 
 
-class ArgParser(object):
+class ArgParser:
     def __init__(self):
         self._parser = argparse.ArgumentParser(prog='ODfuzz', add_help=False, description=FUZZER_DESC)
         self._add_arguments()

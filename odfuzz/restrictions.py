@@ -6,7 +6,7 @@ from odfuzz.exceptions import RestrictionsError
 from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION
 
 
-class RestrictionsGroup(object):
+class RestrictionsGroup:
     """A wrapper that holds a reference for all types of restrictions."""
 
     def __init__(self, restrictions_file):
@@ -59,7 +59,7 @@ class RestrictionsGroup(object):
         return self._option_restrictions[query_name]
 
 
-class QueryRestrictions(object):
+class QueryRestrictions:
     """A set of restrictions applied to a query option."""
 
     def __init__(self, exclude_restr, include_restr):

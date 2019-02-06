@@ -1,17 +1,16 @@
 import os
 import sys
+import re
 
 import plotly
 import plotly.graph_objs as go
 import pandas
 import pandas.errors
-
 import bs4
-import re
 
 from odfuzz.constants import DATA_RESPONSES_NAME, DATA_RESPONSES_PLOT_NAME
 
-events = {
+EVENTS = {
     'plotly_click': """
         function plotly_click(data) {
             var tmpElem = document.createElement('textArea');
@@ -38,7 +37,7 @@ def add_plotly_events(filename):
     def locate_newplot_script_tag(soup):
         script_tag = soup.find_all(string=re.compile(find_string))
 
-        if len(script_tag) == 0:
+        if not script_tag:
             raise ValueError('Cannot locate the newPlot javascript in {}'.format(filename))
         elif len(script_tag) > 1:
             raise ValueError('Located multiple newPlot javascript in {}'.format(filename))
@@ -68,16 +67,14 @@ def add_plotly_events(filename):
     javascript_lines = split_lines_by_newplot_tag(new_plot_script_tag)
 
     line_index, line_text = 1, javascript_lines[1]
-    on_events_registration = register_on_events(events)
+    on_events_registration = register_on_events(EVENTS)
 
     # replace whitespace characters with actual whitespace using + to concatenate the strings
     line_text = line_text + '.then(function(eventPlot) { ' + join_javascript_lines(on_events_registration)\
                           + '  })'.replace('\n', ' ').replace('\r', '')
 
     # add the function bodies we've register in the on handles
-    functions = []
-    for function_name in events:
-        functions.append(events[function_name])
+    functions = [function for function in EVENTS.values()]
 
     # update the line with created functions
     javascript_lines[line_index] = line_text + ';'.join(functions)

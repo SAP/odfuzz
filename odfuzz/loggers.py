@@ -16,7 +16,7 @@ NONE_TYPE_POSSIBLE = 'n'
 Directories = namedtuple('directories', 'logs stats')
 
 
-class DirectoriesCreator(object):
+class DirectoriesCreator:
     def __init__(self, logs_directory, stats_directory):
         self._logs_directory = logs_directory
         self._stats_directory = stats_directory

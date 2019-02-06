@@ -33,7 +33,7 @@ from odfuzz.constants import *
 SelfMock = namedtuple('SelfMock', 'max_length')
 
 
-class Manager(object):
+class Manager:
     """A class for managing the fuzzer runtime."""
 
     def __init__(self, bind, arguments, collection_name):
@@ -66,7 +66,7 @@ class Manager(object):
         fuzzer.run()
 
 
-class Fuzzer(object):
+class Fuzzer:
     """A main class that initiates a fuzzing process."""
 
     def __init__(self, dispatcher, entities, collection_name, output_handler, **kwargs):
@@ -266,7 +266,7 @@ class Fuzzer(object):
         return value
 
 
-class Queryable(object):
+class Queryable:
     def __init__(self, queryable, logger):
         self._queryable = queryable
         self._logger = logger
@@ -377,16 +377,7 @@ class Queryable(object):
 
     def _mutate_option(self, query, option_name, option_value):
         if option_name == FILTER:
-            if option_value['logicals'] and random.random() < FILTER_DEL_PROB:
-                logical_index = round(random.random() * (len(option_value['logicals']) - 1))
-                parts = self._get_removable_parts(option_value, logical_index)
-                if parts:
-                    random_part = random.choice(parts)
-                    self._remove_logical_part(option_value, logical_index, random_part)
-                else:
-                    self._mutate_filter_part(option_name, option_value)
-            else:
-                self._mutate_filter_part(option_name, option_value)
+            self._mutate_filter(option_value)
         elif option_name == ORDERBY:
             self._mutate_orderby_part(option_value)
         elif option_name == EXPAND:
@@ -399,6 +390,18 @@ class Queryable(object):
             query.options[option_name] = 'allpages' if option_value == 'none' else 'none'
         else:
             query.options[option_name] = self._mutate_value(NumberMutator, option_value)
+
+    def _mutate_filter(self, option_value):
+        if option_value['logicals'] and random.random() < FILTER_DEL_PROB:
+            logical_index = round(random.random() * (len(option_value['logicals']) - 1))
+            parts = self._get_removable_parts(option_value, logical_index)
+            if parts:
+                random_part = random.choice(parts)
+                self._remove_logical_part(option_value, logical_index, random_part)
+            else:
+                self._mutate_filter_part(option_value)
+        else:
+            self._mutate_filter_part(option_value)
 
     def _get_removable_parts(self, option_value, logical_index):
         logical = option_value['logicals'][logical_index]
@@ -413,19 +416,20 @@ class Queryable(object):
         logical = option_value['logicals'].pop(index)
         FilterOptionDeleter(option_value, logical).remove_adjacent(adjacent_id)
 
-    def _mutate_filter_part(self, option_name, option_value):
+    def _mutate_filter_part(self, option_value):
         part = random.choice(option_value['parts'])
+        entity_type = self._queryable.query_option(FILTER).entity_set.entity_type
         if 'func' in part:
-            self._mutate_filter_function(part, option_name)
+            self._mutate_filter_function(part, entity_type)
         else:
-            proprty = self._queryable.query_option(option_name).entity_set.entity_type.proprty(part['name'])
+            proprty = entity_type.proprty(part['name'])
             if getattr(proprty, 'mutate', None):
                 part['operand'] = proprty.mutate(part['operand'])
 
-    def _mutate_filter_function(self, part, option_name):
+    def _mutate_filter_function(self, part, entity_type):
         if part['params'] and random.random() < 0.5:
             # TODO: mutate more than one parameter
-            proprty = self._queryable.query_option(option_name).entity_set.entity_type.proprty(part['proprties'][0])
+            proprty = entity_type.proprty(part['proprties'][0])
             part['params'][0] = proprty.mutate(part['params'][0])
         else:
             if part['return_type'] == 'Edm.Boolean':
@@ -508,7 +512,7 @@ class SingleQueryable(Queryable):
         return [query]
 
 
-class StatsLogger(object):
+class StatsLogger:
     def __init__(self):
         self._stats_logger = logging.getLogger(STATS_LOGGER)
         self._filter_logger = logging.getLogger(FILTER_LOGGER)
@@ -575,7 +579,7 @@ class StatsLogger(object):
         for query in queries:
             filter_option = query.dictionary.get('_$filter')
             if filter_option:
-                logical_names = set([logical['name'] for logical in filter_option['logicals']])
+                logical_names = {logical['name'] for logical in filter_option['logicals']}
                 if 'and' in logical_names and 'or' in logical_names:
                     logical = 'combination'
                 else:
@@ -681,7 +685,7 @@ class ResponseTimeLogger:
             elapsed_seconds, response_size, entity_set_name, url.replace('"', '""'), brief_info))
 
 
-class Selector(object):
+class Selector:
     def __init__(self, mongodb, entities):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._mongodb = mongodb
@@ -689,9 +693,17 @@ class Selector(object):
         self._passed_iterations = 0
         self._entities = entities
 
+    @property
+    def score_average(self):
+        return self._score_average
+
+    @score_average.setter
+    def score_average(self, value):
+        self._score_average = value
+
     def select(self):
         if self._is_score_stagnating():
-            selection = Selection(None, random.choice(list(self._entities.all())), self._score_average)
+            selection = Selection(None, random.choice(list(self._entities.all())))
         else:
             selection = self._crossable_selection()
         self._passed_iterations += 1
@@ -701,7 +713,7 @@ class Selector(object):
     def _crossable_selection(self):
         queryable = random.choice(list(self._entities.all()))
         crossable = self._get_crossable(queryable)
-        selection = Selection(crossable, queryable, self._score_average)
+        selection = Selection(crossable, queryable)
         return selection
 
     def _is_score_stagnating(self):
@@ -725,13 +737,12 @@ class Selector(object):
         return parent1, parent2
 
 
-class Selection(object):
+class Selection:
     """A container that holds objects created by Selector."""
 
-    def __init__(self, crossable, queryable, score_average):
+    def __init__(self, crossable, queryable):
         self._crossable = crossable
         self._queryable = queryable
-        self._score_average = score_average
 
     @property
     def crossable(self):
@@ -741,12 +752,8 @@ class Selection(object):
     def queryable(self):
         return self._queryable
 
-    @property
-    def score_average(self):
-        return self._score_average
 
-
-class Analyzer(object):
+class Analyzer:
     """An analyzer for analyzing generated queries."""
 
     def __init__(self, mongodb):
@@ -823,7 +830,7 @@ class EmptyOffspring(Offspring):
         return 1
 
 
-class FitnessEvaluator(object):
+class FitnessEvaluator:
     """A group of heuristic functions."""
 
     @staticmethod
@@ -866,7 +873,7 @@ class FitnessEvaluator(object):
             return round(STRING_THRESHOLD / string_length)
 
 
-class SAPErrors(object):
+class SAPErrors:
     """A container of all types of errors produced by the SAP systems."""
 
     @staticmethod
@@ -887,7 +894,7 @@ class SAPErrors(object):
         return 100
 
 
-class Query(object):
+class Query:
     """A wrapper of a generated query."""
 
     def __init__(self, accessible_entity):
@@ -1034,7 +1041,7 @@ class Query(object):
             self._query_string += '&' + '$format=' + Config.format
 
 
-class Dispatcher(object):
+class Dispatcher:
     """A dispatcher for sending HTTP requests to the particular OData service."""
 
     def __init__(self, arguments, has_certificate=False):

@@ -933,7 +933,7 @@ class ProprtiesSelector(object):
 
         self._required_tuple = None
         self._non_required_tuple = None
-        self._has_remaining_proprties = True if self._required_proprties else False
+        self._has_remaining_proprties = bool(self._required_proprties)
         self._init_tuples()
 
         self._proprties = [self._non_required_tuple, self._required_tuple]

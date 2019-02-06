@@ -1,4 +1,4 @@
-from sys import stderr, stdout
+from sys import stdout
 from abc import ABCMeta, abstractmethod
 
 from odfuzz.statistics import Stats
@@ -34,7 +34,7 @@ class BindOutput(OutputHandler):
             meta={
                 'tests_num': Stats.tests_num, 'fails_num': Stats.fails_num,
                 'exceptions_num': Stats.exceptions_num, 'status': status})
-    
+
     def print_test_num(self):
         self._bind.update_state(
             state='PROGRESS',

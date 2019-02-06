@@ -4,7 +4,7 @@ from odfuzz.constants import FUZZER_CONFIG_PATH, CONFIG_SECTION
 from odfuzz.exceptions import ConfigParserError
 
 
-class Config(object):
+class Config:
     client = '500'
     format = 'json'
     seed_size = 100
@@ -21,7 +21,7 @@ class Config(object):
         Config.seed_size = config.seed_size
 
 
-class ConfigParser(object):
+class ConfigParser:
     def __init__(self, config_file):
         self._config_file = config_file
         self._config = configparser.ConfigParser()
@@ -41,7 +41,7 @@ class ConfigParser(object):
         return SectionConfig(parsed_section)
 
 
-class SectionConfig(object):
+class SectionConfig:
     def __init__(self, parsed_section):
         self._parsed_section = parsed_section
 

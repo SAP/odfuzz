@@ -8,7 +8,7 @@ from odfuzz.mongos import MongoClient
 from odfuzz.constants import TOP_ENTITIES, RUNTIME_FILE_NAME
 
 
-class Stats(object):
+class Stats:
     """A container that holds static data of overall statistics."""
 
     tests_num = 0
@@ -20,7 +20,7 @@ class Stats(object):
     start_datetime = None
 
 
-class StatsPrinter(object):
+class StatsPrinter:
     """A printer that writes all statistics to the defined output."""
 
     def __init__(self, collection_name):
