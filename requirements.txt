@@ -7,3 +7,4 @@ lxml>=3.7.3
 pyyaml>=3.13
 plotly>=3.2.0
 pandas>=0.23.4
+python-dateutil>=2.7.5

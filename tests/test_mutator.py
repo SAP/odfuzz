@@ -1,8 +1,31 @@
 from collections import namedtuple
 
-from odfuzz.mutators import DecimalMutator
+from odfuzz.mutators import DateTimeMutator, DecimalMutator
 
+DateTimeProperty = namedtuple('DateTimeProperty', 'precision')
 SelfMock = namedtuple('SelfMock', 'precision scale')
+
+
+def test_date_time_mutator():
+    date_time = 'datetime\'2019-01-01T10:10:10\''
+
+    incremented_day = DateTimeMutator.increment_day(DateTimeProperty(0), date_time)
+    assert incremented_day == 'datetime\'2019-01-02T10:10:10\''
+
+    decremented_day = DateTimeMutator.decrement_day(DateTimeProperty(0), date_time)
+    assert decremented_day == 'datetime\'2018-12-31T10:10:10\''
+
+    incremented_month = DateTimeMutator.increment_month(DateTimeProperty(0), date_time)
+    assert incremented_month == 'datetime\'2019-02-01T10:10:10\''
+
+    decremented_month = DateTimeMutator.decrement_month(DateTimeProperty(0), date_time)
+    assert decremented_month == 'datetime\'2018-12-01T10:10:10\''
+
+    incremented_year = DateTimeMutator.increment_year(DateTimeProperty(0), date_time)
+    assert incremented_year == 'datetime\'2020-01-01T10:10:10\''
+
+    decremented_year = DateTimeMutator.decrement_year(DateTimeProperty(0), date_time)
+    assert decremented_year == 'datetime\'2018-01-01T10:10:10\''
 
 
 def test_shift_value_decimal_mutator():

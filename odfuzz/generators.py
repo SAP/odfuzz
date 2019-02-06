@@ -30,8 +30,12 @@ class EdmGenerator:
 
     @staticmethod
     def edm_datetime():
+        """
+        The format of Edm.DateTime is defined as datetime'yyyy-mm-ddThh:mm[:ss[.fffffff]]'. The attribute Precision,
+        which is used for declaring a microsecond as a decimal number, is ignored.
+        """
         random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
-        return 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M'))
+        return 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S'))
 
     @staticmethod
     def edm_decimal(self):

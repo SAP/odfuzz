@@ -94,8 +94,7 @@ def patch_proprty_mutator(proprty):
     elif proprty_type == 'Edm.Boolean':
         proprty.mutate = BooleanMutator.flip_value
     elif proprty_type == 'Edm.DateTime':
-         # TODO
-        proprty.mutate = lambda value: value
+        proprty.mutate = DateTimeMutator._mutate.__get__(proprty, None)
     else:
         proprty.mutate = lambda value: value
         logging.error('Property type {} is not supported by mutator yet'.format(proprty_type))

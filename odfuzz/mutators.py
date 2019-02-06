@@ -1,14 +1,21 @@
 import random
 
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+
 from odfuzz.constants import BASE_CHARSET, HEX_BINARY, INT_MAX
 
 GUID_DASH_INDEXES = (8, 13, 18, 23)
 
 
 class StringMutator:
+    _methods = []
+
     @staticmethod
     def _mutate(proprty, value):
-        func_name = random.choice([func_name for func_name in StringMutator.__dict__ if not func_name.startswith('_')])
+        if not StringMutator._methods:
+            StringMutator._methods = [func_name for func_name in StringMutator.__dict__ if not func_name.startswith('_')]
+        func_name = random.choice(StringMutator._methods)
         mutated_value = getattr(StringMutator, func_name)(proprty, value)
         return mutated_value
 
@@ -90,9 +97,13 @@ class StringMutator:
 
 
 class NumberMutator:
+    _methods = []
+
     @staticmethod
     def _mutate(proprty, value):
-        func_name = random.choice([func_name for func_name in NumberMutator.__dict__ if not func_name.startswith('_')])
+        if not NumberMutator._methods:
+            NumberMutator._methods = [func_name for func_name in NumberMutator.__dict__ if not func_name.startswith('_')]
+        func_name = random.choice(NumberMutator._methods)
         mutated_value = getattr(NumberMutator, func_name)(proprty, value)
         return mutated_value
 
@@ -178,10 +189,13 @@ class BooleanMutator:
 
 class DecimalMutator:
     _generator = random
+    _methods = []
 
     @staticmethod
     def _mutate(proprty, value):
-        func_name = random.choice([func_name for func_name in DecimalMutator.__dict__ if not func_name.startswith('_')])
+        if not DecimalMutator._methods:
+            DecimalMutator._methods = [func_name for func_name in DecimalMutator.__dict__ if not func_name.startswith('_')]
+        func_name = random.choice(DecimalMutator._methods)
         mutated_value = getattr(DecimalMutator, func_name)(proprty, value)
         return mutated_value
 
@@ -238,13 +252,45 @@ class DecimalMutator:
 
 
 class DateTimeMutator:
-    @staticmethod
-    def increment_day(date_time):
-        pass
+    _methods = []
 
     @staticmethod
-    def decrement_day(date_time):
-        pass
+    def _mutate(proprty, value):
+        if not DateTimeMutator._methods:
+            DateTimeMutator._methods = [func_name for func_name in DateTimeMutator.__dict__ if not func_name.startswith('_')]
+        func_name = random.choice(DateTimeMutator._methods)
+        mutated_value = getattr(DateTimeMutator, func_name)(proprty, value)
+        return mutated_value
+
+    @staticmethod
+    def _mutate_date(date_time, time_delta):
+        converted_date = datetime.strptime(date_time.replace('datetime', '').replace('\'', ''), '%Y-%m-%dT%I:%M:%S')
+        mutated_date = converted_date + time_delta
+        return 'datetime\'{}\''.format(datetime.strftime(mutated_date, '%Y-%m-%dT%I:%M:%S'))
+
+    @staticmethod
+    def increment_day(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, relativedelta(days=1))
+
+    @staticmethod
+    def decrement_day(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, -relativedelta(days=1))
+
+    @staticmethod
+    def increment_month(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, relativedelta(months=1))
+
+    @staticmethod
+    def decrement_month(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, -relativedelta(months=1))
+
+    @staticmethod
+    def increment_year(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, relativedelta(years=1))
+
+    @staticmethod
+    def decrement_year(self, date_time):
+        return DateTimeMutator._mutate_date(date_time, -relativedelta(years=1))
 
 
 def normalize_surrogates(ord_char):
