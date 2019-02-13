@@ -53,7 +53,7 @@ class Builder:
         metadata_response = self._get_metadata_from_service()
         try:
             service_model = Edmx.parse(metadata_response.content)
-        except PyODataException as pyodata_ex:
+        except (PyODataException, RuntimeError) as pyodata_ex:
             raise BuilderError('An exception occurred while parsing metadata: {}'.format(pyodata_ex))
         return service_model
 
