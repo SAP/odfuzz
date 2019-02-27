@@ -109,7 +109,3 @@ class MongoDBHandler(DatabaseOperationsHandler):
     def find_best_entries(self):
         queries = self._collection.find({'http': '500'}).sort([('score', DESCENDING)]).limit(MAX_BEST_QUERIES)
         return list(queries)
-
-
-class SqliteHandler(DatabaseOperationsHandler):
-    pass
