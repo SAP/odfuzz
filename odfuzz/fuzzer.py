@@ -137,12 +137,12 @@ class Fuzzer:
     def seed_population(self):
         self._logger.info('Seeding population with requests...')
         for queryable in self._entities.all():
-            seed_range = len(queryable.entity_set.entity_type.proprties()) * Config.seed_size
+            entityset_urls_count = len(queryable.entity_set.entity_type.proprties()) * Config.seed_size
             if self._asynchronous:
-                seed_range = round(seed_range / Config.pool_size)
+                entityset_urls_count = round(entityset_urls_count / Config.pool_size)
             self._logger.info('Population range for entity \'{}\' is set to {}'
-                              .format(queryable.entity_set.name, seed_range))
-            for _ in range(seed_range):
+                              .format(queryable.entity_set.name, entityset_urls_count))
+            for _ in range(entityset_urls_count):
                 q = self._queryable_factory(queryable, self._logger)
                 queries = q.generate()
                 self._send_queries(queries)
