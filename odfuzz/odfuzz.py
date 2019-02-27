@@ -15,7 +15,7 @@ from odfuzz.fuzzer import Manager
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers, DirectoriesCreator
 from odfuzz.scatter import ScatterPlotter
-from odfuzz.mongos import CollectionCreator
+from odfuzz.databases import CollectionCreator
 from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.exceptions import ArgParserError, ODfuzzException
 
@@ -34,6 +34,8 @@ def execute(arguments, bind=None):
     init_logging(parsed_arguments)
 
     collection_name = create_collection_name(parsed_arguments)
+    logging.info('Database\'s collection set to {}'.format(collection_name))
+
     set_signal_handler(collection_name, parsed_arguments.plot)
 
     # Argument 'bind' is used for binding the self instance of another process, e.g. celery
@@ -59,7 +61,7 @@ def create_collection_name(parsed_arguments):
     else:
         service_name = service_parts[1]
     collection_creator = CollectionCreator(service_name)
-    collection_name = collection_creator.create()
+    collection_name = collection_creator.create_new()
     return collection_name
 
 
@@ -75,7 +77,7 @@ def run_fuzzer(bind, parsed_arguments, collection_name):
         else:
             gevent.with_timeout(parsed_arguments.timeout, manager.start)
     except ODfuzzException as ex:
-        sys.stderr.write(str(ex))
+        sys.stderr.write(str(ex) + '\n')
         sys.exit(1)
     except gevent.Timeout:
         signal_handler(collection_name, parsed_arguments.plot)

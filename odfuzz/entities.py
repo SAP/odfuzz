@@ -64,7 +64,7 @@ class Builder:
         except DispatcherError as disp_error:
             raise BuilderError('An exception occurred while retrieving metadata: {}'.format(disp_error))
         if metadata_response.status_code != 200:
-            raise BuilderError('Cannot retrieve metadata from {}. Status code is {}'.format(
+            raise BuilderError('Cannot retrieve metadata from {}. Status code is {}.'.format(
                 self._dispatcher.service, metadata_response.status_code))
         return metadata_response
 

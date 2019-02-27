@@ -23,7 +23,7 @@ from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, F
     OrderbyOptionBuilder, OrderbyOption, KeyValuesBuilder
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats
-from odfuzz.mongos import MongoClient
+from odfuzz.databases import MongoDB, MongoDBHandler
 from odfuzz.mutators import NumberMutator, StringMutator
 from odfuzz.output import StandardOutput, BindOutput
 from odfuzz.exceptions import DispatcherError
@@ -51,25 +51,34 @@ class Manager:
         else:
             self._output_handler = BindOutput(bind)
 
-
     def start(self):
-        self._output_handler.print_status('Collection: {}'.format(self._collection_name))
-        self._output_handler.print_status('Initializing queryable entities...')
-
-        builder = Builder(self._dispatcher, self._restrictions, self._first_touch)
-        entities = builder.build()
-
-        fuzzer = Fuzzer(self._dispatcher, entities, self._collection_name, self._output_handler,
+        database = self.establish_database_connection(MongoDBHandler, MongoDB)
+        entities = self.build_entities()
+        fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler,
                         asynchronous=self._asynchronous, plot=self._plot_graph)
 
         self._output_handler.print_status('Fuzzing...')
         fuzzer.run()
 
+    def establish_database_connection(self, database_handler, database_client):
+        self._output_handler.print_status('Connecting to the database...')
+        try:
+            return database_handler(database_client(self._collection_name))
+        except ServerSelectionTimeoutError:
+            self._output_handler.print_status('Error: Cannot connect establish connetion to the database.')
+            sys.exit(1)
+
+    def build_entities(self):
+        self._output_handler.print_status('Collection: {}'.format(self._collection_name))
+        self._output_handler.print_status('Initializing queryable entities...')
+        builder = Builder(self._dispatcher, self._restrictions, self._first_touch)
+        return builder.build()
+
 
 class Fuzzer:
     """A main class that initiates a fuzzing process."""
 
-    def __init__(self, dispatcher, entities, collection_name, output_handler, **kwargs):
+    def __init__(self, dispatcher, entities, database, output_handler, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._stats_logger = StatsLogger()
 
@@ -81,19 +90,10 @@ class Fuzzer:
         self._dispatcher = dispatcher
         self._entities = entities
         self._output_handler = output_handler
+        self._database = database
 
-        self._logger.info('mongoDB collection set to {}'.format(collection_name))
-        self._collection_name = collection_name
-
-        self._output_handler.print_status('Connecting to the database...')
-        try:
-            self._mongodb = MongoClient(collection_name)
-        except ServerSelectionTimeoutError:
-            self._output_handler.print_status('ERROR: Cannot connect to mongoDB.')
-            sys.exit(1)
-
-        self._analyzer = Analyzer(self._mongodb)
-        self._selector = Selector(self._mongodb, self._entities)
+        self._analyzer = Analyzer(database)
+        self._selector = Selector(database, entities)
 
         self._asynchronous = kwargs.get('asynchronous')
         if self._asynchronous:
@@ -124,14 +124,14 @@ class Fuzzer:
         random.seed(time_seed, version=1)
         self._logger.info('Seed is set to \'{}\''.format(time_seed))
 
-        self._mongodb.remove_collection()
+        self._database.delete_collection()
         self.seed_population()
-        if self._mongodb.total_queries() == 0:
+        if self._database.total_entries() == 0:
             self._logger.info('There are no queries generated yet.')
             sys.stdout.write('OData service does not contain any queryable entities. Exiting...\n')
             sys.exit(0)
 
-        self._selector.score_average = self._mongodb.overall_score() / self._mongodb.total_queries()
+        self._selector.score_average = self._database.total_score() / self._database.total_entries()
         self.evolve_population()
 
     def seed_population(self):
@@ -225,14 +225,14 @@ class Fuzzer:
 
     def _remove_weak_queries(self, analyzed_offsprings, queries):
         for offspring in analyzed_offsprings:
-            offspring.slay_weak_individual(self._mongodb, queries)
+            offspring.slay_weak_individual(queries)
 
     def _slay_weakest_individuals(self, number_of_individuals):
-        self._mongodb.remove_weakest_queries(number_of_individuals)
+        self._database.delete_worst_entries(number_of_individuals)
 
     def _save_to_database(self, queries):
         for query in queries:
-            self._mongodb.save_document(query.dictionary)
+            self._database.save_entry(query.dictionary)
 
     def _set_error_attributes(self, query):
         self._set_attribute_value(query, 'error_code', 'error', 'code')
@@ -686,9 +686,9 @@ class ResponseTimeLogger:
 
 
 class Selector:
-    def __init__(self, mongodb, entities):
+    def __init__(self, database, entities):
         self._logger = logging.getLogger(FUZZER_LOGGER)
-        self._mongodb = mongodb
+        self._database = database
         self._score_average = 0
         self._passed_iterations = 0
         self._entities = entities
@@ -719,7 +719,7 @@ class Selector:
     def _is_score_stagnating(self):
         if self._passed_iterations > ITERATIONS_THRESHOLD:
             self._passed_iterations = 0
-            current_average = self._mongodb.overall_score() / self._mongodb.total_queries()
+            current_average = self._database.total_score() / self._database.total_entries()
             old_average = self._score_average
             self._score_average = current_average
             if (current_average - old_average) < SCORE_EPS:
@@ -728,10 +728,10 @@ class Selector:
 
     def _get_crossable(self, queryable):
         entity_set_name = queryable.entity_set.name
-        parent1 = self._mongodb.best_filter_sample_query(entity_set_name, None)
+        parent1 = self._database.sample_filter_entry(entity_set_name, None)
         if parent1 is None:
             return None
-        parent2 = self._mongodb.best_filter_sample_query(entity_set_name, ObjectId(parent1['_id']))
+        parent2 = self._database.sample_filter_entry(entity_set_name, ObjectId(parent1['_id']))
         if parent2 is None:
             return None
         return parent1, parent2
@@ -756,8 +756,8 @@ class Selection:
 class Analyzer:
     """An analyzer for analyzing generated queries."""
 
-    def __init__(self, mongodb):
-        self._mongodb = mongodb
+    def __init__(self, database):
+        self._database = database
         self._population_score = 0
 
     def analyze(self, query):
@@ -768,25 +768,28 @@ class Analyzer:
         if predecessors_ids:
             offspring = self._build_offspring_by_score(predecessors_ids, query, new_score)
         else:
-            offspring = EmptyOffspring()
+            offspring = EmptyOffspring(self._database)
         return offspring
 
     def _build_offspring_by_score(self, predecessors_id, query, new_score):
         for predecessor_id in predecessors_id:
-            if self._mongodb.query_by_id(predecessor_id)['score'] < new_score:
-                return BetterOffspring(predecessor_id)
+            if self._database.find_entry(predecessor_id)['score'] < new_score:
+                return BetterOffspring(self._database, predecessor_id)
         return WorseOffspring(query)
 
     def _update_population_score(self, query_score):
         if self._population_score == 0:
-            self._population_score = self._mongodb.overall_score()
+            self._population_score = self._database.total_score()
         else:
             self._population_score += query_score
 
 
 class Offspring(metaclass=ABCMeta):
+    def __init__(self, database):
+        self._database = database
+
     @abstractmethod
-    def slay_weak_individual(self, mongodb, queries):
+    def slay_weak_individual(self, queries):
         pass
 
     @abstractmethod
@@ -795,14 +798,15 @@ class Offspring(metaclass=ABCMeta):
 
 
 class BetterOffspring(Offspring):
-    def __init__(self, worse_predecessor_id):
+    def __init__(self, database, worse_predecessor_id):
+        super(BetterOffspring, self).__init__(database)
         self._worse_predecessor_id = worse_predecessor_id
         self._slayed = 0
 
-    def slay_weak_individual(self, mongodb, queries):
-        deleted_num = mongodb.remove_by_id(self._worse_predecessor_id)
+    def slay_weak_individual(self,queries):
+        deleted_num = self._database.delete_entry(self._worse_predecessor_id)
         if deleted_num == 0:
-            mongodb.remove_weakest_queries(1)
+            self._database.delete_worst_entries(1)
         self._slayed = 1
 
     def get_number_of_slayed(self):
@@ -814,7 +818,7 @@ class WorseOffspring(Offspring):
         self._offspring = offspring
         self._slayed = 0
 
-    def slay_weak_individual(self, mongodb, queries):
+    def slay_weak_individual(self, queries):
         queries.remove(self._offspring)
         self._slayed = 1
 
@@ -823,8 +827,8 @@ class WorseOffspring(Offspring):
 
 
 class EmptyOffspring(Offspring):
-    def slay_weak_individual(self, mongodb, queries):
-        mongodb.remove_weakest_queries(1)
+    def slay_weak_individual(self, queries):
+        self._database.delete_worst_entries(1)
 
     def get_number_of_slayed(self):
         return 1
