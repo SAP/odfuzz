@@ -15,7 +15,7 @@ from odfuzz.fuzzer import Manager
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers, DirectoriesCreator
 from odfuzz.scatter import ScatterPlotter
-from odfuzz.mongos import CollectionCreator
+from odfuzz.databases import CollectionCreator
 from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.exceptions import ArgParserError, ODfuzzException
 
@@ -61,7 +61,7 @@ def create_collection_name(parsed_arguments):
     else:
         service_name = service_parts[1]
     collection_creator = CollectionCreator(service_name)
-    collection_name = collection_creator.create()
+    collection_name = collection_creator.create_new()
     return collection_name
 
 

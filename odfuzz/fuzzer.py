@@ -225,7 +225,7 @@ class Fuzzer:
 
     def _remove_weak_queries(self, analyzed_offsprings, queries):
         for offspring in analyzed_offsprings:
-            offspring.slay_weak_individual(self._database, queries)
+            offspring.slay_weak_individual(queries)
 
     def _slay_weakest_individuals(self, number_of_individuals):
         self._database.delete_worst_entries(number_of_individuals)

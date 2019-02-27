@@ -1,9 +1,26 @@
 """This module defines an interface for local databases. At the moment, the only supported databases are mongoDB and sqlite."""
 
+import random
+import uuid
+
 from abc import ABCMeta, abstractmethod
 from pymongo import errors, MongoClient, ASCENDING, DESCENDING
 
 from odfuzz.constants import MONGODB_NAME, FILTER_PARTS_NUM, FILTER_SAMPLE_SIZE, MAX_BEST_QUERIES
+
+
+class CollectionCreator:
+    def __init__(self, service_name):
+        self._service_name = service_name
+        self._collection_name = None
+
+    def create_new(self):
+        random_uuid = str(uuid.UUID(int=random.getrandbits(128), version=4))
+        self._collection_name = '{}-{}'.format(self._service_name, random_uuid)
+        return self._collection_name
+
+    def get_cached(self):
+        return self._collection_name
 
 
 class DatabaseOperationsHandler:
