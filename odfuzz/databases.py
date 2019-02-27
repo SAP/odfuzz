@@ -123,6 +123,14 @@ class MongoDBHandler(DatabaseOperationsHandler):
         ]))
         return next(iter(queries), None)
     
-    def find_best_entries(self):
-        queries = self._collection.find({'http': '500'}).sort([('score', DESCENDING)]).limit(MAX_BEST_QUERIES)
+    def find_best_entries(self, entity_set_name):
+        queries = self._collection.find(
+            {'entity_set': entity_set_name, 'http': '500'}).sort([('score', DESCENDING)]).limit(MAX_BEST_QUERIES)
         return list(queries)
+
+    def find_distinct_errorous_entity_names(self):
+        entity_names = self._collection.aggregate([
+            {'$match': {'http': '500'}},
+            {'$group': {'_id': '$entity_set'}}
+        ])
+        return [entity_name['_id'] for entity_name in entity_names]

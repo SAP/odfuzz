@@ -4,8 +4,7 @@ import os
 
 from datetime import datetime
 
-from odfuzz.mongos import MongoClient
-from odfuzz.constants import TOP_ENTITIES, RUNTIME_FILE_NAME
+from odfuzz.constants import RUNTIME_FILE_NAME
 
 
 class Stats:
@@ -23,8 +22,8 @@ class Stats:
 class StatsPrinter:
     """A printer that writes all statistics to the defined output."""
 
-    def __init__(self, collection_name):
-        self._mongodb = MongoClient(collection_name)
+    def __init__(self, database_handler, database_client, collection_name):
+        self._database = database_handler(database_client(collection_name))
         self._stats = Stats()
 
     def write(self):
@@ -32,10 +31,10 @@ class StatsPrinter:
         self._write_runtime_stats()
 
     def _write_sorted_entities(self):
-        for entity in self._mongodb.existing_entities():
+        for entity in self._database.find_distinct_errorous_entity_names():
             file_path = os.path.join(self._stats.directory, 'EntitySet_' + entity + '.txt')
             with open(file_path, 'a', encoding='utf-8') as entity_file:
-                for query in self._mongodb.sorted_queries_by_entity(entity, TOP_ENTITIES):
+                for query in self._database.find_best_entries(entity):
                     info_line = query['http'] + ':' + query['error_code'] + ':' + query['string'] + '\n'
                     entity_file.write(info_line)
 

@@ -152,3 +152,40 @@ def test_database_sample_filter_entries_no_exclude(data_single_filter_logical_co
 
     assert entry == data_three_filter_logicals_company_code
 '''
+
+
+def test_database_find_best_two(data_single_filter_logical_company_code, data_single_filter_logical_company_code_error,
+                                data_search_correspondence_company_code_error):
+    mongo_mock = MongoDBMock()
+    mongo_mock.collection.insert_many([data_single_filter_logical_company_code, data_single_filter_logical_company_code_error,
+                                       data_search_correspondence_company_code_error])
+    mongo_handler = MongoDBHandler(mongo_mock)
+
+    best_two_entries = mongo_handler.find_best_entries('C_CorrespondenceCompanyCodeVH')
+
+    assert best_two_entries == [data_single_filter_logical_company_code_error, data_search_correspondence_company_code_error]
+
+
+def test_database_find_best_three(data_single_filter_logical_company_code, data_two_filter_logicals_company_code,
+                                data_search_correspondence_company_code_error, data_inlinecount_correspondence_company_code_error,
+                                data_single_filter_logical_company_code_error):
+    mongo_mock = MongoDBMock()
+    mongo_mock.collection.insert_many([data_single_filter_logical_company_code, data_two_filter_logicals_company_code,
+                                       data_search_correspondence_company_code_error, data_single_filter_logical_company_code_error,
+                                       data_inlinecount_correspondence_company_code_error])
+    mongo_handler = MongoDBHandler(mongo_mock)
+
+    best_three_entries = mongo_handler.find_best_entries('C_CorrespondenceCompanyCodeVH')
+
+    assert best_three_entries == [data_single_filter_logical_company_code_error, data_search_correspondence_company_code_error,
+                                  data_inlinecount_correspondence_company_code_error]
+
+
+def test_distinct_errorous_two_entities(data_single_filter_logical_company_code_error, data_search_output_set_error):
+    mongo_mock = MongoDBMock()
+    mongo_mock.collection.insert_many([data_single_filter_logical_company_code_error, data_search_output_set_error])
+    mongo_handler = MongoDBHandler(mongo_mock)
+
+    distinct_entities = mongo_handler.find_distinct_errorous_entity_names()
+
+    assert set(distinct_entities) == set(['C_CorrespondenceOutputSet', 'C_CorrespondenceCompanyCodeVH'])

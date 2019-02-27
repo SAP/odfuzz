@@ -54,8 +54,6 @@ NAV_PROPRTY = '$NAV_PROP$'
 QUERY_OPTIONS = [FILTER, ORDERBY, TOP, SKIP, EXPAND, SEARCH, INLINECOUNT]
 SINGLE_ENTITY_ALLOWED_OPTIONS = [FILTER, EXPAND]
 
-MAX_BEST_QUERIES = 30
-
 STRING_FUNC_PROB = 0.70
 MATH_FUNC_PROB = 0.15
 DATE_FUNC_PROB = 0.15
@@ -98,7 +96,7 @@ OPTION_DEL_PROB = 0.1
 MAX_MULTI_VALUES = 3
 MAX_EXPAND_VALUES = 3
 FILTER_SAMPLE_SIZE = 30
-TOP_ENTITIES = 20
+MAX_BEST_QUERIES = 30
 
 CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search;inlinecount'
 CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'

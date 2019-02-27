@@ -15,7 +15,7 @@ from odfuzz.fuzzer import Manager
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers, DirectoriesCreator
 from odfuzz.scatter import ScatterPlotter
-from odfuzz.databases import CollectionCreator
+from odfuzz.databases import CollectionCreator, MongoDB, MongoDBHandler
 from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.exceptions import ArgParserError, ODfuzzException
 
@@ -88,7 +88,7 @@ def signal_handler(db_collection_name, plot_graph):
     logging.info(exit_message)
     sys.stdout.write('\n' + exit_message + '\n')
 
-    stats = StatsPrinter(db_collection_name)
+    stats = StatsPrinter(MongoDBHandler, MongoDB, db_collection_name)
     stats.write()
 
     if plot_graph:
