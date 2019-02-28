@@ -1,0 +1,21 @@
+fuzzer:
+    # SAP client ID. The option is required only for testing OData services within the SAP
+    # network.
+    sap_client: 500
+    # A format of requested data. Valid values are 'json' and 'xml'.
+    data_format: json
+    # A number of initial URLs which will be generated per single property defined in the
+    # metadata document.
+    urls_per_property: 100
+
+dispatcher:
+    # If true, the tool will search for a certificate in the folder where the fuzzer is
+    # installed. The installation path will be added as a prefix for certificate's file
+    # path. Default SAP certificate is included within the package.
+    cert_install_path: true
+    # A file path where the HTTPS certificate is stored.
+    cert_file_path: config/security/ca_sap_root_base64.crt
+    # A number of asynchronous requests which will be sent to a server via dispatcher
+    # at the same time.
+    async_requests_num: 10
+
