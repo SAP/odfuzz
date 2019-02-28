@@ -1,75 +1,75 @@
-import configparser
+"""This module contains classes for fetching and parsing basic configurations."""
 
-from odfuzz.constants import FUZZER_CONFIG_PATH, CONFIG_SECTION
+import yaml
+
+from odfuzz.constants import FUZZER_CONFIG_PATH, CONFIG_SECTION, CERTIFICATE_PATH, ASYNC_REQUESTS_NUM,\
+    SAP_CLIENT, DATA_FORMAT, URLS_PER_PROPERTY
 from odfuzz.exceptions import ConfigParserError
 
 
-class Config:
-    client = '500'
-    format = 'json'
-    seed_size = 100
-    # pool size may be limited on some OData services
-    # and should be a factor of seed population size
-    pool_size = 10
+class ConfigParser:
 
     @staticmethod
-    def retrieve_config():
-        config = ConfigParser(FUZZER_CONFIG_PATH).get_section(CONFIG_SECTION)
-        Config.client = config.client
-        Config.format = config.format
-        Config.pool_size = config.pool_size
-        Config.seed_size = config.seed_size
-
-
-class ConfigParser:
-    def __init__(self, config_file):
-        self._config_file = config_file
-        self._config = configparser.ConfigParser()
-        self._read_file()
-
-    def _read_file(self):
+    def parse(config_file):
         try:
-            self._config.read(self._config_file)
-        except configparser.Error as error:
-            raise ConfigParserError(error)
+            with open(config_file) as stream:
+                config_dict = yaml.safe_load(stream)
+        except (EnvironmentError, yaml.YAMLError) as error:
+            raise ConfigParserError('An exception was raised while parsing the restrictions file \'{}\': {}'
+                                    .format(config_file, error))
 
-    def get_section(self, name):
-        try:
-            parsed_section = self._config[name]
-        except KeyError:
-            raise ConfigParserError('Section \'{}\' does not exist in file \'{}\''.format(name, self._config_file))
-        return SectionConfig(parsed_section)
+        return Config(config_dict)
 
 
-class SectionConfig:
-    def __init__(self, parsed_section):
-        self._parsed_section = parsed_section
-
-        self._seed_size = None
-        self._pool_size = None
-        self._client = None
-        self._format = None
-
-        self._init_config()
-
-    def _init_config(self):
-        self._seed_size = self._parsed_section.getint('seed', 100)
-        self._pool_size = self._parsed_section.getint('pool', 10)
-        self._client = self._parsed_section.get('client', '500')
-        self._format = self._parsed_section.get('format', 'json')
+class Config:
+    def __init__(self, config):
+        self._fuzzer = FuzzerConfig(config['fuzzer'])
+        self._dispatcher = DispatcherConfig(config['dispatcher'])
 
     @property
-    def seed_size(self):
-        return self._seed_size
+    def fuzzer(self):
+        return self._fuzzer
 
     @property
-    def pool_size(self):
-        return self._pool_size
+    def dispatcher(self):
+        return self._dispatcher
+
+
+class FuzzerConfig:
+    def __init__(self, config):
+        self._sap_client = config.get('sap_client', SAP_CLIENT)
+        self._data_format = config.get('data_format', DATA_FORMAT)
+        self._urls_per_property = config.get(
+            'urls_per_property', URLS_PER_PROPERTY)
 
     @property
-    def client(self):
-        return self._client
+    def sap_client(self):
+        return self._sap_client
 
     @property
-    def format(self):
-        return self._format
+    def data_format(self):
+        return self._data_format
+
+    @property
+    def urls_per_property(self):
+        return self._urls_per_property
+
+
+class DispatcherConfig:
+    def __init__(self, config):
+        self._cert_install_path = config.get('cert_install_path', True)
+        self._cert_file_path = config.get('cert_file_path', CERTIFICATE_PATH)
+        self._async_requests_num = config.get(
+            'async_requests_num', ASYNC_REQUESTS_NUM)
+
+    @property
+    def cert_install_path(self):
+        return self._cert_install_path
+
+    @property
+    def cert_file_path(self):
+        return self._cert_file_path
+
+    @property
+    def async_requests_num(self):
+        return self._async_requests_num

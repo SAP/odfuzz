@@ -107,6 +107,11 @@ YEAR_IN_SECONDS = 31622400
 REQUEST_TIMEOUT = 600
 RETRY_TIMEOUT = 100
 
+ASYNC_REQUESTS_NUM = 10
+SAP_CLIENT = '500'
+DATA_FORMAT = 'json'
+URLS_PER_PROPERTY = 100
+
 HEX_BINARY = 'ABCDEFabcdef0123456789'
 BASE_CHARSET = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789~!$@^*()_+-–—=' \
                '[]|:<>.‰¨œƒ…†‡Œ‘’´`“”•™¡¢£¤¥¦§©ª«¬®¯°±²³µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍ' \
