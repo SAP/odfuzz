@@ -2,45 +2,16 @@
 
 import yaml
 
-from odfuzz.constants import FUZZER_CONFIG_PATH, CONFIG_SECTION, CERTIFICATE_PATH, ASYNC_REQUESTS_NUM,\
+from odfuzz.constants import CERTIFICATE_PATH, ASYNC_REQUESTS_NUM, FUZZER_CONFIG_PATH, \
     SAP_CLIENT, DATA_FORMAT, URLS_PER_PROPERTY
 from odfuzz.exceptions import ConfigParserError
-
-
-class ConfigParser:
-
-    @staticmethod
-    def parse(config_file):
-        try:
-            with open(config_file) as stream:
-                config_dict = yaml.safe_load(stream)
-        except (EnvironmentError, yaml.YAMLError) as error:
-            raise ConfigParserError('An exception was raised while parsing the restrictions file \'{}\': {}'
-                                    .format(config_file, error))
-
-        return Config(config_dict)
-
-
-class Config:
-    def __init__(self, config):
-        self._fuzzer = FuzzerConfig(config['fuzzer'])
-        self._dispatcher = DispatcherConfig(config['dispatcher'])
-
-    @property
-    def fuzzer(self):
-        return self._fuzzer
-
-    @property
-    def dispatcher(self):
-        return self._dispatcher
 
 
 class FuzzerConfig:
     def __init__(self, config):
         self._sap_client = config.get('sap_client', SAP_CLIENT)
         self._data_format = config.get('data_format', DATA_FORMAT)
-        self._urls_per_property = config.get(
-            'urls_per_property', URLS_PER_PROPERTY)
+        self._urls_per_property = config.get('urls_per_property', URLS_PER_PROPERTY)
 
     @property
     def sap_client(self):
@@ -57,10 +28,19 @@ class FuzzerConfig:
 
 class DispatcherConfig:
     def __init__(self, config):
-        self._cert_install_path = config.get('cert_install_path', True)
-        self._cert_file_path = config.get('cert_file_path', CERTIFICATE_PATH)
-        self._async_requests_num = config.get(
-            'async_requests_num', ASYNC_REQUESTS_NUM)
+        self._certificate = config.get('certificate')
+        if self._certificate:
+            self._cert_install_path = self._certificate.get('cert_install_path', True)
+            self._cert_file_path = self._certificate.get('cert_file_path', CERTIFICATE_PATH)
+        else:
+            self._cert_install_path = False
+            self._cert_file_path = ''
+
+        self._async_requests_num = config.get('async_requests_num', ASYNC_REQUESTS_NUM)
+
+    @property
+    def has_certificate(self):
+        return bool(self._certificate)
 
     @property
     def cert_install_path(self):
@@ -73,3 +53,27 @@ class DispatcherConfig:
     @property
     def async_requests_num(self):
         return self._async_requests_num
+
+
+class Config:
+    fuzzer = FuzzerConfig({})
+    dispatcher = DispatcherConfig({})
+
+    @staticmethod
+    def init_from(config_file):
+        config_dict = Config.raw_from(config_file)
+        if not config_dict:
+            config_dict = Config.raw_from(FUZZER_CONFIG_PATH)
+
+        Config.fuzzer = FuzzerConfig(config_dict.get('fuzzer') or {})
+        Config.dispatcher = DispatcherConfig(config_dict.get('dispatcher') or {})
+
+    @staticmethod
+    def raw_from(config_file):
+        try:
+            with open(config_file) as stream:
+                config_dict = yaml.safe_load(stream)
+        except (EnvironmentError, yaml.YAMLError) as error:
+            raise ConfigParserError('An exception was raised while parsing the configuration file \'{}\': {}'
+                                    .format(config_file, error))
+        return config_dict

@@ -58,7 +58,7 @@ class Builder:
         return service_model
 
     def _get_metadata_from_service(self):
-        metadata_request = '$metadata?' + 'sap-client=' + Config.client
+        metadata_request = '$metadata?' + 'sap-client=' + Config.fuzzer.sap_client
         try:
             metadata_response = self._dispatcher.get(metadata_request, timeout=5)
         except DispatcherError as disp_error:
@@ -100,7 +100,7 @@ class FirstTouch:
         return self._restrictions
 
     def check_empty_entity_set(self, entity_set):
-        response = self._dispatcher.get(entity_set.name)
+        response = self._dispatcher.get(entity_set.name + '?sap-client=' + Config.fuzzer.sap_client)
         if response.status_code == requests.codes.not_implemented:
             self._restrictions.add_exclude_restriction(entity_set.name, GLOBAL_ENTITY_SET)
 
@@ -108,7 +108,7 @@ class FirstTouch:
         non_addressable_entity = SingleEntity(entity_set)
         queryable_entity = non_addressable_entity.generate_accessible_entity()
 
-        response = self._dispatcher.get(queryable_entity.path)
+        response = self._dispatcher.get(queryable_entity.path + '?sap-client=' + Config.fuzzer.sap_client)
         if response.status_code == requests.codes.not_implemented:
             self._restrictions.add_exclude_restriction(entity_set.name, GLOBAL_ENTITY)
 
@@ -614,7 +614,7 @@ class TopQuery(QueryOption):
 
     def _get_total_entities(self):
         try:
-            url = self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.client
+            url = self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.fuzzer.sap_client
             response = self._dispatcher.get(url, timeout=5)
         except DispatcherError:
             total_entities = INT_MAX
