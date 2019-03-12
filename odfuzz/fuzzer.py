@@ -37,14 +37,14 @@ class Manager:
     """A class for managing the fuzzer runtime."""
 
     def __init__(self, bind, arguments, collection_name):
-        self._dispatcher = Dispatcher(arguments, has_certificate=True)
+        Config.init_from(arguments.fuzzer_config)
+
+        self._dispatcher = Dispatcher(arguments)
         self._asynchronous = arguments.asynchronous
         self._first_touch = arguments.first_touch
         self._plot_graph = arguments.plot
         self._restrictions = RestrictionsGroup(arguments.restrictions)
         self._collection_name = collection_name
-
-        Config.retrieve_config()
 
         if bind is None:
             self._output_handler = StandardOutput(bind)
@@ -137,13 +137,13 @@ class Fuzzer:
     def seed_population(self):
         self._logger.info('Seeding population with requests...')
         for queryable in self._entities.all():
-            entityset_urls_count = len(queryable.entity_set.entity_type.proprties()) * Config.seed_size
+            entityset_urls_count = len(queryable.entity_set.entity_type.proprties()) * Config.fuzzer.urls_per_property
             if self._asynchronous:
-                entityset_urls_count = round(entityset_urls_count / Config.pool_size)
+                entityset_urls_count = round(entityset_urls_count / Config.dispatcher.async_requests_num)
             self._logger.info('Population range for entity \'{}\' is set to {}'
                               .format(queryable.entity_set.name, entityset_urls_count))
             for _ in range(entityset_urls_count):
-                q = self._queryable_factory(queryable, self._logger)
+                q = self._queryable_factory(queryable, self._logger, Config.dispatcher._async_requests_num)
                 queries = q.generate()
                 self._send_queries(queries)
                 self._analyze_queries(queries)
@@ -181,7 +181,7 @@ class Fuzzer:
                 break
 
     def _get_multiple_responses(self, queries):
-        pool = Pool(Config.pool_size)
+        pool = Pool(Config.dispatcher.async_requests_num)
         for query in queries:
             pool.spawn(self._get_response, query)
         try:
@@ -207,7 +207,7 @@ class Fuzzer:
             self._set_error_attributes(query)
             Stats.fails_num += 1
         else:
-            self._response_logger.log_response_time_and_data(query, Config.format)
+            self._response_logger.log_response_time_and_data(query, Config.fuzzer.data_format)
             setattr(query.response, 'error_code', '')
             setattr(query.response, 'error_message', '')
 
@@ -267,9 +267,10 @@ class Fuzzer:
 
 
 class Queryable:
-    def __init__(self, queryable, logger):
+    def __init__(self, queryable, logger, async_requests_num):
         self._queryable = queryable
         self._logger = logger
+        self._async_requests_num = async_requests_num
 
     def generate_query(self):
         accessible_entity = self._queryable.get_accessible_entity()
@@ -472,7 +473,7 @@ class Queryable:
 class MultipleQueryable(Queryable):
     def generate(self):
         queries = []
-        for _ in range(Config.pool_size):
+        for _ in range(self._async_requests_num):
             query = self.generate_query()
             if query:
                 queries.append(query)
@@ -480,7 +481,7 @@ class MultipleQueryable(Queryable):
 
     def crossover(self, crossable_selection):
         children = []
-        for _ in range(Config.pool_size):
+        for _ in range(self._async_requests_num):
             accessible_keys = crossable_selection[0].get('accessible_keys', None)
             if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
                 query = self.build_mutated_accessible_keys(accessible_keys, crossable_selection[0])
@@ -1039,34 +1040,29 @@ class Query:
         }
 
     def _add_appendix(self):
-        if Config.client:
-            self._query_string += '&' + 'sap-client=' + Config.client
-        if Config.format:
-            self._query_string += '&' + '$format=' + Config.format
+        if Config.fuzzer.sap_client:
+            self._query_string += '&' + 'sap-client=' + Config.fuzzer.sap_client
+        if Config.fuzzer.data_format:
+            self._query_string += '&' + '$format=' + Config.fuzzer.data_format
 
 
 class Dispatcher:
     """A dispatcher for sending HTTP requests to the particular OData service."""
 
-    def __init__(self, arguments, has_certificate=False):
+    def __init__(self, arguments):
+        self._config = Config.dispatcher
+
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._service = arguments.service.rstrip('/') + '/'
-        self._has_certificate = has_certificate
 
         self._session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(pool_connections=Config.pool_size, pool_maxsize=Config.pool_size)
+        adapter = requests.adapters.HTTPAdapter(pool_connections=self._config.async_requests_num,
+                                                pool_maxsize=self._config.async_requests_num)
         self._session.mount(ACCESS_PROTOCOL, adapter)
         self._session.verify = self._get_sap_certificate()
         self._session.headers.update({'user-agent': 'odfuzz/1.0'})
+
         self._init_auth_credentials(arguments.credentials)
-
-    @property
-    def session(self):
-        return self._session
-
-    @property
-    def service(self):
-        return self._service
 
     def send(self, method, query, **kwargs):
         url = self._service + query
@@ -1087,8 +1083,11 @@ class Dispatcher:
 
     def _get_sap_certificate(self):
         certificate_path = None
-        if self._has_certificate:
-            candidate_path = FUZZER_CERTIFICATE_PATH
+        if self._config.has_certificate:
+            if self._config.cert_install_path:
+                candidate_path = os.path.join(FUZZER_PATH, self._config.cert_file_path)
+            else:
+                candidate_path = self._config.cert_file_path
             if not os.path.isfile(candidate_path):
                 return None
             certificate_path = candidate_path

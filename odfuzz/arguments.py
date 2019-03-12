@@ -3,7 +3,7 @@
 import sys
 import argparse
 
-from odfuzz.constants import INFINITY_TIMEOUT, YEAR_IN_SECONDS
+from odfuzz.constants import INFINITY_TIMEOUT, YEAR_IN_SECONDS, FUZZER_CONFIG_PATH
 from odfuzz.exceptions import ArgParserError
 
 FUZZER_DESC = 'Fuzzer for testing applications communicating via the OData protocol'
@@ -13,6 +13,7 @@ class ArgParser:
     def __init__(self):
         self._parser = argparse.ArgumentParser(prog='ODfuzz', add_help=False, description=FUZZER_DESC)
         self._add_arguments()
+        self._set_defaults()
 
     def parse(self, arguments):
         self._handle_help_option(arguments)
@@ -39,6 +40,10 @@ class ArgParser:
                                   help='Log response time and data, and create a scatter plot')
         self._parser.add_argument('-c', '--credentials', type=str, metavar='USERNAME:PASSWORD',
                                   help='User name and password used for authentication')
+        self._parser.add_argument('--fuzzer-config', type=str, help='A configuration file for the fuzzer')
+
+    def _set_defaults(self):
+        self._parser.set_defaults(fuzzer_config=FUZZER_CONFIG_PATH)
 
     def _handle_help_option(self, arguments):
         if '-h' in arguments or '--help' in arguments:
