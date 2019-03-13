@@ -1064,6 +1064,10 @@ class Dispatcher:
 
         self._init_auth_credentials(arguments.credentials)
 
+    @property
+    def service(self):
+        return self._service
+
     def send(self, method, query, **kwargs):
         url = self._service + query
         try:
