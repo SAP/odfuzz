@@ -39,6 +39,8 @@ RUN apk update \
 	&& rm -rf /usr/lib/python*/ensurepip \
 	&& rm -rf /root/.cache
 
+RUN cd ODfuzz && python3 setup.py install
+
 ENV PROXY_ENABLED="yes" \
 	HTTP_PROXY="http://proxy:8080" \
 	http_proxy="http://proxy:8080" \

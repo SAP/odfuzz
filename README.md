@@ -17,14 +17,14 @@ C_Cpbupaemailvh?$top=81&$filter=ContactPerson eq 'Ý¿â†' and (RelationshipCa
 #### Requirements
 - [Python 3.6](https://www.python.org/downloads/)
 - [mongoDB 3.6](https://www.mongodb.com/)
-- [PivotTable](https://github.wdf.sap.corp/I342520/Pivot)
+- [PivotTable](https://github.wdf.sap.corp/I342520/Pivot) (http://chef.brq.only.sap:8081/)
 
 ## Setup
 1. Clone this repository:
 ```
 $ git clone https://github.wdf.sap.corp/I342520/ODfuzz && cd ODfuzz
 ```
-2. Install mongoDB:
+2. Install the fuzzer:
     1. Docker
         1. Execute the following command to build a docker image:
         ```
@@ -37,14 +37,11 @@ $ git clone https://github.wdf.sap.corp/I342520/ODfuzz && cd ODfuzz
 
     2. Manual
         1. [Download](https://www.mongodb.com/download-center#community) and [install](https://docs.mongodb.com/manual/administration/install-community/) the mongoDB server on your local machine.
-        2. [Download](https://github.wdf.sap.corp/I342520/Pivot) or clone a custom implementation of the Pivot table:
+        3. Create an executable script:
         ```
-        $ git clone https://github.wdf.sap.corp/I342520/Pivot
+        $ python3 setup.py install
         ```
-3. Create executable script:
-```
-$ python3 setup.py install
-```
+
 
 ## Run configuration
 To access OData services introduced in SAP, it is required to set the following **environment variables** in your system. The fuzzer will use these variables for a **basic authentication**.

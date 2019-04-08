@@ -25,7 +25,9 @@ setup(
         'lxml>=3.7.3',
         'pyyaml>=3.13',
         'plotly>=3.2.0',
-        'pandas>=0.23.4'
+        'pandas>=0.23.4',
+        'python-dateutil>=2.7.5',
+        'mongomock>=3.14.0'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
