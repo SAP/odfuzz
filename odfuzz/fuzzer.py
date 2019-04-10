@@ -143,7 +143,7 @@ class Fuzzer:
             self._logger.info('Population range for entity \'{}\' is set to {}'
                               .format(queryable.entity_set.name, entityset_urls_count))
             for _ in range(entityset_urls_count):
-                q = self._queryable_factory(queryable, self._logger, Config.dispatcher._async_requests_num)
+                q = self._queryable_factory(queryable, self._logger, Config.dispatcher.async_requests_num)
                 queries = q.generate()
                 self._send_queries(queries)
                 self._analyze_queries(queries)
@@ -155,14 +155,14 @@ class Fuzzer:
             selection = self._selector.select()
             if selection.crossable:
                 self._logger.info('Crossing parents...')
-                q = self._queryable_factory(selection.queryable, self._logger)
+                q = self._queryable_factory(selection.queryable, self._logger, Config.dispatcher.async_requests_num)
                 queries = q.crossover(selection.crossable)
                 self._send_queries(queries)
                 analyzed_queries = self._analyze_queries(queries)
                 self._remove_weak_queries(analyzed_queries, queries)
             else:
                 self._logger.info('Generating new queries...')
-                q = self._queryable_factory(selection.queryable, self._logger)
+                q = self._queryable_factory(selection.queryable, self._logger, Config.dispatcher.async_requests_num)
                 queries = q.generate()
                 self._send_queries(queries)
                 self._analyze_queries(queries)
