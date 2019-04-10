@@ -14,6 +14,7 @@ FUZZER_LOGS_NAME = 'logs'
 STATS_LOGS_NAME = 'stats_overall'
 FILTER_LOGS_NAME = 'stats_filter'
 DATA_RESPONSES_NAME = 'data_responses'
+URLS_LOGS_NAME = 'urls_list'
 DATA_RESPONSES_PLOT_NAME = 'responses_plot.html'
 RUNTIME_FILE_NAME = 'runtime_info.txt'
 
@@ -22,6 +23,7 @@ RUNTIME_FILE_NAME = 'runtime_info.txt'
 FUZZER_LOGGER = 'fuzzer'
 STATS_LOGGER = 'stats'
 FILTER_LOGGER = 'filter'
+URLS_LOGGER = 'urls'
 RESPONSE_LOGGER = 'data'
 
 MONGODB_NAME = 'odfuzz'
@@ -96,8 +98,8 @@ MAX_EXPAND_VALUES = 3
 FILTER_SAMPLE_SIZE = 30
 MAX_BEST_QUERIES = 30
 
-CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search;inlinecount'
-CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand'
+CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search;inlinecount;hash'
+CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand;hash'
 CSV_RESPONSES_HEADER = 'Time;Data;EntitySet;URL;Brief'
 
 INFINITY_TIMEOUT = -1

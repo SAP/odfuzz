@@ -80,7 +80,7 @@ ODfuzz runs in an **infinite loop**. You may cancel an execution of the fuzzer w
 Output of the fuzzer is stored in the directories set by a user (e.g. logs_directory, stats_directory) or in a current working directory. ODfuzz is creating stats about performed experiments and tests:
 - Pivot
     - These stats are continuously extended with the latest data while the fuzzer is running.
-    - Stats are loaded into CSV files and may be visualised by the javascript Pivot table. See [README](https://github.wdf.sap.corp/I342520/Pivot/blob/master/README.md) to learn more.
+    - Stats are loaded into CSV files and may be visualised by the javascript Pivot table. See [README](https://github.wdf.sap.corp/I342520/Pivot/blob/master/README.md) to learn more. Also, in the pivot table, there is a **hash** value which is mapped to the corresponding URL located in the file *urls_list.txt*.
 - Simple
     - Requests that triggered an internal server error (HTTP 500) are written into multiple *.txt files. Name of the file is the name of the corresponding entity set in which the error occurred.
     - Runtime stats are saved to the *runtime_info.txt* file. This file contains various runtime information such as a number of generated tests (HTTP GET requests), number of failed tests (status code of the response is not equal to HTTP 200 OK), number of tests created by a crossover and number of tests created by a mutation.
@@ -123,6 +123,7 @@ The option **-a** enables fuzzer to send asynchronous requests. A default number
 2. Let it run for a couple of hours (or minutes). Cancel an execution of the fuzzer with CTRL + C.
 3. Browse overall stats, for example, by the following scenario:
     - You want to discover what type of queries triggers undefined behaviour. Open the *stats_overall.csv* file via [Pivot](https://github.wdf.sap.corp/I342520/Pivot). Select entities you want to examine, select an HTTP status code you want to consider (e.g. 500), select names of Properties, etc. You may notice that the filter query option caused a lot of errors. Open the *stats_filter.csv* file again via [Pivot](https://github.wdf.sap.corp/I342520/Pivot) to discover what logical operators or operands caused an internal server error.
+    - The item *hash*, stored in the pivot table, contains a unique value which is mapped to the particular URL in the file *urls_list.txt*. Therefore, it is possible to browse created URLs more efficiently.
     - Queries which produced errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
     - Open SAP Logon and browse the errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
 

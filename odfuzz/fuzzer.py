@@ -4,6 +4,7 @@ import random
 import io
 import os
 import sys
+import hashlib
 import logging
 import gevent
 import requests
@@ -80,6 +81,7 @@ class Fuzzer:
 
     def __init__(self, dispatcher, entities, database, output_handler, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
+        self._urls_logger = URLsLogger()
         self._stats_logger = StatsLogger()
 
         if kwargs.get('plot'):
@@ -170,6 +172,7 @@ class Fuzzer:
             self._save_queries(queries)
 
     def _save_queries(self, queries):
+        self._urls_logger.log_ursl(queries)
         self._stats_logger.log_stats(queries)
         self._save_to_database(queries)
         self._output_handler.print_test_num()
@@ -513,6 +516,15 @@ class SingleQueryable(Queryable):
         return [query]
 
 
+class URLsLogger:
+    def __init__(self):
+        self._urls_logger = logging.getLogger(URLS_LOGGER)
+
+    def log_ursl(self, queries):
+        for query in queries:
+            self._urls_logger.info(query.url_hash + ':' + query.query_string)
+
+
 class StatsLogger:
     def __init__(self):
         self._stats_logger = logging.getLogger(STATS_LOGGER)
@@ -534,7 +546,7 @@ class StatsLogger:
     def _log_formatted_stats(self, query, query_dict, proprty):
         self._stats_logger.info(
             '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{AccessibleSet};{AccessibleKeys};'
-            '{Property};{orderby};{top};{skip};"{filter}";{expand};"{search}";{inlinecount}'.format(
+            '{Property};{orderby};{top};{skip};"{filter}";{expand};"{search}";{inlinecount};{hash}'.format(
                 StatusCode=query.response.status_code,
                 ErrorCode=query.response.error_code,
                 ErrorMessage=query.response.error_message.replace('"', '""'),
@@ -548,7 +560,8 @@ class StatsLogger:
                 filter=query.options_strings['$filter'].replace('"', '""'),
                 expand=query.options_strings['$expand'],
                 search=query.options_strings['search'].replace('"', '""'),
-                inlinecount=query.options_strings['$inlinecount']
+                inlinecount=query.options_strings['$inlinecount'],
+                hash=query.url_hash
             )
         )
 
@@ -602,7 +615,7 @@ class StatsLogger:
     def _log_formatted_filter(self, query, proprty, logical_name, part, func):
         self._filter_logger.info(
             '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{Property};{logical};'
-            '{operator};{function};"{operand}"'.format(
+            '{operator};{function};"{operand}";{hash}'.format(
                 StatusCode=query.response.status_code,
                 ErrorCode=query.response.error_code,
                 ErrorMessage=query.response.error_message.replace('"', '""'),
@@ -611,7 +624,8 @@ class StatsLogger:
                 logical=logical_name,
                 operator=part['operator'],
                 function=func,
-                operand=part['operand'].replace('"', '""')
+                operand=part['operand'].replace('"', '""'),
+                hash=query.url_hash
             )
         )
 
@@ -915,6 +929,7 @@ class Query:
         self._id = ObjectId()
         self._options_strings = {'$orderby': '', '$filter': '', '$skip': '', '$top': '', '$expand': '',
                                  'search': '', '$inlinecount': ''}
+        self._url_hash = ''
 
     @property
     def entity_name(self):
@@ -960,6 +975,10 @@ class Query:
     @property
     def accessible_entity(self):
         return self._accessible_entity
+
+    @property
+    def url_hash(self):
+        return self._url_hash
 
     @query_string.setter
     def query_string(self, value):
@@ -1012,6 +1031,8 @@ class Query:
         self._query_string = self._query_string.rstrip('&')
         self._add_appendix()
 
+        self._url_hash = HashGenerator.generate(self._query_string)
+
     def _create_dict(self):
         # key fields cannot start with a dollar sign in mongoDB,
         # therefore names of query options start with an underscore;
@@ -1044,6 +1065,12 @@ class Query:
             self._query_string += '&' + 'sap-client=' + Config.fuzzer.sap_client
         if Config.fuzzer.data_format:
             self._query_string += '&' + '$format=' + Config.fuzzer.data_format
+
+
+class HashGenerator:
+    @staticmethod
+    def generate(string):
+        return hashlib.md5(string.encode('utf-8')).hexdigest()
 
 
 class Dispatcher:
