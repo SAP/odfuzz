@@ -1,6 +1,6 @@
 import random
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from odfuzz.constants import BASE_CHARSET, HEX_BINARY, INT_MAX
@@ -143,6 +143,13 @@ class NumberMutator:
             string_number = string_number[:-1]
         else:
             appendix = ''
+
+        if string_number.startswith('-'):
+            prefix = '-'
+            string_number = string_number[1:]
+        else:
+            prefix = ''
+
         digit = round(random.random() * 9)
         position = round(random.random() * len(string_number))
         string_number = ''.join([string_number[:position], str(digit), string_number[position:]])
@@ -150,10 +157,16 @@ class NumberMutator:
         number = int(string_number)
         if number > INT_MAX:
             number = number - INT_MAX
-        return str(number) + appendix
+        return prefix + str(number) + appendix
 
     @staticmethod
     def delete_digit(self, string_number):
+        """
+        Remove a digit at random position.
+
+        This method has a side effect. A minus sign may be removed from the number as well. Therefore, the value
+        of mutated number may be higher than expected (e.g. -123 is changed to 123).
+        """
         if not string_number:
             return '0'
         if string_number.endswith('L'):
