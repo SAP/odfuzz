@@ -129,31 +129,6 @@ The option **-a** enables fuzzer to send asynchronous requests. A default number
 
 NOTE: ODfuzz uses a custom header **user-agent=odfuzz/1.0** in all HTTP requests. You may be able to filter the internet traffic based on this header.
 
-### Restrictions
-With restrictions, a user is able to define rules which forbid a usage of some entities, functions or properties in queries. Restrictions are defined in the following YAML format:
-```
-[ Exclude | Include ]:
-    [ $FORBID$ ]:
-        - $filter
-        - $orderby
-        ...
-    [ $filter | $orderby | $skip | $top | $expand | ... ]:
-        EntitySet name:
-            - Property name
-            - Property name
-            ...
-        [ $ENTITY_SET$ | $ENTITY$ | $ENTITY_ASSOC$ | $F_ALL$ | $P_ALL$ | ... ]:
-            - [ Function name | EntitySet name | Property name ]
-            ...
-```
-
-Sample restrictions files can be found in the *restrictions* folder. Use *odata_northwind.yaml* restrictions file for [Northwind OData service](http://services.odata.org/V2/Northwind/Northwind.svc/).
-
-Bear in mind that some restrictions are related to the previous version of ODfuzz. Therefore, the keyword "$E_ALL$" is deprecated. In this specific case please, use the keyword "$ENTITY_SET$".
-
-##### Why are we using restrictions at all?
-OData services does not support some functions provided by the OData protocol (for example, day(), substring(), length()) or does not implement GET_ENTITYSET methods for all entities. By using the restrictions, one can easily decrease a number of queries that are worthless. Also, some services may implement handlers only for the $filter query option but does not declare that in the metadata document. Therefore, other query options cannot be used within the same request, otherwise various types of errors are produced (e.g. System query options '$orderby,$skip,$top,$skiptoken,$inlinecount' are not allowed in the requested URI). 
-
 ### Limitations
 At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32, Edm.Decimal, Edm.Boolean, and Edm.Guid. It is planned to support more types in the future.
 

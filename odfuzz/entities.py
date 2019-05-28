@@ -213,7 +213,7 @@ class QueryGroup:
 
     def get_restrictions(self, option_name, restr_type):
         if self._restrictions:
-            query_restr = self._restrictions.restriction(option_name)
+            query_restr = self._restrictions.get(option_name)
             is_restricted = self.is_restricted(query_restr.exclude, restr_type)
         else:
             query_restr = None
@@ -237,7 +237,7 @@ class QueryGroup:
         option_restr = self.get_restrictions(FILTER, restriction_type)
         if option_restr.restr:
             exclude_restrictions = option_restr.restr.exclude
-            draft_restrictions = self._restrictions.restriction(DRAFT_OBJECTS)
+            draft_restrictions = self._restrictions.get(DRAFT_OBJECTS)
             draft_properties = get_draft_properties(self._entity_set.name, draft_restrictions)
             needs_filter = True
         else:
@@ -741,6 +741,7 @@ class FilterQuery(QueryOption):
         for proprty in self._entity_set.entity_type.proprties():
             if proprty.filter_restriction == 'interval':
                 proprty.generate_remaining_proprties = self._generate_interval_values
+            # multi-value can be found in https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FCO_MANAGE_COST_CENTERS_SRV/$metadata
             elif proprty.filter_restriction == 'multi-value':
                 proprty.generate_remaining_proprties = self._generate_multi_values
             else:
@@ -889,6 +890,7 @@ class FilterQuery(QueryOption):
     def _generate_proprty(self):
         proprty = self._proprties.get_random_proprty()
         operator = weighted_random(proprty.operators.get_all())
+
         operand = proprty.generate()
         self._option_string += proprty.name + ' ' + operator + ' ' + operand
         replaceable = getattr(proprty, 'replaceable', True)

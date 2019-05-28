@@ -3,7 +3,7 @@
 import yaml
 
 from odfuzz.exceptions import RestrictionsError
-from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION
+from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION, VALUE
 
 
 class RestrictionsGroup:
@@ -40,10 +40,15 @@ class RestrictionsGroup:
 
         self._forbidden_options = exclude_restr.get(FORBID_OPTION, [])
         self._init_draft_objects(include_restr)
+        self._init_value_objects(include_restr)
 
     def _init_draft_objects(self, include_restr):
         restriction = QueryRestrictions({}, include_restr.get(DRAFT_OBJECTS, {}))
         self._option_restrictions[DRAFT_OBJECTS] = restriction
+
+    def _init_value_objects(self, include_restr):
+        restriction = QueryRestrictions({}, include_restr.get(VALUE, {}))
+        self._option_restrictions[VALUE] = restriction
 
     def add_exclude_restriction(self, value, restriction_key):
         for query_restriction in self.option_restrictions():
@@ -55,8 +60,8 @@ class RestrictionsGroup:
     def forbidden_options(self):
         return self._forbidden_options
 
-    def restriction(self, query_name):
-        return self._option_restrictions[query_name]
+    def get(self, option_name):
+        return self._option_restrictions.get(option_name)
 
 
 class QueryRestrictions:

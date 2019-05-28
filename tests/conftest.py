@@ -1,10 +1,13 @@
 import pytest
 import json
 
+from collections import namedtuple
 from lxml import etree
 
 from pyodata.v2.model import Edmx
 from odfuzz.arguments import ArgParser
+
+NullRestrictions = namedtuple('NullRestrictions', 'include exclude')
 
 
 @pytest.fixture
@@ -419,3 +422,15 @@ def invalid_root_key_json():
 @pytest.fixture
 def invalid_metadata_key_json():
     return json.loads("""{"d":{"_not_metadata":{"id":"https://example.com/EXAMPLE_SRV/EntitySet(Event='SAP06',VariantId='SAP06',Id='SAP06')"}}}""")
+
+
+@pytest.fixture
+def empty_restrictions():
+    class RestrictionsMock:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, _):
+            return NullRestrictions({}, {})
+
+    return RestrictionsMock()

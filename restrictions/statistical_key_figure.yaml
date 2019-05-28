@@ -1,0 +1,45 @@
+Exclude:
+    $FORBID$:
+        - search
+        - $top
+        - $skip
+        - $inlinecount
+        - $orderby
+        - $expand
+    $filter:
+        $F_ALL$:
+            - concat
+            - length
+            - tolower
+            - toupper
+            - trim
+            - replace
+            - indexof
+            - substring
+            - day
+            - hour
+            - minute
+            - month
+            - second
+            - year
+            - round
+            - floor
+            - ceiling
+        $ENTITY_SET$:
+            - C_StatisticalKeyFigure
+        $ENTITY$:
+            - C_StatisticalKeyFigure
+
+Include:
+    $VALUE$:
+        C_StatisticalKeyFigureText:
+            Language:
+                - "'EN'"
+                - "'DE'"
+            LanguageForEdit:
+                - "'EN'"
+                - "'DE'"
+            LanguageName:
+                - "'EN'"
+                - "'DE'"
+

@@ -28,19 +28,19 @@ def test_int_type_max_length_patch(master_entity_type):
     assert fiscal_year_property.max_length == None
 
 
-def test_string_property_generator_patch(master_entity_type):
+def test_string_property_generator_patch(master_entity_type, empty_restrictions):
     data_property = master_entity_type.proprty('Data')
     generator = EdmGenerator.edm_string.__get__(data_property, None)
 
-    monkey.patch_proprty_generator(data_property)
+    monkey.patch_proprty_generator('MasterEntity', data_property, empty_restrictions)
     assert data_property.generate == generator
 
 
-def test_num_property_generator_patch(master_entity_type):
+def test_num_property_generator_patch(master_entity_type, empty_restrictions):
     fiscal_year_property = master_entity_type.proprty('FiscalYear')
     generator = EdmGenerator.edm_int32
 
-    monkey.patch_proprty_generator(fiscal_year_property)
+    monkey.patch_proprty_generator('MasterEntity', fiscal_year_property, empty_restrictions)
     assert fiscal_year_property.generate == generator
 
 
