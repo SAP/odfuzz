@@ -30,6 +30,7 @@ class Builder:
     def __init__(self, dispatcher, restrictions, first_touch):
         self._dispatcher = dispatcher
         self._queryable = QueryableEntities()
+        self._restrictions = restrictions
 
         if first_touch:
             self._first_touch = FirstTouch(restrictions, dispatcher)
@@ -40,7 +41,7 @@ class Builder:
         data_model = self._get_data_model()
 
         for entity_set in data_model.entity_sets:
-            patch_proprties(entity_set.entity_type.proprties())
+            patch_proprties(entity_set.name, entity_set.entity_type.proprties(), self._restrictions)
             principal_entities = get_principal_entities(data_model, entity_set)
             restrictions = self._first_touch.analyze(entity_set)
 

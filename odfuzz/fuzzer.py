@@ -2,7 +2,6 @@
 
 import random
 import io
-import os
 import sys
 import hashlib
 import logging

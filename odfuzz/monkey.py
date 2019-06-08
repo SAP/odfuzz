@@ -15,6 +15,7 @@ to the specification given by metadata protocol (e.g. string size, precision of 
 
 import random
 import logging
+import types
 
 from pyodata.v2.model import VariableDeclaration, ComplexType
 from odfuzz.generators import EdmGenerator
@@ -26,19 +27,19 @@ MAX_PRECISION = 20
 MAX_SCALE = 10
 
 
-def patch_proprties(proprties):
+def patch_proprties(entity_set_name, proprties, restrictions):
     for proprty in proprties:
-        patch_complex_types(proprty)
+        patch_complex_types(entity_set_name, proprty, restrictions)
         patch_proprty_max_length(proprty)
         patch_proprty_precision_scale(proprty)
-        patch_proprty_generator(proprty)
-        patch_proprty_mutator(proprty)
+        patch_proprty_generator(entity_set_name, proprty, restrictions)
+        patch_proprty_mutator(entity_set_name, proprty, restrictions)
         patch_proprty_operator(proprty)
 
 
-def patch_complex_types(proprty):
-    if type(proprty.typ) is ComplexType:
-        patch_proprties(proprty.typ.proprties())
+def patch_complex_types(entity_set_name, proprty, restrictions):
+    if isinstance(proprty.typ, ComplexType):
+        patch_proprties(entity_set_name, proprty.typ.proprties(), restrictions)
 
 
 def patch_proprty_max_length(proprty):
@@ -69,7 +70,7 @@ def patch_proprty_generator(entity_set_name, proprty, restrictions):
 
     proprty_type = proprty.typ.name
     if proprty_type == 'Edm.String':
-        proprty.generate = EdmGenerator.edm_string.__get__(proprty, None)
+        proprty.generate = types.MethodType(EdmGenerator.edm_string, proprty)
     elif proprty_type == 'Edm.DateTime':
         proprty.generate = EdmGenerator.edm_datetime
     elif proprty_type == 'Edm.Boolean':
@@ -83,7 +84,7 @@ def patch_proprty_generator(entity_set_name, proprty, restrictions):
     elif proprty_type == 'Edm.Guid':
         proprty.generate = EdmGenerator.edm_guid
     elif proprty_type == 'Edm.Decimal':
-        proprty.generate = EdmGenerator.edm_decimal.__get__(proprty, None)
+        proprty.generate = types.MethodType(EdmGenerator.edm_decimal, proprty)
     elif proprty_type == 'Edm.DateTimeOffset':
         proprty.generate = EdmGenerator.edm_datetimeoffset
     elif proprty_type == 'Edm.Time':
@@ -115,17 +116,17 @@ def patch_proprty_mutator(entity_set_name, proprty, restrictions):
 
     proprty_type = proprty.typ.name
     if proprty_type == 'Edm.String':
-        proprty.mutate = StringMutator._mutate.__get__(proprty, None)
+        proprty.mutate = types.MethodType(StringMutator._mutate, proprty)
     elif proprty_type.startswith('Edm.Int'):
-        proprty.mutate = NumberMutator._mutate.__get__(proprty, None)
+        proprty.mutate = types.MethodType(NumberMutator._mutate, proprty)
     elif proprty_type == 'Edm.Decimal':
-        proprty.mutate = DecimalMutator._mutate.__get__(proprty, None)
+        proprty.mutate = types.MethodType(DecimalMutator._mutate, proprty)
     elif proprty_type == 'Edm.Guid':
         proprty.mutate = GuidMutator.replace_char
     elif proprty_type == 'Edm.Boolean':
         proprty.mutate = BooleanMutator.flip_value
     elif proprty_type == 'Edm.DateTime':
-        proprty.mutate = DateTimeMutator._mutate.__get__(proprty, None)
+        proprty.mutate = types.MethodType(DateTimeMutator._mutate, proprty)
     else:
         proprty.mutate = lambda value: value
         logging.error('Property type {} is not supported by mutator yet'.format(proprty_type))
@@ -143,7 +144,7 @@ def patch_proprty_operator(proprty):
         proprty.operators = Operators(EXPRESSION_OPERATORS)
 
 
-class Operators(object):
+class Operators:
     def __init__(self, operators):
         self._operators = operators
 
@@ -151,7 +152,7 @@ class Operators(object):
         return self._operators.items()
 
 
-class IntervalOperators(object):
+class IntervalOperators:
     def __init__(self, operators_groups):
         self._operators_groups = operators_groups
 
