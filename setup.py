@@ -17,15 +17,12 @@ setup(
     },
     zip_safe=False,
     install_requires=[
-        'bs4>=0.0.1',
         'pytest>=3.5.0',
         'gevent>=1.2.2',
         'requests>=2.18.4',
         'pymongo>=3.6.1',
         'lxml>=3.7.3',
         'pyyaml>=3.13',
-        'plotly>=3.2.0',
-        'pandas>=0.23.4',
         'python-dateutil>=2.7.5',
         'mongomock>=3.14.0'
     ],

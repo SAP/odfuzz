@@ -42,7 +42,6 @@ class Manager:
         self._dispatcher = Dispatcher(arguments)
         self._asynchronous = arguments.asynchronous
         self._first_touch = arguments.first_touch
-        self._plot_graph = arguments.plot
         self._restrictions = RestrictionsGroup(arguments.restrictions)
         self._collection_name = collection_name
 
@@ -55,7 +54,7 @@ class Manager:
         database = self.establish_database_connection(MongoDBHandler, MongoDB)
         entities = self.build_entities()
         fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler,
-                        asynchronous=self._asynchronous, plot=self._plot_graph)
+                        asynchronous=self._asynchronous)
 
         self._output_handler.print_status('Fuzzing...')
         fuzzer.run()
@@ -82,12 +81,7 @@ class Fuzzer:
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._urls_logger = URLsLogger()
         self._stats_logger = StatsLogger()
-
-        if kwargs.get('plot'):
-            self._response_logger = ResponseTimeLogger()
-        else:
-            self._response_logger = NullOjbect()
-
+        self._response_logger = ResponseTimeLogger()
         self._dispatcher = dispatcher
         self._entities = entities
         self._output_handler = output_handler

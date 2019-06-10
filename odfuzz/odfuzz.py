@@ -14,7 +14,6 @@ from odfuzz.arguments import ArgParser
 from odfuzz.fuzzer import Manager
 from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers, DirectoriesCreator
-from odfuzz.scatter import ScatterPlotter
 from odfuzz.databases import CollectionCreator, MongoDB, MongoDBHandler
 from odfuzz.constants import INFINITY_TIMEOUT
 from odfuzz.exceptions import ArgParserError, ODfuzzException
@@ -36,7 +35,7 @@ def execute(arguments, bind=None):
     collection_name = create_collection_name(parsed_arguments)
     logging.info('Database\'s collection set to {}'.format(collection_name))
 
-    set_signal_handler(collection_name, parsed_arguments.plot)
+    set_signal_handler(collection_name)
 
     # Argument 'bind' is used for binding the self instance of another process, e.g. celery
     run_fuzzer(bind, parsed_arguments, collection_name)
@@ -65,8 +64,8 @@ def create_collection_name(parsed_arguments):
     return collection_name
 
 
-def set_signal_handler(db_collection_name, plot_graph):
-    gevent.signal(signal.SIGINT, partial(signal_handler, db_collection_name, plot_graph))
+def set_signal_handler(db_collection_name):
+    gevent.signal(signal.SIGINT, partial(signal_handler, db_collection_name))
 
 
 def run_fuzzer(bind, parsed_arguments, collection_name):
@@ -80,20 +79,16 @@ def run_fuzzer(bind, parsed_arguments, collection_name):
         sys.stderr.write(str(ex) + '\n')
         sys.exit(1)
     except gevent.Timeout:
-        signal_handler(collection_name, parsed_arguments.plot)
+        signal_handler(collection_name)
 
 
-def signal_handler(db_collection_name, plot_graph):
+def signal_handler(db_collection_name):
     exit_message = 'Program interrupted. Exiting...'
     logging.info(exit_message)
     sys.stdout.write('\n' + exit_message + '\n')
 
     stats = StatsPrinter(MongoDBHandler, MongoDB, db_collection_name)
     stats.write()
-
-    if plot_graph:
-        scatter = ScatterPlotter(Stats.directory)
-        scatter.create_plot()
 
     sys.exit(0)
 

@@ -15,10 +15,14 @@ C_Cpbupaemailvh?$top=81&$filter=ContactPerson eq 'Ý¿â†' and (RelationshipCa
 ```
 
 #### Requirements
-- [Python 3.6](https://www.python.org/downloads/)
-- [mongoDB 3.6](https://www.mongodb.com/)
-- [PivotTable](https://github.wdf.sap.corp/I342520/Pivot) (http://chef.brq.only.sap:8081/)
+For running the tool:
 
+- [Python 3.6+](https://www.python.org/downloads/)
+- [mongoDB 3.6+](https://www.mongodb.com/)
+
+Optional, for analyzing the results
+- [PivotTable](https://github.wdf.sap.corp/ODfuzz/Pivot) (http://chef.brq.only.sap:8081/)
+- [Plotly - Scatter graph](https://github.wdf.sap.corp/ODfuzz/ODfuzz-scatterpy) 
 ## Setup
 1. Clone this repository:
 ```
@@ -70,7 +74,6 @@ optional arguments:
                         A configuration file for the fuzzer
   -a, --asynchronous    Allow ODfuzz to send HTTP requests asynchronously
   -f, --first-touch     Automatically determine which entities are queryable
-  -p, --plot            Log response time and data, and create a scatter plot
 ```
 
 ### Runtime

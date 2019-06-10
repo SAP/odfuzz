@@ -15,7 +15,6 @@ STATS_LOGS_NAME = 'stats_overall'
 FILTER_LOGS_NAME = 'stats_filter'
 DATA_RESPONSES_NAME = 'data_responses'
 URLS_LOGS_NAME = 'list_urls'
-DATA_RESPONSES_PLOT_NAME = 'responses_plot.html'
 RUNTIME_FILE_NAME = 'runtime_info.txt'
 
 # this set of constants must be equal to the corresponding
