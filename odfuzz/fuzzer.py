@@ -18,7 +18,6 @@ from gevent.pool import Pool
 from bson.objectid import ObjectId
 from pymongo.errors import ServerSelectionTimeoutError
 
-from pyodata.v2.model import NAMESPACES
 from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
     OrderbyOptionBuilder, OrderbyOption, KeyValuesBuilder
 from odfuzz.restrictions import RestrictionsGroup

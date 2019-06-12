@@ -118,3 +118,12 @@ BASE_CHARSET = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789~!$@
                'ÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ{} '
 
 NON_EXISTING_MULTIPLICITY = '-1'
+
+NAMESPACES = {
+    'd': 'http://schemas.microsoft.com/ado/2007/08/dataservices',
+    'm': 'http://schemas.microsoft.com/ado/2007/08/dataservices/metadata',
+    'sap': 'http://www.sap.com/Protocols/SAPData',
+    'edmx': 'http://schemas.microsoft.com/ado/2007/06/edmx',
+    'edm': 'http://schemas.microsoft.com/ado/2008/09/edm',
+    'atom': 'http://www.w3.org/2005/Atom'
+}
