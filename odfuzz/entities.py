@@ -14,7 +14,7 @@ from pyodata.exceptions import PyODataException
 
 from odfuzz.exceptions import BuilderError, DispatcherError
 from odfuzz.generators import EdmGenerator, RandomGenerator
-from odfuzz.monkey import patch_proprties
+from odfuzz.monkey import patch_proprties, patch_entity_set
 from odfuzz.config import Config
 from odfuzz.constants import *
 
@@ -41,6 +41,7 @@ class Builder:
         data_model = self._get_data_model()
 
         for entity_set in data_model.entity_sets:
+            patch_entity_set(entity_set, data_model.association_sets)
             patch_proprties(entity_set.name, entity_set.entity_type.proprties(), self._restrictions)
             principal_entities = get_principal_entities(data_model, entity_set)
             restrictions = self._first_touch.analyze(entity_set)
@@ -1734,7 +1735,7 @@ class AccessibleEntity(object):
 
     def _get_entity_set_name(self):
         for navigation_prop in self._principal_entity_set.entity_type.nav_proprties:
-            for end in self._entity_set.association_set_ends:
+            for end in self._entity_set.association_set_ends():
                 if navigation_prop.to_role.role == end.role:
                     return navigation_prop.name
         return None
@@ -1868,7 +1869,7 @@ class PrincipalGetter(metaclass=ABCMeta):
         dependent_entity_multiplicity = None
         if self.may_contain_principal_entity():
             index = 0
-            for end in self._association_set.ends:
+            for end in self._association_set.end_roles:
                 if end.entity_set.name == self._entity_set.name:
                     principal_entity_index = index ^ 1
                     principal_entity = self.get_principal(principal_entity_index)
@@ -1879,7 +1880,7 @@ class PrincipalGetter(metaclass=ABCMeta):
         return PrincipalData(principal_entity, dependent_entity_multiplicity)
 
     def may_contain_principal_entity(self):
-        return len(self._association_set.ends) == 2
+        return len(self._association_set.end_roles) == 2
 
     @abstractmethod
     def get_principal(self, index):
@@ -1895,7 +1896,7 @@ class PrincipalGetter(metaclass=ABCMeta):
 class EndsPrincipal(PrincipalGetter):
     def get_principal(self, index):
         principal_entity = None
-        principal_end = self._association_set.ends[index]
+        principal_end = self._association_set.end_roles[index]
         principal = getattr(self._association_set.association_type.referential_constraint, 'principal', None)
         if principal and principal.name == principal_end.role:
             principal_entity = principal_end.entity_set
@@ -1905,7 +1906,7 @@ class EndsPrincipal(PrincipalGetter):
 class MultiplicityPrincipal(PrincipalGetter):
     def get_principal(self, index):
         principal_entity = None
-        association_set_end = self._association_set.ends[index]
+        association_set_end = self._association_set.end_roles[index]
         if self._association_set.association_type.end_by_role(association_set_end.role).multiplicity == '1':
             principal_entity = association_set_end.entity_set
         return principal_entity
