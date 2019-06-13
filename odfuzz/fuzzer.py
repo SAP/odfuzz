@@ -50,8 +50,7 @@ class Manager:
     def start(self):
         database = self.establish_database_connection(MongoDBHandler, MongoDB)
         entities = self.build_entities()
-        fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler,
-                        asynchronous=self._asynchronous)
+        fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler, self._asynchronous)
 
         self._output_handler.print_status('Fuzzing...')
         fuzzer.run()
@@ -78,7 +77,7 @@ class Manager:
 class Fuzzer:
     """A main class that is responsible for the fuzzing process."""
 
-    def __init__(self, dispatcher, entities, database, output_handler, **kwargs):
+    def __init__(self, dispatcher, entities, database, output_handler, asynchronous):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._urls_logger = URLsLogger()
         self._stats_logger = StatsLogger()
@@ -91,8 +90,8 @@ class Fuzzer:
         self._analyzer = Analyzer(database)
         self._selector = Selector(database, entities)
 
-        self._asynchronous = kwargs.get('asynchronous')
-        if self._asynchronous:
+        self._asynchronous = asynchronous
+        if asynchronous:
             self._queryable_factory = MultipleQueryable
             self._dispatch = self._get_multiple_responses
         else:
