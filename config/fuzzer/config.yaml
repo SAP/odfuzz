@@ -1,11 +1,15 @@
 fuzzer:
     # SAP client ID. The option is required only for testing OData services within the SAP
-    # network.
+    # network. Useful for exmpample o ER9 env, which does not have client as part of server hostname.
     sap_client: '500'
     # A format of requested data. Valid values are 'json' and 'xml'.
     data_format: 'json'
-    # A number of initial URLs which will be generated per single property defined in the
-    # metadata document.
+    # A number of initial URLs which will be generated per single property  per Queriable group defined in the
+    # metadata document. Currently are 4 Queriable groups, so max x4 the value from this config (can be further substracted
+    # by employing restrictions to the property.
+    #
+    # https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/doc_architecture/doc/architecture.rst#query-groups
+    # https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/doc_architecture/doc/restrictions.rst
     urls_per_property: 100
 
 dispatcher:

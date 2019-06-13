@@ -1,5 +1,5 @@
+# patches core python lib - sockets - to be non-blocking.
 from gevent import monkey
-
 monkey.patch_all()
 
 import sys
@@ -37,14 +37,13 @@ def execute(arguments, bind=None):
 
     set_signal_handler(collection_name)
 
-    # Argument 'bind' is used for binding the self instance of another process, e.g. celery
     run_fuzzer(bind, parsed_arguments, collection_name)
 
 
 def init_logging(arguments):
     directories_creator = DirectoriesCreator(arguments.logs, arguments.stats)
     directories = directories_creator.create()
-    init_basic_stats(directories.stats)
+    init_basic_stats(directories.stats) #TODO refactor, this part exposes some inner state in Stats class
     init_loggers(directories.logs, directories.stats)
 
 
@@ -53,6 +52,7 @@ def init_basic_stats(stats_directory):
     Stats.start_datetime = datetime.now()
 
 
+# Sets MongoDB collection name to be used in current run.
 def create_collection_name(parsed_arguments):
     service_parts = parsed_arguments.service.rstrip('/').rsplit('/', 1)
     if len(service_parts) == 1:
@@ -69,6 +69,13 @@ def set_signal_handler(db_collection_name):
 
 
 def run_fuzzer(bind, parsed_arguments, collection_name):
+    """ This is the main gevent thread for the odfuzz process.)
+
+    :param bind: # Argument 'bind' can be used for binding the standard ooutput of this process instance to another process, e.g. celery (ODfuzz-server)
+    :param parsed_arguments:
+    :param collection_name:
+    :return:
+    """
     manager = Manager(bind, parsed_arguments, collection_name)
     try:
         if parsed_arguments.timeout == INFINITY_TIMEOUT:

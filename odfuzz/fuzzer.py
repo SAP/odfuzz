@@ -16,12 +16,12 @@ from abc import ABCMeta, abstractmethod
 from lxml import etree
 from gevent.pool import Pool
 from bson.objectid import ObjectId
-from pymongo.errors import ServerSelectionTimeoutError
+from pymongo.errors import ServerSelectionTimeoutError  #TODO leaky abstraction, should be new exception class in database.py, untied to specific database usage.
 
 from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
     OrderbyOptionBuilder, OrderbyOption, KeyValuesBuilder
 from odfuzz.restrictions import RestrictionsGroup
-from odfuzz.statistics import Stats
+from odfuzz.statistics import Stats #TODO this is the part where computation of runtime statistic is done via module import
 from odfuzz.databases import MongoDB, MongoDBHandler
 from odfuzz.mutators import NumberMutator, StringMutator
 from odfuzz.output import StandardOutput, BindOutput
@@ -63,18 +63,22 @@ class Manager:
         try:
             return database_handler(database_client(self._collection_name))
         except ServerSelectionTimeoutError:
-            self._output_handler.print_status('Error: Cannot connect establish connetion to the database.')
+            self._output_handler.print_status('Error: Cannot connect establish connection to the database.')
             sys.exit(1)
 
     def build_entities(self):
+        """ Performs the first HTTP request of fuzzer to target server for $metadata and generates queryable entities for further fuzzing.
+
+        """
         self._output_handler.print_status('Collection: {}'.format(self._collection_name))
         self._output_handler.print_status('Initializing queryable entities...')
         builder = Builder(self._dispatcher, self._restrictions, self._first_touch)
         return builder.build()
+        # TODO: possible feature/enhancement.. only generate metadata calls and save them or requests X URLS without evolution algorithm (REST service)
 
 
 class Fuzzer:
-    """A main class that initiates a fuzzing process."""
+    """A main class that is responsible for the fuzzing process."""
 
     def __init__(self, dispatcher, entities, database, output_handler, **kwargs):
         self._logger = logging.getLogger(FUZZER_LOGGER)
@@ -103,7 +107,7 @@ class Fuzzer:
 
         # This step is required to redirect printing of stack trace by greenlets. I haven't
         # found any other conventional way to suppress such a printing. In the past, it was
-        # possible to set which type of exceptions shouldn't be printed by:
+        # possible  to set which type of exceptions shouldn't be printed by:
         # gevent.hub.Hub.NOT_ERROR=(Exception,)
         # Source: https://github.com/gevent/gevent/issues/55
         #
@@ -129,6 +133,19 @@ class Fuzzer:
         self.evolve_population()
 
     def seed_population(self):
+        """
+        Initial and first half of the fuzzing process.
+
+        Parses the $metadata from the server and generates URLs for *all* entities present (random values).
+
+        After finishing, we have touched each entity and it is time to employ the genetic sampling
+        for better probability of hitting the server errors.
+
+        See: https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/doc_architecture/doc/architecture.rst#query-groups
+        See: https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/doc_architecture/doc/restrictions.rst
+
+        :return:
+        """
         self._logger.info('Seeding population with requests...')
         for queryable in self._entities.all():
             entityset_urls_count = len(queryable.entity_set.entity_type.proprties()) * Config.fuzzer.urls_per_property
@@ -144,6 +161,10 @@ class Fuzzer:
                 self._save_queries(queries)
 
     def evolve_population(self):
+        """
+
+        :return:
+        """
         self._logger.info('Evolving population of requests...')
         while True:
             selection = self._selector.select()
@@ -262,6 +283,9 @@ class Fuzzer:
 
 
 class Queryable:
+    """ Assemble the final query by appending different entitity parts.
+    """
+
     def __init__(self, queryable, logger, async_requests_num):
         self._queryable = queryable
         self._logger = logger
@@ -468,6 +492,11 @@ class Queryable:
 
 
 class MultipleQueryable(Queryable):
+    """ Used when fuzzer triggered with async option, generates URL for requests in async batches
+    TODO refactor rename, so its not mistaken with QueryGroups.. this is about something different,
+    Query is the part of URL, QueryGroups is that urls are structurally different, this is about
+    possible name...   SendableQueryBatch for this async and SingleQueryable => SendableQuery
+    """
     def generate(self):
         queries = []
         for _ in range(self._async_requests_num):
@@ -494,6 +523,9 @@ class MultipleQueryable(Queryable):
 
 
 class SingleQueryable(Queryable):
+    """
+    used when fuzzer is not triggered with async option, generates URLs  by one
+    """
     def generate(self):
         query = self.generate_query()
         return [query]
@@ -520,6 +552,10 @@ class URLsLogger:
 
 
 class StatsLogger:
+    """
+    for .csv output (displayed in Pivot table). Do not mistake with runtime statistics computed trough statistics.py
+    TODO refactor perhaps move to logger.py
+    """
     def __init__(self):
         self._stats_logger = logging.getLogger(STATS_LOGGER)
         self._filter_logger = logging.getLogger(FILTER_LOGGER)
@@ -625,6 +661,10 @@ class StatsLogger:
 
 
 class ResponseTimeLogger:
+    """
+    output results for Odfuzz-scatterpy
+    TODO refactor perhaps move to logger.py
+    """
     def __init__(self):
         self._main_logger = logging.getLogger(FUZZER_LOGGER)
         self._data_logger = logging.getLogger(RESPONSE_LOGGER)
@@ -695,6 +735,10 @@ class ResponseTimeLogger:
 
 
 class Selector:
+    """
+    used in genetic loop,
+    see https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/doc_architecture/doc/architecture.rst#selector
+    """
     def __init__(self, database, entities):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._database = database
@@ -763,7 +807,10 @@ class Selection:
 
 
 class Analyzer:
-    """An analyzer for analyzing generated queries."""
+    """Fitness function evaluator for analyzing responses from generated queries.
+
+    Higher score propagates further in the genetic algorithm.
+    """
 
     def __init__(self, database):
         self._database = database
@@ -794,6 +841,9 @@ class Analyzer:
 
 
 class Offspring(metaclass=ABCMeta):
+    """
+        In mutation,
+    """
     def __init__(self, database):
         self._database = database
 
@@ -844,7 +894,11 @@ class EmptyOffspring(Offspring):
 
 
 class FitnessEvaluator:
-    """A group of heuristic functions."""
+    """A group of heuristic functions.
+
+    It is preffering shorther URLs for HTTP 500 responses and ignores other HTTP status codes.
+    It preffers URLs where smaller response content took significantly longer time (i.e. empiric observation of server handling bad requests).
+    """
 
     @staticmethod
     def evaluate(query):
@@ -888,7 +942,7 @@ class FitnessEvaluator:
 
 class SAPErrors:
     """A container of all types of errors produced by the SAP systems."""
-
+    #TODO this is hardcoded for expected usage of ODfuzz against SAP systems; would not work correctly against generic Odata service
     @staticmethod
     def evaluate(error_code, error_message):
         # TODO: handle more types of the SY/530 error, e.g. "XYZ is not created in language", "XYZ not in system", ...
@@ -1130,6 +1184,7 @@ class Dispatcher:
 
 
 class LoggerErrorWritter:
+    """ """
     def __init__(self, logger):
         self._logger = logger
 
@@ -1144,7 +1199,7 @@ class NullOjbect:
     def __getattr__(self, item):
         return self
 
-
+# following methods were part of Queryable, Query and Fuzzer class, moved out simply because of self. warning logically are part of Queryable
 def is_filter_crossable(query1, query2):
     crossable = False
     if query1['order'] and query2['order'] == ['_$filter']:
