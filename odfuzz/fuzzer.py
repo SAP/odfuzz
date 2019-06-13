@@ -29,8 +29,6 @@ from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
 from odfuzz.constants import *
 
-SelfMock = namedtuple('SelfMock', 'max_length')
-
 
 class Manager:
     """A class for managing the fuzzer runtime."""
@@ -286,6 +284,8 @@ class Queryable:
     """ Assemble the final query by appending different entitity parts.
     """
 
+    SelfMock = namedtuple('SelfMock', 'max_length')
+
     def __init__(self, queryable, logger, async_requests_num):
         self._queryable = queryable
         self._logger = logger
@@ -457,7 +457,8 @@ class Queryable:
             if part['return_type'] == 'Edm.Boolean':
                 part['operand'] = 'true' if part['operand'] == 'false' else 'false'
             elif part['return_type'] == 'Edm.String':
-                part['operand'] = self._mutate_value(StringMutator, part['operand'], SelfMock(max_length=5))
+                func_parameter_property = Queryable.SelfMock(max_length=5)
+                part['operand'] = self._mutate_value(StringMutator, part['operand'], func_parameter_property)
                 part['operand'] = '\'' + part['operand'] + '\''
             elif part['return_type'].startswith('Edm.Int'):
                 part['operand'] = self._mutate_value(NumberMutator, part['operand'])
