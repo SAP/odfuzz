@@ -159,9 +159,9 @@ Principal entities are also the only way to query entity sets which are not acce
 
 Accessible entity sets are objects used for generating endpoint path in a URL:
 
-- /EntitySet? - a classic path for entity set endpoint
-- /EntitySet(ID=1)? - a path targeting single entity within the entity set. Accessible keys (e.i. ID) are generated according to the types of key properties.
-- /AssocSet(ID=1)/EntitySet? - a path targeting associated entity set.
+- /EntitySet(ID=1)? - a path targeting a single entity within an entity set. Accessible keys (e.i. ID) are generated according to the types of key properties (SingleEntity).
+- /EntitySet? - a classic path for entity set endpoint (MultipleEntities).
+- /AssocSet(ID=1)/EntitySet? - a path targeting associated entity set (AssociatedEntities). Where AssocSet is the principal entity set.
 
 Current implementation of ODfuzz supports just HTTP GET requests. Next sections take that into account.
 
