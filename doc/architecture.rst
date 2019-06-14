@@ -149,9 +149,19 @@ Every property in the entity set is updated with new attributes **generate** and
     operand = proprty.generate()
     string = f'$filter={proprty.name} {operator} {operand}'
 
+
+Accessible Entity Sets
+----------------------
+
 Some entity sets may be associated with another entity sets. This allows us to query entities through associated sets (AssociatedEntity/Entity). Associations are always established between two entity sets. In the metadata document, there is element `<End>` which is used to describe the role between those entity sets. If an allowed multiplicity of the entity set is set to 1, or a referential constraint specify the principal role explicitly, then the entity set is principal. Principal entities are fetched from the data model based on the aforementioned specifications.
 
 Principal entities are also the only way to query entity sets which are not accessible directly. That means that the entities require usage of associated entities in order to process requests (e.g. insertion of parameters). In Builder, a list of principal entities associated to every entity set is maintained.
+
+Accessible entity sets are objects used for generating endpoint path in a URL:
+
+- /EntitySet? - a classic path for entity set endpoint
+- /EntitySet(ID=1)? - a path targeting single entity within the entity set. Accessible keys (e.i. ID) are generated according to the types of key properties.
+- /AssocSet(ID=1)/EntitySet? - a path targeting associated entity set.
 
 Current implementation of ODfuzz supports just HTTP GET requests. Next sections take that into account.
 
