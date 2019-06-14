@@ -74,7 +74,7 @@ DATE_FUNC_PROB = 0.15
 FUNCTION_WEIGHT = 0.3
 SINGLE_VALUE_PROB = 0.2
 SINGLE_ENTITY_PROB = 0.05
-RECURSION_LIMIT = 3
+RECURSION_LIMIT = 3 #FilterQuery - how long filter query will be generated
 
 # probabilities for generating operators in the $filter query option (FilterQuery - entities.py)
 LOGICAL_OPERATORS = {'and': 0.5, 'or': 0.5}

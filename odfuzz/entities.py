@@ -1,4 +1,11 @@
-"""This module contains a builder class and wrapper classes for queryable entities."""
+"""This module contains a builder class and wrapper classes for queryable entities for Odata V2.
+
+http://odata.com/service/EntitySet?queryoptions
+
+concept naming
+
+QUERY = part of URL: EntitySet?queryoptions
+"""
 
 import copy
 import random
@@ -38,6 +45,7 @@ class Builder:
             self._first_touch = NullFirstTouch(restrictions)
 
     def build(self):
+        # call just once on fuzzer process start
         data_model = self._get_data_model()
 
         for entity_set in data_model.entity_sets:
@@ -92,6 +100,11 @@ class Builder:
 
 
 class FirstTouch:
+    """
+    if --first-touch CLI flag; checks if methods for entitysets are even implemented,
+    so it does not creates queries that will be ignored by user in output analysis.
+    """
+    #TODO potential refactor move logically should be part of fuzzer.py module
     def __init__(self, restrictions, dispatcher):
         self._restrictions = restrictions
         self._dispatcher = dispatcher
@@ -442,6 +455,9 @@ class QueryOption(metaclass=ABCMeta):
 
     @abstractmethod
     def apply_restrictions(self):
+    #TODO refactor rename, this is relevant to fuzzer.generate_options() and self.get_depending_data()
+    # this is not about Restriction file but uniform interface and handling the case of dependency between skip and top
+    # possible name apply_queryoptions_inner_dependencies
         pass
 
     @abstractmethod
@@ -453,7 +469,7 @@ class QueryOption(metaclass=ABCMeta):
         pass
 
 
-class InlineCountQuery(QueryOption):
+class InlineCountQuery(QueryOption): #TODO refactor rename InlineCOuntQueryOption (in all subclasses)
     def __init__(self, entity, restrictions, dispatcher):
         super(InlineCountQuery, self).__init__(entity, INLINECOUNT, '$', restrictions)
 
@@ -513,6 +529,14 @@ class ExpandQuery(QueryOption):
         for navigation_proprty in self._entity_set.entity_type.nav_proprties:
             possible_paths = [navigation_proprty.name]
             # TODO: search deeper for navigation properties
+            #
+            # this works:
+            # https://services.odata.org/V2/Northwind/Northwind.svc/Products(ProductID=1)?$expand=Category
+            # https://services.odata.org/V2/Northwind/Northwind.svc/Products(ProductID=1)?$expand=Category/CategoryDetails
+            #
+            # this should be supported (deeper traverse):
+            #
+            # https://services.odata.org/V2/Northwind/Northwind.svc/Products(ProductID=1)?$expand=Category/CategoryDetails/Customers
             for inner_nav_proprty in navigation_proprty.to_role.entity_type.nav_proprties:
                 possible_paths.append(navigation_proprty.name + '/' + inner_nav_proprty.name)
             self._navigation_paths.update(possible_paths)
@@ -676,7 +700,13 @@ class SkipQuery(QueryOption):
 
 
 class FilterQuery(QueryOption):
-    """The $filter query option."""
+    """The $filter query option.
+
+    This is the most complex possible URL part, which needs its own grammar to be implemented (hardcoded, no symbolic table)
+    See: https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
+
+    It needs to be also implemented on backend by developer, so potentially more prone to find unhandled exceptions in responses here.
+    """
 
     def __init__(self, entity, restrictions, draft_properties):
         super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions)
@@ -757,6 +787,7 @@ class FilterQuery(QueryOption):
             self._noterm_expression()
 
     def _generate_interval_values(self, proprty, used_operator):
+        #i.e. if present sap:filter-restriction="interval"
         if used_operator != 'eq':
             operator = 'ge' if used_operator == 'le' else 'le'
             self._generate_next_interval_value(proprty, operator)
@@ -767,6 +798,7 @@ class FilterQuery(QueryOption):
         self._set_right_logical_references()
 
     def _generate_multi_values(self, proprty, operator):
+        # if present sap:filter-restriction="multi-value"
         logical = 'or'
         total_values = round(random.random() * (MAX_MULTI_VALUES - 1) + 1)
         for _ in range(total_values):
@@ -788,6 +820,14 @@ class FilterQuery(QueryOption):
         self._update_proprty_part(proprty.name, operator, operand, replaceable)
 
     def _noterm_expression(self):
+        """
+        https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
+        1. EXPRESSION -> PROPFUNC OPERATOR OPERAND | CHILD
+
+        randomly chooses simple filter with on operand or complex filter query string
+
+        :return:
+        """
         self._recursion_depth += 1
         if (not self._proprties.has_remaining()) \
                 and (random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT):
@@ -796,6 +836,11 @@ class FilterQuery(QueryOption):
             self._noterm_child()
 
     def _noterm_parent(self):
+        """
+        https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
+        3. PARENT -> EXPRESSION | CHILD | ( CHILD )
+        :return:
+        """
         if (not self._proprties.has_remaining()) \
                 and (random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT):
             self._noterm_expression()
@@ -803,12 +848,24 @@ class FilterQuery(QueryOption):
             self._generate_child()
 
     def _generate_child(self):
+        """
+
+        :return:
+        """
         if random.random() < 0.5 or not self._proprties.has_remaining():
             self._noterm_child()
         else:
             self._generate_child_group()
 
     def _generate_child_group(self):
+        """
+        https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
+        = ( CHILD )
+
+        #
+
+        :return:
+        """
         self._option_string += '('
         self._option.add_group()
         last_group = self._option.last_group
@@ -828,8 +885,14 @@ class FilterQuery(QueryOption):
             stacked_group['logicals'].append(last_logical['id'])
 
     def _noterm_child(self):
-        self._noterm_parent()
-        self._generate_rest()
+        """
+        https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
+        2. CHILD -> PARENT LOGICAL PARENT
+
+        :return:
+        """
+        self._noterm_parent()# = PARENT
+        self._generate_rest()# = LOGICAL PARENT
 
     def _generate_rest(self):
         if self._proprties.has_filterable():
@@ -1283,7 +1346,10 @@ class FilterOptionBuilder(object):
 
 
 class FilterOptionDeleter(object):
-    """A filter option remover that deletes a random part next to the selected logical operator."""
+    """A filter option remover that deletes a random part next to the selected logical operator.
+
+    Used in mutation. Rationale for this method is trying to find possible shorter URL to the one that generated server error.
+    """
 
     def __init__(self, option_value, logical):
         self._option_value = option_value
@@ -1671,6 +1737,14 @@ class FilterFunction(object):
 
 
 class EntitySetRequest(metaclass=ABCMeta):
+    """
+    TODO refactor rename ResourcePath from https://www.odata.org/documentation/odata-version-2-0/uri-conventions/
+    - only 3 options implemented in ODfuzz, what SAP uses
+    TODO ComplexType, KeyPredicate and Property resource path addressing not implemented
+
+    See https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#accessible-entity-sets
+
+    """
     def __init__(self, entity_set, principal_entities=None):
         self._entity_set = entity_set
 
@@ -1700,6 +1774,9 @@ class EntitySetRequest(metaclass=ABCMeta):
 
 
 class SingleEntity(EntitySetRequest):
+    """
+    NavPropSingle in https://www.odata.org/documentation/odata-version-2-0/uri-conventions/
+    """
     def generate_accessible_entity(self):
         key_pairs = generate_accessible_entity_key_values(self._entity_set)
         null_principal_entity = NullEntityType(None, NullNavProperties([]))
@@ -1708,6 +1785,9 @@ class SingleEntity(EntitySetRequest):
 
 
 class MultipleEntities(EntitySetRequest):
+    """
+    Collection in https://www.odata.org/documentation/odata-version-2-0/uri-conventions/
+    """
     def generate_accessible_entity(self):
         key_pairs = {}
         null_principal_entity = NullEntityType(None, NullNavProperties([]))
@@ -1716,6 +1796,9 @@ class MultipleEntities(EntitySetRequest):
 
 
 class AssociatedEntities(EntitySetRequest):
+    """
+    NavPropCollection in https://www.odata.org/documentation/odata-version-2-0/uri-conventions/
+    """
     def generate_accessible_entity(self):
         containing_entity = random.choice(self._principal_entities)
         key_pairs = generate_accessible_entity_key_values(containing_entity)
@@ -1724,6 +1807,11 @@ class AssociatedEntities(EntitySetRequest):
 
 
 class AccessibleEntity(object):
+    """
+    value container for different possible EntitySetRequest
+
+    See https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#accessible-entity-sets
+    """
     def __init__(self, entity_set, key_pairs, principal_entity_set):
         self._entity_set = entity_set
         self._key_pairs = key_pairs
@@ -1789,7 +1877,7 @@ class KeyValuesBuilder:
         keys_string += ')'
         return keys_string
 
-
+#TODO refactor move should be part of classes that uses them, again due siplified calls without self.
 def is_method(obj):
     return inspect.isfunction(obj) or inspect.ismethod(obj)
 

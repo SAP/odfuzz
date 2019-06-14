@@ -303,6 +303,7 @@ class Queryable:
             generated_option = option.generate(depending_data)
             query.add_option(option.name, generated_option.data)
             depending_data[option.name] = option.get_depending_data()
+            #for $skip and $top; one parameter contextually depends on another and the value of top+skip must be lower than MAX(INT)
         query.build_string()
         self._logger.info('Generated query \'{}\''.format(query.query_string))
 
@@ -1059,6 +1060,7 @@ class Query:
         self._predecessors.append(predecessor_id)
 
     def build_string(self):
+    #TODO refactor rename build_url_part - this creates the parts after /Entity?$filter... etc ; not entire URL to send to Dispatcher.
         self._query_string = self._accessible_entity.path + '?'
         for option_name in self._order:
             if option_name.endswith('filter'):

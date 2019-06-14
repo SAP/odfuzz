@@ -5,9 +5,6 @@ from dateutil.relativedelta import relativedelta
 
 from odfuzz.constants import BASE_CHARSET, HEX_BINARY, INT_MAX
 
-GUID_DASH_INDEXES = (8, 13, 18, 23)
-
-
 class StringMutator:
     _methods = []
 
@@ -28,7 +25,7 @@ class StringMutator:
         index = round(random.random() * (len(string) - 1))
         ord_char = ord(string[index])
         ord_char ^= 1 << round(random.random() * ord_char.bit_length()) + 1
-        ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char
+        ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char # see https://stackoverflow.com/questions/52203351/why-unicode-is-restricted-to-0x10ffff
         ord_char = normalize_surrogates(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]])
         return '\'' + generated_string + '\''
@@ -40,7 +37,7 @@ class StringMutator:
             return original_string
 
         index = round(random.random() * (len(string) - 1))
-        ord_char = round(random.random() * (0x10ffff - 1) + 1)
+        ord_char = round(random.random() * (0x10ffff - 1) + 1) #see https://stackoverflow.com/questions/52203351/why-unicode-is-restricted-to-0x10ffff
         ord_char = normalize_surrogates(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]])
         return '\'' + generated_string + '\''
@@ -183,11 +180,13 @@ class NumberMutator:
 
 
 class GuidMutator:
+    GUID_DASH_INDEXES = (8, 13, 18, 23)  # mandatory part of GUUID, "-"
+
     @staticmethod
     def replace_char(string_guid):
         without_dashes = string_guid
         index = round(random.random() * (len(string_guid) - 1))
-        if index in GUID_DASH_INDEXES:
+        if index in GuidMutator.GUID_DASH_INDEXES:
             index -= 1
         rand_hex_char = HEX_BINARY[round(random.random() * (len(HEX_BINARY) - 1))]
         without_dashes = ''.join([without_dashes[:index], rand_hex_char, without_dashes[index + 1:]])

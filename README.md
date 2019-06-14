@@ -138,3 +138,11 @@ At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32, Edm
 The fuzzer was developed for testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions. The same rule applies for functions that can be implemented in two different ways, like the function substring() which can take 2 or 3 parameters.
 
 ODfuzz creates a new collection in the database at each run. To preview database, run `mongo` in a terminal and select a corresponding database via `use odfuzz`. Run the command `db.getCollection("COLLECTION-NAME").find({}).pretty()` in the mongoDB shell in order to access and browse a particular collection. To delete all collections, run the command `db.dropDatabase()`.
+
+
+### Odata protocol references
+Standard ODATA specification: 
+https://www.odata.org/documentation/odata-version-2-0/uri-conventions/
+
+SAP-only additional odata annotations see: 
+https://wiki.scn.sap.com/wiki/display/EmTech/SAP+Annotations+for+OData+Version+2.0
