@@ -289,7 +289,7 @@ Mutator mutates data. The implementation of mutator is spread into 3 modules, li
 2. entities.py - There are implemented methods and classes which are closely related to Mutator itself. An eligible example is the class `FilterOptionDeleter`.
 3. fuzzer.py - In this module, there are invoked functions for mutating strings, or for deleting logical parts from the $filter query option.
 
-The mutable data are retrieved from a database. ODfuzz fully depends on MongoDB. Every single request and its response's HTTP status code is writen to the database. When an initial population is created, the fuzzer continues evolving the population. ODfuzz takes 2 candidates (2 related queries) from the database and mutates them. The procedure is following:
+The mutable data are retrieved from a database. ODfuzz fully depends on database state (MongoDB). Every single request and its response's HTTP status code is writen to the database. When an initial population is created, the fuzzer continues evolving the population. ODfuzz takes 2 candidates (2 related queries) from the database and mutates them. The procedure is following:
 
 1. Crossover - Two related queries (targeting the same endpoint, same entity set) are crossed. Such queries are obtained from Selector and Mutator does not have to cope with that.
 
@@ -322,8 +322,6 @@ The mutable data are retrieved from a database. ODfuzz fully depends on MongoDB.
 
 
 In Mutator, there are mutated reference keys as well. Those are the keys used for accessing single entities or are used within the principal entities (PrincipalEntity(ID='123', Color='Blue')/Entity).
-
-.. note:: In some cases, Mutator creates malformed requests. A ratio of requests, which are truly malformed, to requests which do cope with the requirements defined by the metadata document is approximately 1 to 999. The value is chosen deliberately and in some cases, it is possible to tune some constants which are dealing with such a probability. But in most cases, the generation of malformed requests is malformed and needs further investigation (incrementing value 2^32 for Edm.Int32).
 
 Dispatcher
 ==========
