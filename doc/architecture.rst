@@ -1,6 +1,9 @@
 Fuzzer's Architecture
 #####################
 
+Introduction
+************
+
 ODfuzz implements the evolutionary algorithm. The components of ODfuzz conform with the design of such an algorithm. At first, an initial population is established. After that, the population is evolved in each iteration and new findings are recorded. Take a look at the following pseudo-code which properly depicts the fuzzer's behavior:
 
 ::
@@ -21,13 +24,13 @@ ODfuzz implements the evolutionary algorithm. The components of ODfuzz conform w
     until SIGINT is captured
     WRITE basic stats
 
-The pseudo-code shows principal components and methods of the fuzzer. The fuzzer's architecture is precisely displayed in the following image.
+The pseudo-code shows principal components and methods of the fuzzer. The fuzzer's core process is precisely displayed in the following image.
 
 .. raw:: html
    :file: fuzzer-architecture.svg
 
-Runtime Behavior
-****************
+Example Runtime Behavior
+************************
 
 In this chapter, we will discuss how ODfuzz creates queries and how these queries pass through generators and mutators. Suppose we have a running OData service and the following metadata document is exposed:
 
@@ -116,6 +119,8 @@ Then the fuzzer will do exactly these things:
 5. New queries are again dispatched to the server, responses are evaluated, and saved to the database. Notice that only queries with a fit score are written back to the database. Otherwise, these queries are silently removed.
 6. Then, the fuzzer goes back to the step no. 4. The process of fuzzing ends when a user trigger SIGINT (a keyboard interruption).
 
+Fuzzer's Components
+*******************
 
 The fuzzer consists of these five main components:
 
@@ -128,7 +133,7 @@ The fuzzer consists of these five main components:
 In the next few sections, there are described implementation details of each module and each component.
 
 Builder
-*******
+=======
 
 Builder is implemented in the module :doc:`entities.py`. Builder, as an abstract class, is called from the module :doc:`fuzzer.py` which handles a fuzzing process. Builder's significance lies in the way how it encapsulates structures created by PyOData library.
 
@@ -192,7 +197,7 @@ A query group builds a list of the valid query options in the process of initial
 
 
 Selector
---------
+========
 
 Selector is an arbitrator in the decision making process of the evolution. When the fitness score is stagnating for a while, it determines that it is more suitable to generate new candidates instead of mutating the old. This decision was based upon empirical studies. When the mutation does not improve an overall fitness score of a population for a longer time, it is preferable to start generate a new subset of requests which can improve the population's fitness.
 
@@ -250,7 +255,7 @@ For a better imagination, an example of the JSON record is shown here:
 The structure contains all necessary values for further fuzzing. It contains response HTTP status code, fitness' score, order of query options, data for each query option, and so on. These data are employed in the mutation's process which is introduced later.
 
 Generator
----------
+=========
 
 Initial population is established only via Generator. Generator simply generates new queries based on the definitions of OData protocol. At the beginning of fuzzing, generator generates queries for all entity sets defined in the metadata document. It basically iterates through all queryables built by Builder. In the genetic loop, the fuzzer generates data for randomly selected queryables.
 
@@ -276,7 +281,7 @@ Non-terminal symbols are distinguished by capital letters. The generator randoml
 Generator generates only valid requests. To change this behavior, it is required to refactor the code. The reason why are we generating only valid requests is that the fuzzer is testing backend of an OData service. If we want to test backend's logic, we need to ensure that data pass through all checks and control layers (syntax parsers, semantic parsers, etc.).
 
 Mutator
--------
+=======
 
 Mutator mutates data. The implementation of mutator is spread into 3 modules, like Generator:
 
@@ -321,7 +326,7 @@ In Mutator, there are mutated reference keys as well. Those are the keys used fo
 .. note:: In some cases, Mutator creates malformed requests. A ratio of requests, which are truly malformed, to requests which do cope with the requirements defined by the metadata document is approximately 1 to 999. The value is chosen deliberately and in some cases, it is possible to tune some constants which are dealing with such a probability. But in most cases, the generation of malformed requests is malformed and needs further investigation (incrementing value 2^32 for Edm.Int32).
 
 Dispatcher
-----------
+==========
 
 Generated queries have to be dispatched to a server. A URI of an OData service is entered as a command line argument. Responses from the service are collected and passed to Analyzer. Dispatcher is implemented in the module :doc:`fuzzer.py`.
 

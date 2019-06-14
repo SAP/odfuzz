@@ -16,4 +16,4 @@ Requests can be sent to the server concurrently. However, some servers do not su
 Restrictions
 ------------
 
-Restrictions can significantly a state space search. ODfuzz will not generate queries which are targeting entities that do not implement some methods or return HTTP 500 as a response by default. The fuzzer tries to test entities which are used in production and are used on daily basis. Restrictions are defined by a user. Also, this user has to have a minimum knowledge of a tested OData service too.
+Restrictions can significantly reduce a state space search. ODfuzz will not generate queries which are targeting entities that do not implement some methods or return HTTP 500 as a response by default. The fuzzer tries to test entities which are used in production and are used on daily basis. Restrictions are defined by a user. Also, this user has to have a minimum knowledge of a tested OData service too.
