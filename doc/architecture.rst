@@ -265,7 +265,12 @@ Methods for generation are distributed between multiple modules:
 2. entities.py - There are placed methods for generating query options. These methods calls functions from `generators.py`.
 3. fuzzer.py - In this module, the generators for particular query options are called. This module utilizes a defined interface for generating the query options from the module `entities.py`.
 
-It is pretty straightforward how are query options generated. Each query option has defined some rules in OData standard, e.g. value fom $top cannot be negative, and those rules are hardcoded in ODfuzz. For the $filter query option, there was created an additional context-free grammar to generate strings. Rules of the grammar are defined like so:
+It is pretty straightforward how are query options generated. Each query option has defined some rules in OData standard, e.g. value fom $top cannot be negative, and those rules are hardcoded in ODfuzz.
+
+Filter Grammar
+--------------
+
+For the $filter query option, there was created an additional context-free grammar to generate strings. Rules of the grammar are defined like so:
 
 1. EXPRESSION -> PROPFUNC OPERATOR OPERAND | CHILD
 2. CHILD -> PARENT LOGICAL PARENT
