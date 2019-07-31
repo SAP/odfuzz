@@ -7,19 +7,17 @@ python:
 
 # command to install dependencies
 install:
-  - pip install .
   - pip install -r requirements.txt
-  - pip install bandit
+  - pip install -r test-requirements.txt
 
 # command to run tests
 script:
   - pytest
-  - pylint odfuzz
-  - make check
-  - bandit -r -lll .
 
 after_success:
   - codecov
+  - pylint odfuzz tests
+  - bandit -r -lll odfuzz tests
 
 notifications:
     email:
