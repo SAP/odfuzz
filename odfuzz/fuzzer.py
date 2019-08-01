@@ -1194,7 +1194,7 @@ class LoggerErrorWritter:
         self._logger.error(message)
 
 
-class NullOjbect:
+class NullObject:
     def __call__(self, *args, **kwargs):
         return self
 
