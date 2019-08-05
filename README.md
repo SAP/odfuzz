@@ -144,3 +144,12 @@ https://www.odata.org/documentation/odata-version-2-0/uri-conventions/
 
 SAP-only additional odata annotations see: 
 https://wiki.scn.sap.com/wiki/display/EmTech/SAP+Annotations+for+OData+Version+2.0
+
+
+## Contributing
+Before contributing, please, make yourself familiar with git. You can try git online. Things would be easier for all of us if you do your changes on a branch. Use a single commit for every logical reviewable change, without unrelated modifications (that will help us if need to revert a particular commit). Please avoid adding commits fixing your previous commits, do amend or rebase instead.
+
+Every commit must have either comprehensive commit message saying what is being changed and why or a link (an issue number on Github) to a bug report where this information is available. It is also useful to include notes about negative decisions - i.e. why you decided to not do particular things. Please bare in mind that other developers might not understand what the original problem was.
+
+## License
+Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
