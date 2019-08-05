@@ -20,13 +20,11 @@ For running the tool:
 - [Python 3.6+](https://www.python.org/downloads/)
 - [mongoDB 3.6+](https://www.mongodb.com/)
 
-Optional, for analyzing the results
-- [PivotTable](https://github.wdf.sap.corp/ODfuzz/Pivot) (http://chef.brq.only.sap:8081/)
-- [Plotly - Scatter graph](https://github.wdf.sap.corp/ODfuzz/ODfuzz-scatterpy) 
+ 
 ## Setup
 1. Clone this repository:
 ```
-$ git clone https://github.wdf.sap.corp/I342520/ODfuzz && cd ODfuzz
+$ git clone https://github.com/SAP/odfuzz && cd odfuzz
 ```
 2. Install the fuzzer:
     1. Docker
@@ -83,13 +81,13 @@ ODfuzz runs in an **infinite loop**. You may cancel an execution of the fuzzer w
 Output of the fuzzer is stored in the directories set by a user (e.g. logs_directory, stats_directory) or in a current working directory. ODfuzz is creating stats about performed experiments and tests:
 - Pivot
     - These stats are continuously extended with the latest data while the fuzzer is running.
-    - Stats are loaded into CSV files and may be visualised by the javascript Pivot table. See [README](https://github.wdf.sap.corp/I342520/Pivot/blob/master/README.md) to learn more. Also, in the pivot table, there is a **hash** value which is mapped to the corresponding URL located in the file *urls_list.txt*.
+    - Stats are loaded into CSV files and may be visualised by the javascript Pivot table. See [Pivot README](tools/pivot/README.md) to learn more. Also, in the pivot table, there is a **hash** value which is mapped to the corresponding URL located in the file *urls_list.txt*.
 - Simple
     - Requests that triggered an internal server error (HTTP 500) are written into multiple *.txt files. Name of the file is the name of the corresponding entity set in which the error occurred.
     - Runtime stats are saved to the *runtime_info.txt* file. This file contains various runtime information such as a number of generated tests (HTTP GET requests), number of failed tests (status code of the response is not equal to HTTP 200 OK), number of tests created by a crossover and number of tests created by a mutation.
 - Plotly
     - Response time and data count are continuously logged.
-    - Data are stored in the *data_responses.csv* file. When the fuzzer ends, an interactive scatter plot is built via plotly library. The scatter plot is viewable by any conventional web browser. Learn more about [plotly](https://plot.ly/python/line-and-scatter/).
+    - Data are stored in the *data_responses.csv* file. When the fuzzer ends, an interactive scatter plot can be built via scatter.py . The scatter plot is viewable by any conventional web browser. Learn more in [scatter README](tools/scatter/README.md).
 
 #### Console output
 Brief information about the runtime is also printed to a console. Find below an example of such an output.
@@ -111,14 +109,14 @@ A default configuration is stored in the file *config/fuzzer/config.yaml*. The c
 #### Docker volumes
 The output of ODfuzz is written into a running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
 ```
-$ sudo docker run --dns=10.17.121.71 -v /host/absolute/path:/image/absolute/path -ti odfuzz:1.0
+$ sudo docker run -v /host/absolute/path:/image/absolute/path -ti odfuzz:1.0
 ```
 Taking this into account, you have to set the fuzzer's output directories to /image/absolute/path as well. For more, visit https://docs.docker.com/storage/volumes/.
 
 ## Usage
 1. Run the fuzzer, for example, as:
 ```
-$ odfuzz https://ldciqj3.wdf.sap.corp:44300/sap/opu/odata/sap/FI_CORRESPONDENCE_V2_SRV -l logs_directory -s stats_directory -r restrictions/basic.yaml -a -f -p
+$ odfuzz <SERVICE_URL> -l logs_directory -s stats_directory -r restrictions/basic.yaml -a -f -p
 ```
 
 The option **-a** enables fuzzer to send asynchronous requests. A default number of the asynchronous requests can be changed. To do so, navigate to the file *config/fuzzer/fuzzer.ini* and modify value *pool*. Notice that some services do not support more than 10 asynchronous requests at the same time.
