@@ -13,15 +13,14 @@ fuzzer:
     urls_per_property: 100
 
 dispatcher:
-    # Services which support HTTPS should have defined a security certificate. All SAP OData
-    # services receive and transfer data via HTTPS, therefore, the option exists by default.
+    # Services which support HTTPS should have defined a security certificate. 
     certificate:
         # If true, the tool will search for a certificate in the folder where the fuzzer is
         # installed. The installation path will be added as a prefix for certificate's file
-        # path. Default SAP certificate is included within the package.
-        cert_install_path: true
+        # path. 
+        cert_install_path: false
         # A file path where the HTTPS certificate is stored.
-        cert_file_path: config/security/ca_sap_root_base64.crt
+        cert_file_path: 
 
     # A number of asynchronous requests which will be sent to a server via dispatcher
     # at the same time.
