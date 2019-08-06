@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/SAP/odfuzz.svg?branch=master)](https://travis-ci.com/SAP/odfuzz)
+
 # ODfuzz
 The fuzzer for testing applications communicating via the OData protocol.
 
