@@ -1,4 +1,6 @@
 pytest>=3.5.0
+pytest-cov>=2.7.1
+codecov>=2.0.15
 pylint>=1.2.1
 mongomock>=3.14.0
 bandit>=1.6.2
