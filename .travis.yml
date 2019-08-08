@@ -13,7 +13,7 @@ install:
 
 # command to run tests
 script:
-  - pytest
+  - pytest --cov=odfuzz --cov-report html --cov-report term-missing
 
 after_success:
   - codecov
