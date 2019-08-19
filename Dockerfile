@@ -1,12 +1,10 @@
 FROM alpine:3.8
 
-MAINTAINER Lubos Mjachky <lubos.mjachky@sap.com>
-
-RUN mkdir ODfuzz
-COPY . ODfuzz/
+MAINTAINER Petr Hanak  <petr.hanak@sap.com>
 
 ENV TZ=Europe/Berlin
 
+# install system dependencies 
 RUN apk update \
 	&& apk add --no-cache \
 		build-base \
@@ -22,37 +20,18 @@ RUN apk update \
 	&& python3 -m ensurepip \
 	&& pip3 install --upgrade pip \
 	&& pip3 install --upgrade setuptools \
-	&& pip3 install cffi \
-	&& pip3 install -r ODfuzz/requirements.txt \
-	&& apk del \
-		build-base \
-		build-dependencies \
-		libffi-dev \
-		python3-dev \
-		tzdata \
-	&& rm -rf ~/.pip/cache/ \
-	&& rm -rf /tmp/* \
-	&& rm -rf /tar/tmp/* \
-	&& rm -rf /var/cache/apk/* \
-	&& rm -rf /usr/lib/python*/ensurepip \
-	&& rm -rf /root/.cache
+	&& pip3 install cffi
 
-RUN cd ODfuzz && python3 setup.py install
-
-ENV PROXY_ENABLED="yes" \
-	HTTP_PROXY="http://proxy:8080" \
-	http_proxy="http://proxy:8080" \
-	HTTPS_PROXY="http://proxy:8080" \
-	https_proxy="http://proxy:8080" \
-	FTP_PROXY="http://proxy:8080" \
-	ftp_proxy="http://proxy:8080" \
-	GOPHER_PROXY="http://proxy:8080" \
-	gopher_proxy="http://proxy:8080" \
-	NO_PROXY="localhost, 127.0.0.1, sap-ag.de, sap.corp, corp.sap, co.sap.com, sap.biz, wdf.sap.corp, .wdf.sap.corp, .blrl.sap.corp, .phl.sap.corp, 10.68.148.36, 10.68.148.36, 10.68.148.36, .global.corp.sap, .wdf.sap.corp, .sap-ag.de, .sap.corp, .corp.sap, .co.sap.com, .sap.biz, .successfactors.com, *.sap, *.corp, *.successfactors.com, *.cloud.sap" \
-	no_proxy="localhost, 127.0.0.1, sap-ag.de, sap.corp, corp.sap, co.sap.com, sap.biz, wdf.sap.corp, .wdf.sap.corp, .blrl.sap.corp, .phl.sap.corp, 10.68.148.36, 10.68.148.36, 10.68.148.36, .global.corp.sap, .wdf.sap.corp, .sap-ag.de, .sap.corp, .corp.sap, .co.sap.com, .sap.biz, .successfactors.com, *.sap, *.corp, *.successfactors.com, *.cloud.sap"
-
-VOLUME /data/db
-WORKDIR /ODfuzz
-
+# start mongo and expose its files to volume
 CMD mongod > /dev/null 2>&1 & sh -c sh
+VOLUME /data/db
 
+# since dependencies change less often than rest of code, install them in separate layer
+COPY ./requirements.txt /tmp/ 
+RUN pip install -r /tmp/requirements.txt
+
+# everything around odfuzz to be runnable in container
+RUN mkdir ODfuzz
+COPY . ODfuzz/
+WORKDIR /ODfuzz
+RUN python3 setup.py install
