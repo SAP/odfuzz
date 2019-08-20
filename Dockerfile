@@ -31,7 +31,7 @@ COPY ./requirements.txt /tmp/
 RUN pip install -r /tmp/requirements.txt
 
 # everything around odfuzz to be runnable in container
-RUN mkdir ODfuzz
-COPY . ODfuzz/
-WORKDIR /ODfuzz
+RUN mkdir /odfuzz
+COPY . /odfuzz/
+WORKDIR /odfuzz
 RUN python3 setup.py install
