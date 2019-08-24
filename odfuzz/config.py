@@ -40,7 +40,9 @@ class DispatcherConfig:
 
     @property
     def has_certificate(self):
-        return bool(self._certificate)
+        if self._certificate:
+            return bool(self._cert_file_path)
+        return False
 
     @property
     def cert_install_path(self):
