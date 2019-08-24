@@ -118,6 +118,8 @@ def patch_proprty_generator(entity_set_name, proprty, restrictions):
         proprty.generate = EdmGenerator.edm_time
     elif proprty_type == 'Edm.Binary':
         proprty.generate = EdmGenerator.edm_binary
+    elif proprty_type == 'Edm.Double':
+        proprty.generate = EdmGenerator.edm_double
     elif proprty_type.startswith('Edm.Int'):
         if proprty_type.endswith('16'):
             proprty.generate = EdmGenerator.edm_int16

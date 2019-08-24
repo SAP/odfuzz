@@ -46,7 +46,7 @@ class EdmGenerator:
 
     @staticmethod
     def edm_double():
-        return str(round(random.uniform(-1.79e+30, 1.79e+30), 15)) + 'd'
+        return '{}d'.format(round(random.uniform(2.23e-40, 1.19e+40), 15))
 
     @staticmethod
     def edm_single():
