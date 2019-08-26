@@ -50,7 +50,7 @@ class EdmGenerator:
 
     @staticmethod
     def edm_single():
-        return '{0:.7f}'.format(random.uniform(-10000000000, 10000000000)) + 'f'
+        return '{}f'.format(round(random.uniform(1.18e-20, 3.40e+20), 7))
 
     @staticmethod
     def edm_guid():
