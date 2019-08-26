@@ -20,7 +20,7 @@ dispatcher:
         # path. 
         cert_install_path: false
         # A file path where the HTTPS certificate is stored.
-        cert_file_path: 
+        cert_file_path: ''
 
     # A number of asynchronous requests which will be sent to a server via dispatcher
     # at the same time.
