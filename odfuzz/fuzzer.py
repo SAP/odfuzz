@@ -1221,13 +1221,23 @@ def build_filter_string(filter_data):
 
 def replace_forbidden_characters(parts):
     for data in parts:
-        if data['operand'].startswith('\''):
-            data['operand'] = '\'' + replace_special_characters(data['operand'][1:-1]) + '\''
         if 'params' in data:
+            # replace special characters within function's parameters
             if data['params']:
                 for index, param in enumerate(data['params']):
-                    if param.startswith('\''):
-                        data['params'][index] = '\'' + replace_special_characters(param[1:-1]) + '\''
+                    replace_part_characters(data['params'], index)
+        else:
+            replace_part_characters(data, 'operand')
+
+
+def replace_part_characters(data, key):
+    if data[key].startswith('\''):
+        # Replace special characters within a string
+        data[key] = '\'' + replace_special_characters(data[key][1:-1]) + '\''
+    else:
+        # Replace special characters within doubles, or other data types
+        # which are not enclosed with a separate pair of single quotes
+        data[key] = replace_special_characters(data[key])
 
 
 def replace_special_characters(replacing_string):
