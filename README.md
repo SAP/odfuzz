@@ -1,10 +1,10 @@
 [![Build Status](https://travis-ci.com/SAP/odfuzz.svg?branch=master)](https://travis-ci.com/SAP/odfuzz)
 [![codecov](https://codecov.io/gh/SAP/odfuzz/branch/master/graph/badge.svg)](https://codecov.io/gh/SAP/odfuzz)
 
-# ODfuzz
+# Odata service fuzzer - odfuzz
 The fuzzer for testing applications communicating via the OData protocol.
 
-ODfuzz randomly selects entities that are **queryable**, thus, the entities which can be used in query options $filter, $orderby, $skip, and $top. For each entity, there is generated a set of query options, and final result is dispatched to OData service. Responses from the OData service are stored in a database and used for the further analysis and generation. ODfuzz creates valid requests that contain **random data** at specific places. Learn more at [Excel@Fit 2018](http://excel.fit.vutbr.cz/submissions/2018/004/4.pdf).
+Odfuzz randomly selects entities that are **queryable**, thus, the entities which can be used in query options $filter, $orderby, $skip, and $top. For each entity, there is generated a set of query options, and final result is dispatched to OData service. Responses from the OData service are stored in a database and used for the further analysis and generation. Odfuzz creates valid requests that contain **random data** at specific places. Learn more at [Excel@Fit 2018](http://excel.fit.vutbr.cz/submissions/2018/004/4.pdf).
 
 Example of generated queries:
 ```
@@ -73,15 +73,15 @@ optional arguments:
                         User name and password used for authentication
   --fuzzer-config FUZZER_CONFIG
                         A configuration file for the fuzzer
-  -a, --asynchronous    Allow ODfuzz to send HTTP requests asynchronously
+  -a, --asynchronous    Allow odfuzz to send HTTP requests asynchronously
   -f, --first-touch     Automatically determine which entities are queryable
 ```
 
 ### Runtime
-ODfuzz runs in an **infinite loop**. You may cancel an execution of the fuzzer with a **keyboard interruption** (CTRL + C).
+Odfuzz runs in an **infinite loop**. You may cancel an execution of the fuzzer with a **keyboard interruption** (CTRL + C).
 
 ### Output
-Output of the fuzzer is stored in the directories set by a user (e.g. logs_directory, stats_directory) or in a current working directory. ODfuzz is creating stats about performed experiments and tests:
+Output of the fuzzer is stored in the directories set by a user (e.g. logs_directory, stats_directory) or in a current working directory. Odfuzz is creating stats about performed experiments and tests:
 - Pivot
     - These stats are continuously extended with the latest data while the fuzzer is running.
     - Stats are loaded into CSV files and may be visualised by the javascript Pivot table. See [Pivot README](tools/pivot/README.md) to learn more. Also, in the pivot table, there is a **hash** value which is mapped to the corresponding URL located in the file *urls_list.txt*.
@@ -110,7 +110,7 @@ Generated tests: 1300 | Failed tests: 27 | Raised exceptions: 0
 A default configuration is stored in the file *config/fuzzer/config.yaml*. The configuration file can be modified to suit the best needs. Also, it is possible to create a new configuration file which can be passed via the command line option **--fuzzer-config**. 
 
 #### Docker volumes
-The output of ODfuzz is written into a running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
+The output of **odfuzz** is written into a running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
 ```
 $ sudo docker run -v /host/absolute/path:/image/absolute/path -ti odfuzz:1.0
 ```
@@ -122,7 +122,7 @@ Taking this into account, you have to set the fuzzer's output directories to /im
 $ odfuzz <SERVICE_URL> -l logs_directory -s stats_directory -r restrictions/basic.yaml -a -f -p
 ```
 
-The option **-a** enables fuzzer to send asynchronous requests. A default number of the asynchronous requests can be changed. To do so, navigate to the file *config/fuzzer/fuzzer.ini* and modify value *pool*. Notice that some services do not support more than 10 asynchronous requests at the same time.
+The option **-a** enables fuzzer to send asynchronous requests. A default number of the asynchronous requests can be changed. To do so, navigate to the file *config/fuzzer/config.yaml* and modify value *async_requests_num*. Notice that some services do not support more than 10 asynchronous requests at the same time.
 
 2. Let it run for a couple of hours (or minutes). Cancel an execution of the fuzzer with CTRL + C.
 3. Browse overall stats, for example, by the following scenario:
@@ -131,16 +131,18 @@ The option **-a** enables fuzzer to send asynchronous requests. A default number
     - Queries which produced errors are saved to multiple files (names of the files start with prefix *EntitySet_*). These queries are considered to be the best by the genetic algorithm eventually. Try to reproduce the errors by sending the same queries to the server in order to ensure yourself that this is a real bug.
     - Open SAP Logon and browse the errors via transactions sm21, st22 or /n/IWFND/ERROR_LOG. Find potential threats and report them.
 
-NOTE: ODfuzz uses a custom header **user-agent=odfuzz/1.0** in all HTTP requests. You may be able to filter the internet traffic based on this header.
+NOTE: **odfuzz** uses a custom header **user-agent=odfuzz/1.0** in all HTTP requests. You may be able to filter the internet traffic based on this header.
 
 ### Limitations
-- At the moment, ODfuzz can mutate only values of types Edm.String, Edm.Int32, Edm.Decimal, Edm.Boolean, and Edm.Guid. It is planned to support more types in the future.
 
-- The fuzzer was developed for testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions. The same rule applies for functions that can be implemented in two different ways, like the function substring() which can take 2 or 3 parameters.
+- **odfuzz** was created as SAP internal-only tool for purpose of testing specifically the Odata APIs for Fiori Apps on S4HANA platform - and open-sourced afterwards. As it is currently "in-the-wild", it should be expected to encounter many edge-cases (ie bugs/enhancements) when executed against Odata services either on different SAP platform (SCP) or even Odata services running on different platforms and intended for other consumers. 
 
-- ODfuzz creates a new collection in the database at each run. To preview database, run `mongo` in a terminal and select a corresponding database via `use odfuzz`. Run the command `db.getCollection("COLLECTION-NAME").find({}).pretty()` in the mongoDB shell in order to access and browse a particular collection. To delete all collections, run the command `db.dropDatabase()`.
+- At the moment, **odfuzz** can mutate only values of types Edm.String, Edm.Int32, Edm.Decimal, Edm.Boolean, and Edm.Guid. It is planned to support more types in the future.
 
-- Odfuzz was created as SAP internal-only tool for purpose of testing specifically the Odata APIs for Fiori Apps on S4HANA platform - and open-sourced afterwards. As it is currently "in-the-wild", it should be expected to encounter many edge-cases (ie bugs/enhancements) when executed against Odata services either on different SAP platform (SCP) or even Odata services running on different platforms and intended for other consumers. 
+- The fuzzer URL generation algorithm is also currently hardcoded for purpose of testing the SAP applications. These applications use different order of function parameters within the filter query option. To change the order of the parameters, it is unavoidable to modify source code that generates such functions. The same rule applies for functions that can be implemented in two different ways, like the function substring() which can take 2 or 3 parameters.
+
+- **odfuzz** creates a new collection in the database at each run. To preview database, run `mongo` in a terminal and select a corresponding database via `use odfuzz`. Run the command `db.getCollection("COLLECTION-NAME").find({}).pretty()` in the mongoDB shell in order to access and browse a particular collection. To delete all collections, run the command `db.dropDatabase()`. Since inteded usage is to to run inside docker and expose only result files in volume, this should not be a big of a concern. 
+
 
 ### Odata protocol references
 Standard ODATA specification: 
