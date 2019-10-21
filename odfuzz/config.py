@@ -1,15 +1,19 @@
 """This module contains classes for fetching and parsing basic configurations."""
 
 import yaml
+import os
 
 from odfuzz.constants import CERTIFICATE_PATH, ASYNC_REQUESTS_NUM, FUZZER_CONFIG_PATH, \
-    SAP_CLIENT, DATA_FORMAT, URLS_PER_PROPERTY
+    SAP_CLIENT, DATA_FORMAT, URLS_PER_PROPERTY, ENV_SAP_CLIENT
 from odfuzz.exceptions import ConfigParserError
 
 
 class FuzzerConfig:
     def __init__(self, config):
         self._sap_client = config.get('sap_client', SAP_CLIENT)
+        self._sap_client = os.getenv(ENV_SAP_CLIENT)
+        #overwrite if ENV variable exists - https://github.com/SAP/odfuzz/issues/24
+
         self._data_format = config.get('data_format', DATA_FORMAT)
         self._urls_per_property = config.get('urls_per_property', URLS_PER_PROPERTY)
 

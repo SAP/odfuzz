@@ -34,8 +34,11 @@ MONGODB_NAME = 'odfuzz'
 # used for mounting adapters in the module `requests` (this may be located right in Dispatcher)
 ACCESS_PROTOCOL = 'https://'
 # used in Dispatcher (fuzzer.py) to obtain SAP login from environmental variables
+# TODO this should probably be used in one place only (config.py) and not scattered + rename with prefix ODFUZZ_
 ENV_USERNAME = 'SAP_USERNAME'
 ENV_PASSWORD = 'SAP_PASSWORD'
+# used for overwriting the sap-client in CI env, when currently the config.yml is mandatory to be loaded with its defaults
+ENV_SAP_CLIENT = 'ODFUZZ_SAP_CLIENT'
 
 # names of restrictions which are used for searching for keywords; these constants are also used in the module fuzzer.py
 # for creating dictionary which is going to be saved to the database - these constants are truly global, so the user
