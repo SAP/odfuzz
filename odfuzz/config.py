@@ -67,15 +67,15 @@ class Config:
 
     @staticmethod
     def init_from(config_file):
-        config_dict = Config.raw_from(config_file)
+        config_dict = Config._raw_from(config_file)
         if not config_dict:
-            config_dict = Config.raw_from(FUZZER_CONFIG_PATH)
+            config_dict = Config._raw_from(FUZZER_CONFIG_PATH)
 
         Config.fuzzer = FuzzerConfig(config_dict.get('fuzzer') or {})
         Config.dispatcher = DispatcherConfig(config_dict.get('dispatcher') or {})
 
     @staticmethod
-    def raw_from(config_file):
+    def _raw_from(config_file):
         try:
             with open(config_file) as stream:
                 config_dict = yaml.safe_load(stream)
