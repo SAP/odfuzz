@@ -4,4 +4,4 @@ pymongo>=3.6.1
 lxml>=3.7.3
 pyyaml>=3.13
 python-dateutil>=2.7.5
-pyodata>=1.2.1
+pyodata>=1.3.0
