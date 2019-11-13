@@ -68,8 +68,9 @@ def add_plotly_events(filename):
     on_events_registration = register_on_events(EVENTS)
 
     # replace whitespace characters with actual whitespace using + to concatenate the strings
-    line_text = line_text + '.then(function(eventPlot) { ' + join_javascript_lines(on_events_registration)\
-                          + '  })'.replace('\n', ' ').replace('\r', '')
+    line_text = re.sub(r'};\s*(\r?\n)*$', 
+           '.then(function(eventPlot) { ' + join_javascript_lines(on_events_registration) + '  }) };',
+           line_text)
 
     # add the function bodies we've register in the on handles
     functions = [function for function in EVENTS.values()]
