@@ -1,20 +1,15 @@
 """This module contains classes for fetching and parsing basic configurations."""
 
-import yaml
 import os
 
-from odfuzz.constants import CERTIFICATE_PATH, ASYNC_REQUESTS_NUM, FUZZER_CONFIG_PATH, \
-    SAP_CLIENT, DATA_FORMAT, URLS_PER_PROPERTY, ENV_SAP_CLIENT
-from odfuzz.exceptions import ConfigParserError
+from odfuzz.constants import ENV_ODFUZZ_CERTIFICATE_PATH, DEFAULT_ASYNC_REQUESTS_NUM, DEFAULT_SAP_CLIENT, DEFAULT_DATA_FORMAT, DEFAULT_URLS_PER_PROPERTY, ENV_SAP_CLIENT, ENV_DATA_FORMAT, ENV_URLS_PER_PROPERTY, ENV_ASYNC_REQUESTS_NUM
 
-
+#TODO: This is in the state of working, but is there any real need for distinguishing Fuzzer and Dispatecher config? even in fuzzer is part of dispatching (url part)
 class FuzzerConfig:
-    def __init__(self, config):
-        self._sap_client = os.getenv(ENV_SAP_CLIENT, config.get('sap_client', SAP_CLIENT))
-        #overwrite if ENV variable exists - https://github.com/SAP/odfuzz/issues/24
-
-        self._data_format = config.get('data_format', DATA_FORMAT)
-        self._urls_per_property = config.get('urls_per_property', URLS_PER_PROPERTY)
+    def __init__(self):
+        self._sap_client = os.getenv(ENV_SAP_CLIENT, DEFAULT_SAP_CLIENT)
+        self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
+        self._urls_per_property = os.getenv(ENV_URLS_PER_PROPERTY, DEFAULT_URLS_PER_PROPERTY)
 
     @property
     def sap_client(self):
@@ -30,26 +25,15 @@ class FuzzerConfig:
 
 
 class DispatcherConfig:
-    def __init__(self, config):
-        self._certificate = config.get('certificate')
-        if self._certificate:
-            self._cert_install_path = self._certificate.get('cert_install_path', True)
-            self._cert_file_path = self._certificate.get('cert_file_path', CERTIFICATE_PATH)
-        else:
-            self._cert_install_path = False
-            self._cert_file_path = ''
-
-        self._async_requests_num = config.get('async_requests_num', ASYNC_REQUESTS_NUM)
+    def __init__(self):
+        self._cert_file_path = self._data_format = os.getenv(ENV_ODFUZZ_CERTIFICATE_PATH) #intentionaly no default path
+        self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
+        self._async_requests_num = os.getenv(ENV_ASYNC_REQUESTS_NUM, DEFAULT_ASYNC_REQUESTS_NUM)
 
     @property
     def has_certificate(self):
-        if self._certificate:
-            return bool(self._cert_file_path)
-        return False
+        return bool(self._cert_file_path)
 
-    @property
-    def cert_install_path(self):
-        return self._cert_install_path
 
     @property
     def cert_file_path(self):
@@ -61,24 +45,7 @@ class DispatcherConfig:
 
 
 class Config:
-    fuzzer = FuzzerConfig({})
-    dispatcher = DispatcherConfig({})
-
     @staticmethod
-    def init_from(config_file):
-        config_dict = Config._raw_from(config_file)
-        if not config_dict:
-            config_dict = Config._raw_from(FUZZER_CONFIG_PATH)
-
-        Config.fuzzer = FuzzerConfig(config_dict.get('fuzzer') or {})
-        Config.dispatcher = DispatcherConfig(config_dict.get('dispatcher') or {})
-
-    @staticmethod
-    def _raw_from(config_file):
-        try:
-            with open(config_file) as stream:
-                config_dict = yaml.safe_load(stream)
-        except (EnvironmentError, yaml.YAMLError) as error:
-            raise ConfigParserError('An exception was raised while parsing the configuration file \'{}\': {}'
-                                    .format(config_file, error))
-        return config_dict
+    def init():
+        Config.fuzzer = FuzzerConfig()
+        Config.dispatcher = DispatcherConfig()
