@@ -34,8 +34,7 @@ class Manager:
     """A class for managing the fuzzer runtime."""
 
     def __init__(self, bind, arguments, collection_name):
-        Config.init_from(arguments.fuzzer_config)
-
+        Config.init()
         self._dispatcher = Dispatcher(arguments)
         self._asynchronous = arguments.asynchronous
         self._first_touch = arguments.first_touch
@@ -1165,10 +1164,7 @@ class Dispatcher:
     def _get_sap_certificate(self):
         certificate_path = None
         if self._config.has_certificate:
-            if self._config.cert_install_path:
-                candidate_path = os.path.join(FUZZER_PATH, self._config.cert_file_path)
-            else:
-                candidate_path = self._config.cert_file_path
+            candidate_path = self._config.cert_file_path
             if not os.path.isfile(candidate_path):
                 return None
             certificate_path = candidate_path

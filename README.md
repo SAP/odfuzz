@@ -51,9 +51,45 @@ $ git clone https://github.com/SAP/odfuzz && cd odfuzz
 ## Run configuration
 To access OData services introduced in SAP, it is required to set the following **environment variables** in your system. The fuzzer will use these variables for a **basic authentication**.
 ```
-export SAP_USERNAME=Username
-export SAP_PASSWORD=Password
+export ODFUZZ_USERNAME=Username
+export ODFUZZ_PASSWORD=Password
 ```
+
+Additional configuration can be set up using following **environment variables**:
+
+
+SAP client ID. The option is required only for testing OData services within the SAP
+network. Useful for example on some environments, which does not have client as part of server hostname.
+```
+export ODFUZZ_SAP_CLIENT=500
+```    
+    
+Data format of requested data. Valid values are 'json' and 'xml'.
+```
+export ODFUZZ_DATA_FORMAT=json
+export ODFUZZ_DATA_FORMAT=xml
+```
+
+A number of initial URLs which will be generated per single property  per Queriable group defined in the
+metadata document. Currently are 4 Queriable groups, so max x4 the value from this config (can be further substracted
+by employing restrictions to the property.
+
+/ODfuzz/ODfuzz/blob/doc_architecture/doc/architecture.rst#query-groups
+/ODfuzz/ODfuzz/blob/doc_architecture/doc/restrictions.rst
+```
+export ODFUZZ_URLS_PER_PROPERTY=100
+```
+
+Number of asynchronous requests which will be sent to a server via dispatcher at the same time.
+```
+export ODFUZZ_ASYNC_REQUESTS_NUM=10
+```
+
+File path where the HTTPS certificate is stored is the service is requiring it.
+```
+export ENV_ODFUZZ_CERTIFICATE_PATH=./cert.crt
+```
+
 
 If necessary, it is possible to specify the username and the password via command line arguments. Take a look at the optional arguments:
 ```
