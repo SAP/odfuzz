@@ -4,12 +4,10 @@ import os
 
 # configuration constants, used while initializing loggers which are used for logging stats and logging info messages;
 # used in loggers.py
-RELATIVE_CONFIG_PATH = 'config/fuzzer/config.yaml'
 LOGGING_CONFIG_PATH = 'config/logging/logging.conf'
 CERTIFICATE_PATH = 'config/security/ca_sap_root_base64.crt'
 
 FUZZER_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir))
-FUZZER_CONFIG_PATH = os.path.join(FUZZER_PATH, RELATIVE_CONFIG_PATH)
 FUZZER_LOGGING_CONFIG_PATH = os.path.join(FUZZER_PATH, LOGGING_CONFIG_PATH)
 
 FUZZER_LOGS_NAME = 'logs'
@@ -35,10 +33,19 @@ MONGODB_NAME = 'odfuzz'
 ACCESS_PROTOCOL = 'https://'
 # used in Dispatcher (fuzzer.py) to obtain SAP login from environmental variables
 # TODO this should probably be used in one place only (config.py) and not scattered + rename with prefix ODFUZZ_
-ENV_USERNAME = 'SAP_USERNAME'
-ENV_PASSWORD = 'SAP_PASSWORD'
-# used for overwriting the sap-client in CI env, when currently the config.yml is mandatory to be loaded with its defaults
+ENV_USERNAME = 'ODFUZZ_USERNAME'
+ENV_PASSWORD = 'ODFUZZ_PASSWORD'
 ENV_SAP_CLIENT = 'ODFUZZ_SAP_CLIENT'
+ENV_DATA_FORMAT = 'ODFUZZ_DATA_FORMAT'
+ENV_URLS_PER_PROPERTY = 'ODFUZZ_URLS_PER_PROPERTY'
+ENV_ASYNC_REQUESTS_NUM = 'ODFUZZ_ASYNC_REQUESTS_NUM'
+ENV_ODFUZZ_CERTIFICATE_PATH = 'ODFUZZ_CERTIFICATE_PATH'
+
+# default configuration values; these values are retrieved by default if no environment variable overwrites them
+DEFAULT_SAP_CLIENT = '500'
+DEFAULT_DATA_FORMAT = 'json'
+DEFAULT_URLS_PER_PROPERTY = 100
+DEFAULT_ASYNC_REQUESTS_NUM = 10
 
 # names of restrictions which are used for searching for keywords; these constants are also used in the module fuzzer.py
 # for creating dictionary which is going to be saved to the database - these constants are truly global, so the user
@@ -130,12 +137,6 @@ INFINITY_TIMEOUT = -1
 YEAR_IN_SECONDS = 31622400
 REQUEST_TIMEOUT = 600
 RETRY_TIMEOUT = 100
-
-# default configuration values; these values are retrieved by default if no configuration file exists (config.py)
-ASYNC_REQUESTS_NUM = 10
-SAP_CLIENT = '500'
-DATA_FORMAT = 'json'
-URLS_PER_PROPERTY = 100
 
 # range for basic charsets for generator (generators.py) and mutators (mutators.py)
 HEX_BINARY = 'ABCDEFabcdef0123456789'

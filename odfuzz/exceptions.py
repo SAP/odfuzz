@@ -11,11 +11,6 @@ class ArgParserError(ODfuzzException):
     pass
 
 
-class ConfigParserError(ODfuzzException):
-    """An error occurred while parsing configuration file."""
-    pass
-
-
 class BuilderError(ODfuzzException):
     """An error occurred while initializing queryable entities."""
     pass

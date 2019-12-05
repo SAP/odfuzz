@@ -51,9 +51,45 @@ $ git clone https://github.com/SAP/odfuzz && cd odfuzz
 ## Run configuration
 To access OData services introduced in SAP, it is required to set the following **environment variables** in your system. The fuzzer will use these variables for a **basic authentication**.
 ```
-export SAP_USERNAME=Username
-export SAP_PASSWORD=Password
+export ODFUZZ_USERNAME=Username
+export ODFUZZ_PASSWORD=Password
 ```
+
+Additional configuration can be set up using following **environment variables**:
+
+
+SAP client ID. The option is required only for testing OData services within the SAP
+network. Useful for example on some environments, which does not have client as part of server hostname.
+```
+export ODFUZZ_SAP_CLIENT=500
+```    
+    
+Data format of requested data. Valid values are 'json' and 'xml'.
+```
+export ODFUZZ_DATA_FORMAT=json
+export ODFUZZ_DATA_FORMAT=xml
+```
+
+A number of initial URLs which will be generated per single property per Queryable group defined in the
+metadata document. Currently are 4 Queryable groups (the total count can be further subtracted
+by employing restrictions to the property.
+
+/ODfuzz/ODfuzz/blob/doc_architecture/doc/architecture.rst#query-groups
+/ODfuzz/ODfuzz/blob/doc_architecture/doc/restrictions.rst
+```
+export ODFUZZ_URLS_PER_PROPERTY=100
+```
+
+Number of asynchronous requests which will be sent to a server via dispatcher at the same time.
+```
+export ODFUZZ_ASYNC_REQUESTS_NUM=10
+```
+
+File path where the HTTPS certificate is stored if the service is requiring it.
+```
+export ENV_ODFUZZ_CERTIFICATE_PATH=./cert.crt
+```
+
 
 If necessary, it is possible to specify the username and the password via command line arguments. Take a look at the optional arguments:
 ```
@@ -104,10 +140,6 @@ Generated tests: 1300 | Failed tests: 27 | Raised exceptions: 0
 ```
 
 *Collection* represents a name of a collection associated with mongoDB. *Raised exceptions* describes a number of raised exceptions within the runtime, for example, connection errors.
-
-
-#### Configuration
-A default configuration is stored in the file *config/fuzzer/config.yaml*. The configuration file can be modified to suit the best needs. Also, it is possible to create a new configuration file which can be passed via the command line option **--fuzzer-config**. 
 
 #### Docker volumes
 The output of **odfuzz** is written into a running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
