@@ -1,6 +1,6 @@
 FROM alpine:3.8
 
-MAINTAINER Petr Hanak  <petr.hanak@sap.com>
+LABEL key="Petr Hanak  <petr.hanak@sap.com>"
 
 ENV TZ=Europe/Berlin
 
@@ -22,10 +22,6 @@ RUN apk update \
 	&& pip3 install --upgrade setuptools \
 	&& pip3 install cffi
 
-# start mongo and expose its files to volume
-CMD mongod > /dev/null 2>&1 & sh -c sh
-VOLUME /data/db
-
 # since dependencies change less often than rest of code, install them in separate layer
 COPY ./requirements.txt /tmp/ 
 RUN pip install -r /tmp/requirements.txt
@@ -35,3 +31,5 @@ RUN mkdir /odfuzz
 COPY . /odfuzz/
 WORKDIR /odfuzz
 RUN python3 setup.py install
+
+ENTRYPOINT [ "odfuzz" ]

@@ -6,6 +6,7 @@ import sys
 import signal
 import logging
 import gevent
+import subprocess
 
 from datetime import datetime
 from functools import partial
@@ -20,6 +21,7 @@ from odfuzz.exceptions import ArgParserError, ODfuzzException
 
 
 def main():
+    subprocess.check_call("mongod > /dev/null 2>&1 &", shell=True)
     execute(sys.argv[1:])
 
 
