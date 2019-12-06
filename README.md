@@ -37,8 +37,9 @@ $ git clone https://github.com/SAP/odfuzz && cd odfuzz
         ```
         2. Run the container:
         ```
-        $ sudo docker run --dns=10.17.121.71 -ti odfuzz:1.0
+        $ sudo docker run --dns=10.17.121.71 -v <absolute_hostpath>:/odfuzz odfuzz:1.0 <arguments>
         ```
+        3. The results can be found in `<absolute_hostpath>`.
 
     2. Manual
         1. [Download](https://www.mongodb.com/download-center#community) and [install](https://docs.mongodb.com/manual/administration/install-community/) the mongoDB server on your local machine.
@@ -142,16 +143,16 @@ Generated tests: 1300 | Failed tests: 27 | Raised exceptions: 0
 *Collection* represents a name of a collection associated with mongoDB. *Raised exceptions* describes a number of raised exceptions within the runtime, for example, connection errors.
 
 #### Docker volumes
-The output of **odfuzz** is written into a running instance of docker image by default. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
+The output of **odfuzz** is written into the `/odfuzz` directory of a running container. If you want to view the output on the host system, you are required to use the additional **-v** option and run the docker image as follows:
 ```
-$ sudo docker run -v /host/absolute/path:/image/absolute/path -ti odfuzz:1.0
+$ sudo docker run -v /host/absolute/path:/odfuzz odfuzz:1.0 <arguments>
 ```
-Taking this into account, you have to set the fuzzer's output directories to /image/absolute/path as well. For more, visit https://docs.docker.com/storage/volumes/.
+For more, visit https://docs.docker.com/storage/volumes/.
 
 ## Usage
 1. Run the fuzzer, for example, as:
 ```
-$ odfuzz <SERVICE_URL> -l logs_directory -s stats_directory -r restrictions/basic.yaml -a -f -p
+$ odfuzz <SERVICE_URL> -l logs_directory -s stats_directory -r restrictions/basic.yaml -a -f
 ```
 
 The option **-a** enables fuzzer to send asynchronous requests. A default number of the asynchronous requests can be changed. To do so, navigate to the file *config/fuzzer/config.yaml* and modify value *async_requests_num*. Notice that some services do not support more than 10 asynchronous requests at the same time.
