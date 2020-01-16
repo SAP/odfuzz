@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/SAP/odfuzz.svg?branch=master)](https://travis-ci.com/SAP/odfuzz)
+﻿[![Build Status](https://travis-ci.com/SAP/odfuzz.svg?branch=master)](https://travis-ci.com/SAP/odfuzz)
 [![codecov](https://codecov.io/gh/SAP/odfuzz/branch/master/graph/badge.svg)](https://codecov.io/gh/SAP/odfuzz)
 
 # Odata service fuzzer - odfuzz
@@ -94,23 +94,27 @@ export ENV_ODFUZZ_CERTIFICATE_PATH=./cert.crt
 If necessary, it is possible to specify the username and the password via command line arguments. Take a look at the optional arguments:
 ```
 $ odfuzz --help
+usage: ODfuzz [-l LOGS] [-s STATS] [-r RESTRICTIONS] [-t TIMEOUT] [-a] [-f]
+              [-c USERNAME:PASSWORD]
+              service
+
+Fuzzer for testing applications communicating via the OData protocol
+
 positional arguments:
   service               An OData service URL
+
 optional arguments:
-  -h, --help            Show this help message and exit
   -l LOGS, --logs LOGS  A logs directory
   -s STATS, --stats STATS
                         A statistics directory
-  -r RESTR, --restr RESTR
+  -r RESTRICTIONS, --restrictions RESTRICTIONS
                         A user defined restrictions
   -t TIMEOUT, --timeout TIMEOUT
                         A general timeout in seconds for a fuzzing
+  -a, --asynchronous    Allow ODfuzz to send HTTP requests asynchronously
+  -f, --first-touch     Automatically determine which entities are queryable
   -c USERNAME:PASSWORD, --credentials USERNAME:PASSWORD
                         User name and password used for authentication
-  --fuzzer-config FUZZER_CONFIG
-                        A configuration file for the fuzzer
-  -a, --asynchronous    Allow odfuzz to send HTTP requests asynchronously
-  -f, --first-touch     Automatically determine which entities are queryable
 ```
 
 ### Runtime
