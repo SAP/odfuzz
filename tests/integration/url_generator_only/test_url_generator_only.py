@@ -16,7 +16,7 @@ def test_expected_integration_sample():
     see https://github.com/SAP/odfuzz/issues/37
     """
 
-    path_to_metadata = Path(".").joinpath("metadata-northwind-v2.xml")
+    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
     metadata_file_contents = path_to_metadata.read_bytes()
     # do not pass metadata as python string but read as bytes, usually ends with Unicode vs xml encoding mismatch.
 
