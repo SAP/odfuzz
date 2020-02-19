@@ -31,8 +31,8 @@ StringSelf = namedtuple('StringSelf', 'max_length')
 OptionRestriction = namedtuple('OptionRestriction', 'restr is_restricted')
 
 
-class Builder:
-    """A class for building and initializing all queryable entities."""
+class DispatchedBuilder:
+    """A class for building and initializing all queryable entities trough network call."""
 
     def __init__(self, dispatcher, restrictions, first_touch):
         self._dispatcher = dispatcher
@@ -99,12 +99,67 @@ class Builder:
             self._queryable.add(query_group)
 
 
+class DirectBuilder:
+    """A class for building and initializing all queryable entities with metadata passed in constructor."""
+    def __init__(self, metadata, restrictions):
+        self._queryable = QueryableEntities()
+        self._metadata_string = metadata
+        self._restrictions = restrictions
+
+        Config.init()
+        # Ugly but necessary so the field exists for classes and methods in fuzzer.py using the Config.
+        # Normally initialized in the middle of CLI calls, but in this case this is the first entrypoint and Config does not exists yet.
+
+    def build(self):
+        # call just once on fuzzer process start
+        data_model = self._get_data_model()
+
+        for entity_set in data_model.entity_sets:
+            patch_entity_set(entity_set, data_model.association_sets)
+            patch_proprties(entity_set.name, entity_set.entity_type.proprties(), self._restrictions)
+            principal_entities = get_principal_entities(data_model, entity_set)
+            query_group_data = QueryGroupData(entity_set, principal_entities, self._restrictions, None)
+            self._append_queryable(query_group_data)
+
+        return self._queryable
+
+    def _get_data_model(self):
+        try:
+            service_model = Edmx.parse(self._metadata_string)
+        except (PyODataException, RuntimeError) as pyodata_ex:
+            raise BuilderError('An exception occurred while parsing metadata: {}'.format(pyodata_ex))
+        return service_model
+
+
+    def _append_queryable(self, query_group_data):
+        # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
+        self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
+        self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
+        self._append_associated_queryables(query_group_data)
+
+    def _append_associated_queryables(self, query_group_data):
+        # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
+        if query_group_data.principal_entities:
+            principal_entities = query_group_data.principal_entities.multiplicity_one_entities
+            if principal_entities:
+                self._append_corresponding_queryable(QueryGroupAssociation(query_group_data, principal_entities))
+
+            principal_entities = query_group_data.principal_entities.multiplicity_many_entities
+            if principal_entities:
+                self._append_corresponding_queryable(QueryGroupAssociationSet(query_group_data, principal_entities))
+
+    def _append_corresponding_queryable(self, query_group):
+        # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
+        if query_group.query_options():
+            self._queryable.add(query_group)
+
+
 class FirstTouch:
     """
     if --first-touch CLI flag; checks if methods for entitysets are even implemented,
     so it does not creates queries that will be ignored by user in output analysis.
     """
-    #TODO potential refactor move logically should be part of fuzzer.py module
+    #TODO potential refactor move, logically should be part of fuzzer.py module.
     def __init__(self, restrictions, dispatcher):
         self._restrictions = restrictions
         self._dispatcher = dispatcher
@@ -178,6 +233,7 @@ class QueryGroup:
         self._entity_set = query_group_data.entity_set
         self._restrictions = query_group_data.restrictions
         self._dispatcher = query_group_data.dispatcher
+        # TODO REFACTOR this is not ideal structure.. if this module is  "wrapper classes for queryable entities" it should not contain essentially networking
 
         self._query_options = {}
         self._optional_query_options = []
@@ -639,16 +695,20 @@ class TopQuery(QueryOption):
             self._max_range_prob[total_entities] = 0.999
 
     def _get_total_entities(self):
-        try:
-            url = self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.fuzzer.sap_client
-            response = self._dispatcher.get(url, timeout=5)
-        except DispatcherError:
-            total_entities = INT_MAX
-        else:
+        # TODO REFACTOR here entity (model of metada) collide/collide with Networking - see   QueryGroup - self._dispatcher = query_group_data.dispatcher
+        total_entities = INT_MAX  # default value, used for when called trough DirectBuilder
+        if (self._dispatcher):
             try:
-                total_entities = int(response.text)
-            except ValueError:
+                url = self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.fuzzer.sap_client
+                response = self._dispatcher.get(url, timeout=5)
+            except DispatcherError:
                 total_entities = INT_MAX
+            else:
+                try:
+                    total_entities = int(response.text)
+                except ValueError:
+                    total_entities = INT_MAX
+
         return total_entities
 
 
@@ -1810,7 +1870,7 @@ class AccessibleEntity(object):
     """
     value container for different possible EntitySetRequest
 
-    See https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#accessible-entity-sets
+    See /doc/architecture.rst#accessible-entity-sets
     """
     def __init__(self, entity_set, key_pairs, principal_entity_set):
         self._entity_set = entity_set
