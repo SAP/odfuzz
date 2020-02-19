@@ -18,7 +18,7 @@ from gevent.pool import Pool
 from bson.objectid import ObjectId
 from pymongo.errors import ServerSelectionTimeoutError  #TODO leaky abstraction, should be new exception class in database.py, untied to specific database usage.
 
-from odfuzz.entities import Builder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
+from odfuzz.entities import DispatchedBuilder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
     OrderbyOptionBuilder, OrderbyOption, KeyValuesBuilder
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.statistics import Stats #TODO this is the part where computation of runtime statistic is done via module import
@@ -68,7 +68,7 @@ class Manager:
         """
         self._output_handler.print_status('Collection: {}'.format(self._collection_name))
         self._output_handler.print_status('Initializing queryable entities...')
-        builder = Builder(self._dispatcher, self._restrictions, self._first_touch)
+        builder = DispatchedBuilder(self._dispatcher, self._restrictions, self._first_touch)
         return builder.build()
         # TODO: possible feature/enhancement.. only generate metadata calls and save them or requests X URLS without evolution algorithm (REST service)
 
@@ -294,6 +294,7 @@ class Queryable:
         query = Query(accessible_entity)
         self.generate_options(query)
         Stats.tests_num += 1
+        # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
         return query
 
     def generate_options(self, query):
