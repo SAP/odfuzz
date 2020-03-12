@@ -1,11 +1,21 @@
 [MASTER]
 jobs=1
 
-[MESSAGES CONTROL]
-disable=locally-disabled
-
-
 [REPORTS]
 output-format=parseable
 reports=no
 
+[FORMAT]
+
+max-line-length=120
+single-line-if-stmt=no
+no-space-check=trailing-comma,dict-separator
+indent-after-paren=4
+
+[MESSAGES CONTROL]
+disable=all
+
+enable=import-error,
+       import-self,
+       reimported,
+       wildcard-import
