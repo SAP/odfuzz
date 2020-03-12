@@ -1,0 +1,11 @@
+[MASTER]
+jobs=1
+
+[MESSAGES CONTROL]
+disable=locally-disabled
+
+
+[REPORTS]
+output-format=parseable
+reports=no
+
