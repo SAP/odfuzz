@@ -27,7 +27,9 @@ from odfuzz.mutators import NumberMutator, StringMutator
 from odfuzz.output import StandardOutput, BindOutput
 from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
-from odfuzz.constants import *
+
+# pylint: disable=wildcard-import
+from odfuzz.constants import *  
 
 
 class Manager:

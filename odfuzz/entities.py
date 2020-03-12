@@ -23,7 +23,10 @@ from odfuzz.exceptions import BuilderError, DispatcherError
 from odfuzz.generators import EdmGenerator, RandomGenerator
 from odfuzz.monkey import patch_proprties, patch_entity_set
 from odfuzz.config import Config
-from odfuzz.constants import *
+
+# pylint: disable=wildcard-import
+from odfuzz.constants import *  
+
 
 NullNavProperties = namedtuple('NullNavProprties', 'nav_proprties')
 NullEntityType = namedtuple('NullEntityType', 'name entity_type')
