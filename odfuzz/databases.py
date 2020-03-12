@@ -3,6 +3,8 @@
 import random
 import uuid
 
+
+# pylint: disable=unused-import
 from abc import ABCMeta, abstractmethod
 from pymongo import errors, MongoClient, ASCENDING, DESCENDING
 
