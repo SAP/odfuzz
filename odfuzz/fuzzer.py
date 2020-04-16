@@ -27,6 +27,7 @@ from odfuzz.mutators import NumberMutator, StringMutator
 from odfuzz.output import StandardOutput, BindOutput
 from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
+from odfuzz import __version__
 
 # pylint: disable=wildcard-import
 from odfuzz.constants import *  
@@ -49,6 +50,8 @@ class Manager:
             self._output_handler = BindOutput(bind)
 
     def start(self):
+        self._output_handler.print_status('odfuzz version: ' + __version__)
+
         database = self.establish_database_connection(MongoDBHandler, MongoDB)
         entities = self.build_entities()
         fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler, self._asynchronous)
