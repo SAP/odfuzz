@@ -184,13 +184,14 @@ class GuidMutator:
 
     @staticmethod
     def replace_char(string_guid):
-        without_dashes = string_guid
-        index = round(random.random() * (len(string_guid) - 1))
+        # get the proper index to the string array by skipping the prefix "guid'"
+        # and trimming the last single quote enclosing the GUUID part
+        index = round(random.random() * (len(string_guid) - 2 - 5)) + 5
         if index in GuidMutator.GUID_DASH_INDEXES:
             index -= 1
         rand_hex_char = HEX_BINARY[round(random.random() * (len(HEX_BINARY) - 1))]
-        without_dashes = ''.join([without_dashes[:index], rand_hex_char, without_dashes[index + 1:]])
-        return without_dashes
+        mutated_guid = ''.join([string_guid[:index], rand_hex_char, string_guid[index + 1:]])
+        return mutated_guid
 
 
 class BooleanMutator:
