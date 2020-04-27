@@ -1,6 +1,9 @@
+import random
+import re
+
 from collections import namedtuple
 
-from odfuzz.mutators import DateTimeMutator, DecimalMutator
+from odfuzz.mutators import DateTimeMutator, DecimalMutator, GuidMutator
 
 DateTimeProperty = namedtuple('DateTimeProperty', 'precision')
 SelfMock = namedtuple('SelfMock', 'precision scale')
@@ -86,6 +89,18 @@ def test_replace_digit_decimal_mutator():
     assert DecimalMutator.replace_digit(None, '10.0m') == '20.0m'
     DecimalMutator._generator = GeneratorMock(randint=[2, 0, 0])
     assert DecimalMutator.replace_digit(None, '10.0m') == '0m'
+
+
+def test_guid_mutator():
+    guid_regex = '[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}' \
+                 '-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}'
+    guid = 'guid\'dddddddd-dddd-dddd-dddd-dddddddddddd\''
+
+    random.seed(14)
+    mutated_guid = GuidMutator.replace_char(guid)
+
+    assert guid != mutated_guid
+    assert re.match(f"guid'{guid_regex}'", mutated_guid)
 
 
 class GeneratorMock:
