@@ -27,6 +27,7 @@ from odfuzz.mutators import NumberMutator, StringMutator
 from odfuzz.output import StandardOutput, BindOutput
 from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
+from odfuzz.utils import decode_string
 from odfuzz import __version__
 
 # pylint: disable=wildcard-import
@@ -38,11 +39,14 @@ class Manager:
 
     def __init__(self, bind, arguments, collection_name):
         Config.init()
+
         self._dispatcher = Dispatcher(arguments)
         self._asynchronous = arguments.asynchronous
         self._first_touch = arguments.first_touch
         self._restrictions = RestrictionsGroup(arguments.restrictions)
         self._collection_name = collection_name
+
+        self._using_encoder = Config.fuzzer.use_encoder
 
         if bind is None:
             self._output_handler = StandardOutput(bind)
@@ -54,7 +58,8 @@ class Manager:
 
         database = self.establish_database_connection(MongoDBHandler, MongoDB)
         entities = self.build_entities()
-        fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler, self._asynchronous)
+        fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler, self._asynchronous,
+                        self._using_encoder)
 
         self._output_handler.print_status('Fuzzing...')
         fuzzer.run()
@@ -81,7 +86,7 @@ class Manager:
 class Fuzzer:
     """A main class that is responsible for the fuzzing process."""
 
-    def __init__(self, dispatcher, entities, database, output_handler, asynchronous):
+    def __init__(self, dispatcher, entities, database, output_handler, asynchronous, using_encoder):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._urls_logger = URLsLogger()
         self._stats_logger = StatsLogger()
@@ -101,6 +106,9 @@ class Fuzzer:
         else:
             self._queryable_factory = SingleQueryable
             self._dispatch = self._get_single_response
+
+        if not using_encoder:
+            self._decode_queries = lambda *args: None
 
         Stats.tests_num = 0
         Stats.fails_num = 0
@@ -186,10 +194,50 @@ class Fuzzer:
             self._save_queries(queries)
 
     def _save_queries(self, queries):
+        self._decode_queries(queries)
         self._urls_logger.log_ursl(queries)
         self._stats_logger.log_stats(queries)
         self._save_to_database(queries)
         self._output_handler.print_test_num()
+
+    def _decode_queries(self, queries):
+        for query in queries:
+            self._decode_single_query(query)
+
+    def _decode_single_query(self, query):
+        self._decode_filter_option(query)
+        self._decode_search_option(query)
+        self._decode_accessible_keys(query)
+
+    def _decode_filter_option(self, query):
+        filter_option = query.dictionary.get('_$filter')
+        if filter_option:
+            for part in filter_option['parts']:
+                # decode all Edm types, even those which were not encoded
+                decoded_value = decode_string(part['operand'])
+                part['operand'] = decoded_value
+
+                # decode functions' parameters
+                params = part.get('params', None)
+                if params:
+                    for i, param in enumerate(params):
+                        params[i] = decode_string(param)
+
+    def _decode_search_option(self, query):
+        search_option = query.dictionary.get('_search')
+        if search_option:
+            decoded_value = decode_string(search_option)
+            query.dictionary['_search'] = decoded_value
+
+    def _decode_accessible_keys(self, query):
+        """Decode accessible keys that identify a single entity within an entity set.
+
+        For example: Customers(CustomerID='%C3%AF%C2%B6') -> Customers(CustomerID='ï¶')
+        """
+        accessible_keys = query.dictionary.get('accessible_keys', None)
+        if accessible_keys:
+            for key, value in accessible_keys.items():
+                accessible_keys[key] = decode_string(value)
 
     def _send_queries(self, queries):
         while True:
@@ -1070,7 +1118,6 @@ class Query:
         for option_name in self._order:
             if option_name.endswith('filter'):
                 filter_data = deepcopy(self._options[option_name[1:]])
-                replace_forbidden_characters(filter_data['parts'])
                 option_string = build_filter_string(filter_data)
             elif option_name.endswith('orderby'):
                 orderby_data = self._options[option_name[1:]]
@@ -1080,7 +1127,6 @@ class Query:
                 option_string = ','.join(self._options[option_name[1:]])
             else:
                 option_string = self._options[option_name[1:]]
-                option_string = replace_special_characters(option_string)
             self._options_strings[option_name[1:]] = option_string
             self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
@@ -1219,38 +1265,6 @@ def build_filter_string(filter_data):
                                  filter_data['groups'])
     option_string = FilterOptionBuilder(filter_option).build()
     return option_string
-
-
-def replace_forbidden_characters(parts):
-    for data in parts:
-        if 'params' in data:
-            # replace special characters within function's parameters
-            if data['params']:
-                for index, param in enumerate(data['params']):
-                    replace_part_characters(data['params'], index)
-        else:
-            replace_part_characters(data, 'operand')
-
-
-def replace_part_characters(data, key):
-    if data[key].startswith('\''):
-        # Replace special characters within a string
-        data[key] = '\'' + replace_special_characters(data[key][1:-1]) + '\''
-    else:
-        # Replace special characters within doubles, or other data types
-        # which are not enclosed with a separate pair of single quotes
-        data[key] = replace_special_characters(data[key])
-
-
-def replace_special_characters(replacing_string):
-    replacing_string = replacing_string.replace('%', '%25')
-    replacing_string = replacing_string.replace('&', '%26')
-    replacing_string = replacing_string.replace('#', '%23')
-    replacing_string = replacing_string.replace('?', '%3F')
-    replacing_string = replacing_string.replace('+', '%2B')
-    replacing_string = replacing_string.replace('/', '%2F')
-    replacing_string = replacing_string.replace('\'', '\'\'')
-    return replacing_string
 
 
 def build_xpath_format_string(*args):

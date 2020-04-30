@@ -1,7 +1,7 @@
 import unittest.mock
 import odfuzz.monkey as monkey
 
-from odfuzz.generators import EdmGenerator
+from odfuzz.generators import EdmString, EdmInt32
 
 
 def test_defined_max_length_patch(master_entity_type):
@@ -30,7 +30,7 @@ def test_int_type_max_length_patch(master_entity_type):
 
 def test_string_property_generator_patch(master_entity_type, empty_restrictions):
     data_property = master_entity_type.proprty('Data')
-    generator = EdmGenerator.edm_string.__get__(data_property, None)
+    generator = EdmString.generate.__get__(data_property, None)
 
     monkey.patch_proprty_generator('MasterEntity', data_property, empty_restrictions)
     assert data_property.generate == generator
@@ -38,7 +38,7 @@ def test_string_property_generator_patch(master_entity_type, empty_restrictions)
 
 def test_num_property_generator_patch(master_entity_type, empty_restrictions):
     fiscal_year_property = master_entity_type.proprty('FiscalYear')
-    generator = EdmGenerator.edm_int32
+    generator = EdmInt32.generate
 
     monkey.patch_proprty_generator('MasterEntity', fiscal_year_property, empty_restrictions)
     assert fiscal_year_property.generate == generator
@@ -76,5 +76,5 @@ def test_interval_property_operator_patch(master_entity_type):
         operators_names1 = set(key for key, value in interval_value_property.operators.get_all())
     with unittest.mock.patch('random.choice', lambda x: x[1]):
         operators_names2 = set(key for key, value in interval_value_property.operators.get_all())
-    assert sorted((operators_names1, operators_names2), key=lambda x: len(x)) == sorted(
-        ({'eq'}, {'ge', 'le'}), key=lambda x: len(x))
+    assert sorted((operators_names1, operators_names2), key=len) == sorted(
+        ({'eq'}, {'ge', 'le'}), key=len)
