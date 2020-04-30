@@ -98,5 +98,6 @@ def signal_handler(db_collection_name):
 
     sys.exit(0)
 
+
 if __name__ == '__main__':
     main()

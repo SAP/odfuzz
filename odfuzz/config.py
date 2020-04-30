@@ -2,7 +2,20 @@
 
 import os
 
-from odfuzz.constants import ENV_ODFUZZ_CERTIFICATE_PATH, DEFAULT_ASYNC_REQUESTS_NUM, DEFAULT_SAP_CLIENT, DEFAULT_DATA_FORMAT, DEFAULT_URLS_PER_PROPERTY, ENV_SAP_CLIENT, ENV_DATA_FORMAT, ENV_URLS_PER_PROPERTY, ENV_ASYNC_REQUESTS_NUM
+from odfuzz.constants import (
+    DEFAULT_ASYNC_REQUESTS_NUM,
+    DEFAULT_DATA_FORMAT,
+    DEFAULT_USE_ENCODER,
+    DEFAULT_SAP_CLIENT,
+    DEFAULT_URLS_PER_PROPERTY,
+    ENV_ASYNC_REQUESTS_NUM,
+    ENV_DATA_FORMAT,
+    ENV_USE_ENCODER,
+    ENV_ODFUZZ_CERTIFICATE_PATH,
+    ENV_SAP_CLIENT,
+    ENV_URLS_PER_PROPERTY,
+)
+
 
 #TODO: This is in the state of working, but is there any real need for distinguishing Fuzzer and Dispatecher config? even in fuzzer is part of dispatching (url part)
 class FuzzerConfig:
@@ -10,6 +23,15 @@ class FuzzerConfig:
         self._sap_client = os.getenv(ENV_SAP_CLIENT, DEFAULT_SAP_CLIENT)
         self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
         self._urls_per_property = os.getenv(ENV_URLS_PER_PROPERTY, DEFAULT_URLS_PER_PROPERTY)
+
+        if os.getenv(ENV_USE_ENCODER, DEFAULT_USE_ENCODER) == 'True':
+            self._use_encoder = True
+        else:
+            self._use_encoder = False
+
+    @property
+    def use_encoder(self):
+        return self._use_encoder
 
     @property
     def sap_client(self):
@@ -45,6 +67,9 @@ class DispatcherConfig:
 
 
 class Config:
+    fuzzer = None
+    dispatcher = None
+
     @staticmethod
     def init():
         Config.fuzzer = FuzzerConfig()

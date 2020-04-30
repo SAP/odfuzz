@@ -4,23 +4,47 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from odfuzz.constants import BASE_CHARSET, HEX_BINARY, INT_MAX
+from odfuzz.encoders import EncoderMixin
 
-class StringMutator:
+
+class Mutator:
     _methods = []
 
-    @staticmethod
-    def _mutate(proprty, value):
-        if not StringMutator._methods:
-            StringMutator._methods = [func_name for func_name in StringMutator.__dict__ if not func_name.startswith('_')]
-        func_name = random.choice(StringMutator._methods)
-        mutated_value = getattr(StringMutator, func_name)(proprty, value)
-        return mutated_value
+    @classmethod
+    def _mutate(cls, proprty, value):
+        """Select a random mutation function from the list of all available functions."""
+        if not cls._methods:
+            cls._methods = [name for name in cls.__dict__ if not name.startswith('_')]
+
+        chosen_mutator = random.choice(cls._methods)
+        mutated_value = getattr(cls, chosen_mutator)(proprty, value)
+        return cls._normalize_format(cls._encode_value(mutated_value))
+
+    @classmethod
+    def _encode_value(cls, value):
+        """Ensure the passed value is properly encoded before normalizing."""
+        return value
+
+    @classmethod
+    def _normalize_format(cls, value):
+        """Use a proper format to represent data as a whole."""
+        return value
+
+
+class StringMutator(EncoderMixin, Mutator):
+    @classmethod
+    def _encode_value(cls, value):
+        return cls._encode_string(value)
+
+    @classmethod
+    def _normalize_format(cls, value):
+        return '\'' + value + '\''
 
     @staticmethod
     def flip_bit(self, original_string):
         string = original_string[1:-1]
         if not string:
-            return original_string
+            return string
 
         index = round(random.random() * (len(string) - 1))
         ord_char = ord(string[index])
@@ -28,25 +52,25 @@ class StringMutator:
         ord_char = 0x10FFFF if ord_char > 0x10FFFF else ord_char # see https://stackoverflow.com/questions/52203351/why-unicode-is-restricted-to-0x10ffff
         ord_char = normalize_surrogates(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]])
-        return '\'' + generated_string + '\''
+        return generated_string
 
     @staticmethod
     def replace_char(self, original_string):
         string = original_string[1:-1]
         if not string:
-            return original_string
+            return string
 
         index = round(random.random() * (len(string) - 1))
         ord_char = round(random.random() * (0x10ffff - 1) + 1) #see https://stackoverflow.com/questions/52203351/why-unicode-is-restricted-to-0x10ffff
         ord_char = normalize_surrogates(ord_char)
         generated_string = ''.join([string[:index], chr(ord_char), string[index + 1:]])
-        return '\'' + generated_string + '\''
+        return generated_string
 
     @staticmethod
     def swap_chars(self, original_string):
         string = original_string[1:-1]
         if not string:
-            return original_string
+            return string
 
         index_length = len(string) - 1
         index1 = round(random.random() * index_length)
@@ -56,13 +80,13 @@ class StringMutator:
 
         list_char = list(string)
         list_char[index1], list_char[index2] = string[index2], string[index1]
-        return '\'' + ''.join(list_char) + '\''
+        return ''.join(list_char)
 
     @staticmethod
     def invert_chars(self, original_string):
         string = original_string[1:-1]
         if len(string) < 3:
-            return original_string
+            return string
 
         index_len = len(string) - 1
         start_index = round(random.random() * (index_len - 2))
@@ -71,7 +95,7 @@ class StringMutator:
 
         list_char = list(string)
         list_char[start_index:end_index] = slice_char[::-1]
-        return '\'' + ''.join(list_char) + '\''
+        return ''.join(list_char)
 
     @staticmethod
     def add_char(self, string):
@@ -81,29 +105,19 @@ class StringMutator:
         generated_string = ''.join([string[:index], new_char, string[index:]])
         if self.max_length < len(generated_string):
             generated_string = generated_string[:-1]
-        return '\'' + generated_string + '\''
+        return generated_string
 
     @staticmethod
     def delete_char(self, original_string):
         string = original_string[1:-1]
         if len(string) >= 3:
             index = round(random.random() * (len(string) - 1))
-            return '\'' + ''.join([string[:index], string[index + 1:]]) + '\''
+            return ''.join([string[:index], string[index + 1:]])
         else:
-            return original_string
+            return string
 
 
-class NumberMutator:
-    _methods = []
-
-    @staticmethod
-    def _mutate(proprty, value):
-        if not NumberMutator._methods:
-            NumberMutator._methods = [func_name for func_name in NumberMutator.__dict__ if not func_name.startswith('_')]
-        func_name = random.choice(NumberMutator._methods)
-        mutated_value = getattr(NumberMutator, func_name)(proprty, value)
-        return mutated_value
-
+class NumberMutator(Mutator):
     @staticmethod
     def increment_value(self, string_number):
         if not string_number:
@@ -200,17 +214,8 @@ class BooleanMutator:
         return 'true' if boolean == 'false' else 'false'
 
 
-class DecimalMutator:
+class DecimalMutator(Mutator):
     _generator = random
-    _methods = []
-
-    @staticmethod
-    def _mutate(proprty, value):
-        if not DecimalMutator._methods:
-            DecimalMutator._methods = [func_name for func_name in DecimalMutator.__dict__ if not func_name.startswith('_')]
-        func_name = random.choice(DecimalMutator._methods)
-        mutated_value = getattr(DecimalMutator, func_name)(proprty, value)
-        return mutated_value
 
     @staticmethod
     def replace_digit(self, decimal_value):

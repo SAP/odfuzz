@@ -3,10 +3,13 @@ import re
 
 from collections import namedtuple
 
-from odfuzz.mutators import DateTimeMutator, DecimalMutator, GuidMutator
+from odfuzz.mutators import DateTimeMutator, DecimalMutator, GuidMutator, StringMutator
+from odfuzz.encoders import encode_string
 
 DateTimeProperty = namedtuple('DateTimeProperty', 'precision')
-SelfMock = namedtuple('SelfMock', 'precision scale')
+DateTimePropertyMock = namedtuple('DateTimePropertyMock', 'precision scale')
+
+StringPropertyMock = namedtuple('StringPropertyMock', 'max_length')
 
 
 def test_date_time_mutator():
@@ -33,46 +36,46 @@ def test_date_time_mutator():
 
 def test_shift_value_decimal_mutator():
     DecimalMutator._generator = GeneratorMock(randint=[-1])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '1.21m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '1.21m'
     DecimalMutator._generator = GeneratorMock(randint=[-2])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '0.12m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '0.12m'
     DecimalMutator._generator = GeneratorMock(randint=[-3])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '0.01m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '0.01m'
     DecimalMutator._generator = GeneratorMock(randint=[-4])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '0m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '0m'
     DecimalMutator._generator = GeneratorMock(randint=[-5])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '0m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '0m'
 
     DecimalMutator._generator = GeneratorMock(randint=[1])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '121.2m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '121.2m'
     DecimalMutator._generator = GeneratorMock(randint=[2])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '1212m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '1212m'
     DecimalMutator._generator = GeneratorMock(randint=[3])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '12120m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '12120m'
     DecimalMutator._generator = GeneratorMock(randint=[4])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '21200m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '21200m'
     DecimalMutator._generator = GeneratorMock(randint=[5])
-    assert DecimalMutator.shift_value(SelfMock(5, 2), '12.12m') == '12000m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(5, 2), '12.12m') == '12000m'
 
     DecimalMutator._generator = GeneratorMock(randint=[4])
-    assert DecimalMutator.shift_value(SelfMock(4, 2), '12.12m') == '1200m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 2), '12.12m') == '1200m'
     DecimalMutator._generator = GeneratorMock(randint=[-1])
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '1.2m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 3), '12m') == '1.2m'
     DecimalMutator._generator = GeneratorMock(randint=[-2])
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '0.12m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 3), '12m') == '0.12m'
     DecimalMutator._generator = GeneratorMock(randint=[-3])
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '0.012m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 3), '12m') == '0.012m'
     DecimalMutator._generator = GeneratorMock(randint=[-4])
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '0.001m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 3), '12m') == '0.001m'
 
     DecimalMutator._generator = GeneratorMock(randint=[2])
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '0m') == '0m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 3), '0m') == '0m'
     DecimalMutator._generator = GeneratorMock(randint=[3])
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '2000m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 3), '12m') == '2000m'
     DecimalMutator._generator = GeneratorMock(randint=[4])
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '12m') == '0m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 3), '12m') == '0m'
     DecimalMutator._generator = GeneratorMock(randint=[0])
-    assert DecimalMutator.shift_value(SelfMock(4, 3), '0.0m') == '0m'
+    assert DecimalMutator.shift_value(DateTimePropertyMock(4, 3), '0.0m') == '0m'
 
 
 def test_replace_digit_decimal_mutator():
@@ -101,6 +104,28 @@ def test_guid_mutator():
 
     assert guid != mutated_guid
     assert re.match(f"guid'{guid_regex}'", mutated_guid)
+
+
+def test_string_mutator_with_encoder():
+    string = '\'12345+\''
+    StringMutator._encode = encode_string
+
+    random.seed(14)
+    mutated_string = StringMutator._mutate(StringPropertyMock(10), string)
+
+    assert mutated_string != string
+    assert mutated_string == '\'123t5%2B\''
+
+
+def test_string_mutator_without_encoder():
+    string = '\'12345+\''
+    StringMutator._encode = lambda x: x
+
+    random.seed(14)
+    mutated_string = StringMutator._mutate(StringPropertyMock(10), string)
+
+    assert mutated_string != string
+    assert mutated_string == '\'123t5+\''
 
 
 class GeneratorMock:

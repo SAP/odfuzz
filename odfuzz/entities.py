@@ -20,7 +20,12 @@ from pyodata.v2.model import Edmx, ComplexType
 from pyodata.exceptions import PyODataException
 
 from odfuzz.exceptions import BuilderError, DispatcherError
-from odfuzz.generators import EdmGenerator, RandomGenerator
+from odfuzz.generators import (
+    EdmString,
+    EdmBoolean,
+    EdmInt32,
+    RandomGenerator,
+)
 from odfuzz.monkey import patch_proprties, patch_entity_set
 from odfuzz.config import Config
 
@@ -1555,7 +1560,7 @@ class FunctionsGenerator:
         return func_wrap
 
     def edm_string(self, proprty):
-        return EdmGenerator.edm_string(proprty)
+        return EdmString.generate(proprty)
 
 
 class FilterFunctions:
@@ -1749,13 +1754,13 @@ class FunctionsReturnType(object):
 
 class FunctionsInt(FunctionsReturnType):
     def __init__(self, name):
-        super(FunctionsInt, self).__init__('Edm.Int32', EXPRESSION_OPERATORS, name, EdmGenerator.edm_int32)
+        super(FunctionsInt, self).__init__('Edm.Int32', EXPRESSION_OPERATORS, name, EdmInt32.generate)
 
 
 class FunctionsString(FunctionsReturnType):
     def __init__(self, name, proprty):
         self._proprty = proprty
-        super(FunctionsString, self).__init__('Edm.String', EXPRESSION_OPERATORS, name, EdmGenerator.edm_string)
+        super(FunctionsString, self).__init__('Edm.String', EXPRESSION_OPERATORS, name, EdmString.generate)
 
     def generate(self):
         return self._generator(self._proprty)
@@ -1763,7 +1768,7 @@ class FunctionsString(FunctionsReturnType):
 
 class FunctionsBool(FunctionsReturnType):
     def __init__(self, name):
-        super(FunctionsBool, self).__init__('Edm.Boolean', BOOLEAN_OPERATORS, name, EdmGenerator.edm_boolean)
+        super(FunctionsBool, self).__init__('Edm.Boolean', BOOLEAN_OPERATORS, name, EdmBoolean.generate)
 
 
 class FilterFunction(object):

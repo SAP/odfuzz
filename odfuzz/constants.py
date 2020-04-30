@@ -40,12 +40,15 @@ ENV_DATA_FORMAT = 'ODFUZZ_DATA_FORMAT'
 ENV_URLS_PER_PROPERTY = 'ODFUZZ_URLS_PER_PROPERTY'
 ENV_ASYNC_REQUESTS_NUM = 'ODFUZZ_ASYNC_REQUESTS_NUM'
 ENV_ODFUZZ_CERTIFICATE_PATH = 'ODFUZZ_CERTIFICATE_PATH'
+ENV_USE_ENCODER = 'ODFUZZ_USE_ENCODER'
 
 # default configuration values; these values are retrieved by default if no environment variable overwrites them
 DEFAULT_SAP_CLIENT = '500'
 DEFAULT_DATA_FORMAT = 'json'
 DEFAULT_URLS_PER_PROPERTY = 100
 DEFAULT_ASYNC_REQUESTS_NUM = 10
+
+DEFAULT_USE_ENCODER = 'True'
 
 # names of restrictions which are used for searching for keywords; these constants are also used in the module fuzzer.py
 # for creating dictionary which is going to be saved to the database - these constants are truly global, so the user

@@ -22,9 +22,38 @@ import logging
 import types
 
 from pyodata.v2.model import VariableDeclaration, ComplexType
-from odfuzz.generators import EdmGenerator
-from odfuzz.mutators import StringMutator, NumberMutator, GuidMutator, BooleanMutator, DecimalMutator, DateTimeMutator
-from odfuzz.constants import BOOLEAN_OPERATORS, EXPRESSION_OPERATORS, INTERVAL_OPERATORS, VALUE
+
+from odfuzz.generators import (
+    EdmString,
+    EdmDateTime,
+    EdmBoolean,
+    EdmByte,
+    EdmSByte,
+    EdmSingle,
+    EdmGuid,
+    EdmDecimal,
+    EdmDateTimeOffset,
+    EdmTime,
+    EdmBinary,
+    EdmDouble,
+    EdmInt16,
+    EdmInt32,
+    EdmInt64,
+)
+from odfuzz.mutators import (
+    BooleanMutator,
+    DateTimeMutator,
+    DecimalMutator,
+    GuidMutator,
+    NumberMutator,
+    StringMutator,
+)
+from odfuzz.constants import (
+    BOOLEAN_OPERATORS,
+    EXPRESSION_OPERATORS,
+    INTERVAL_OPERATORS,
+    VALUE,
+)
 
 MAX_STRING_LENGTH = 100
 MAX_PRECISION = 20
@@ -97,36 +126,36 @@ def patch_proprty_generator(entity_set_name, proprty, restrictions):
 
     proprty_type = proprty.typ.name
     if proprty_type == 'Edm.String':
-        proprty.generate = types.MethodType(EdmGenerator.edm_string, proprty)
+        proprty.generate = types.MethodType(EdmString.generate, proprty)
     elif proprty_type == 'Edm.DateTime':
-        proprty.generate = EdmGenerator.edm_datetime
+        proprty.generate = EdmDateTime.generate
     elif proprty_type == 'Edm.Boolean':
-        proprty.generate = EdmGenerator.edm_boolean
+        proprty.generate = EdmBoolean.generate
     elif proprty_type == 'Edm.Byte':
-        proprty.generate = EdmGenerator.edm_byte
+        proprty.generate = EdmByte.generate
     elif proprty_type == 'Edm.SByte':
-        proprty.generate = EdmGenerator.edm_sbyte
+        proprty.generate = EdmSByte.generate
     elif proprty_type == 'Edm.Single':
-        proprty.generate = EdmGenerator.edm_single
+        proprty.generate = EdmSingle.generate
     elif proprty_type == 'Edm.Guid':
-        proprty.generate = EdmGenerator.edm_guid
+        proprty.generate = EdmGuid.generate
     elif proprty_type == 'Edm.Decimal':
-        proprty.generate = types.MethodType(EdmGenerator.edm_decimal, proprty)
+        proprty.generate = types.MethodType(EdmDecimal.generate, proprty)
     elif proprty_type == 'Edm.DateTimeOffset':
-        proprty.generate = EdmGenerator.edm_datetimeoffset
+        proprty.generate = EdmDateTimeOffset.generate
     elif proprty_type == 'Edm.Time':
-        proprty.generate = EdmGenerator.edm_time
+        proprty.generate = EdmTime.generate
     elif proprty_type == 'Edm.Binary':
-        proprty.generate = EdmGenerator.edm_binary
+        proprty.generate = EdmBinary.generate
     elif proprty_type == 'Edm.Double':
-        proprty.generate = EdmGenerator.edm_double
+        proprty.generate = EdmDouble.generate
     elif proprty_type.startswith('Edm.Int'):
         if proprty_type.endswith('16'):
-            proprty.generate = EdmGenerator.edm_int16
+            proprty.generate = EdmInt16.generate
         elif proprty_type.endswith('32'):
-            proprty.generate = EdmGenerator.edm_int32
+            proprty.generate = EdmInt32.generate
         elif proprty_type.endswith('64'):
-            proprty.generate = EdmGenerator.edm_int64
+            proprty.generate = EdmInt64.generate
         else:
             logging.error('Property type {} is not supported by generator yet'.format(proprty_type))
     else:
