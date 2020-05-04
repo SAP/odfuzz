@@ -1,3 +1,5 @@
+import pytest
+
 from bson import ObjectId
 from mongomock import MongoClient
 
@@ -140,7 +142,7 @@ def test_database_total_score_eleven(data_single_filter_logical_company_code, da
     assert total_score == 11
 
 
-'''
+@pytest.mark.skip(reason="Cannot mock random sampling")
 def test_database_sample_filter_entries_no_exclude(data_single_filter_logical_company_code, data_two_filter_logicals_company_code,
                                                    data_three_filter_logicals_company_code, data_search_output_set):
     mongo_mock = MongoDBMock()
@@ -151,7 +153,6 @@ def test_database_sample_filter_entries_no_exclude(data_single_filter_logical_co
     entry = mongo_handler.sample_filter_entry('C_CorrespondenceCompanyCodeVH', 1)
 
     assert entry == data_three_filter_logicals_company_code
-'''
 
 
 def test_database_find_best_two(data_single_filter_logical_company_code, data_single_filter_logical_company_code_error,
