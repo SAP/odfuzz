@@ -8,7 +8,6 @@ import logging
 import gevent
 
 from datetime import datetime
-from functools import partial
 
 from odfuzz.arguments import ArgParser
 from odfuzz.fuzzer import Manager
@@ -65,7 +64,7 @@ def create_collection_name(parsed_arguments):
 
 
 def set_signal_handler(db_collection_name):
-    gevent.signal(signal.SIGINT, partial(signal_handler, db_collection_name))
+    gevent.signal_handler(signal.SIGINT, signal_handler, db_collection_name)
 
 
 def run_fuzzer(bind, parsed_arguments, collection_name):
