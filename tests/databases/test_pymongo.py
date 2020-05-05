@@ -143,6 +143,7 @@ def test_database_total_score_eleven(data_single_filter_logical_company_code, da
 
 
 @pytest.mark.skip(reason="Cannot mock random sampling")
+# relevant to issue https://github.com/SAP/odfuzz/issues/9
 def test_database_sample_filter_entries_no_exclude(data_single_filter_logical_company_code, data_two_filter_logicals_company_code,
                                                    data_three_filter_logicals_company_code, data_search_output_set):
     mongo_mock = MongoDBMock()
