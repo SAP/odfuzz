@@ -20,7 +20,7 @@ setup(
     },
     zip_safe=False,
     install_requires=[
-        'gevent==1.4.0',
+        'gevent==20.5.0',
         'greenlet==0.4.15',
         'requests==2.23.0',
         'pymongo==3.10.1',
