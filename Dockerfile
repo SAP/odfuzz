@@ -26,10 +26,6 @@ RUN apk update \
 CMD mongod > /dev/null 2>&1 & sh -c sh
 VOLUME /data/db
 
-# since dependencies change less often than rest of code, install them in separate layer
-COPY ./requirements.txt /tmp/ 
-RUN pip install -r /tmp/requirements.txt
-
 # everything around odfuzz to be runnable in container
 RUN mkdir /odfuzz
 COPY . /odfuzz/
