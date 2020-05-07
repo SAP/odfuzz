@@ -6,6 +6,7 @@ import sys
 import signal
 import logging
 import gevent
+import traceback
 
 from datetime import datetime
 
@@ -86,6 +87,10 @@ def run_fuzzer(bind, parsed_arguments, collection_name):
         sys.exit(1)
     except gevent.Timeout:
         signal_handler(collection_name)
+    except Exception:
+        logging.error(traceback.format_exc())
+        print(traceback.format_exc())
+        sys.exit(1)
 
 
 def signal_handler(db_collection_name):
