@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix Edm.Guid mutator 
+- Pinned install dependencies for deterministic installations
+- Use the new signal handler interface for latest Gevent library 20.5.0
+
+### Fixed
+
 ## [0.13.1]
 
 ### Added
