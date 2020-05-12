@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.2]
+
 ### Fixed
 
 - Fix Edm.Guid mutator 
