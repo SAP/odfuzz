@@ -12,9 +12,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fix extra single quote in URL for datetime
 - Pin install dependencies for deterministic installations
 - Use the new signal handler interface after update to latest Gevent library 20.5.0
-
-### Added
-
 - Print error messages, which cause the fuzzer to stop, to stdout
 
 ## [0.13.1]
