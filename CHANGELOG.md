@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Fix Edm.Guid mutator 
 - Fix extra single quote in URL for datetime
-- Pinned install dependencies for deterministic installations
+- Pin install dependencies for deterministic installations
 - Use the new signal handler interface after update to latest Gevent library 20.5.0
+- Print error messages, which cause the fuzzer to stop, to stdout
 
 ## [0.13.1]
 
