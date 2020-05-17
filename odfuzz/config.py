@@ -22,7 +22,8 @@ class FuzzerConfig:
     def __init__(self):
         self._sap_client = os.getenv(ENV_SAP_CLIENT, DEFAULT_SAP_CLIENT)
         self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
-        self._urls_per_property = os.getenv(ENV_URLS_PER_PROPERTY, DEFAULT_URLS_PER_PROPERTY)
+        env_url_per_property =  os.getenv(ENV_URLS_PER_PROPERTY, DEFAULT_URLS_PER_PROPERTY)
+        self._urls_per_property = int(env_url_per_property)
 
         if os.getenv(ENV_USE_ENCODER, DEFAULT_USE_ENCODER) == 'True':
             self._use_encoder = True
