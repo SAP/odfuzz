@@ -5,7 +5,6 @@ import os
 # configuration constants, used while initializing loggers which are used for logging stats and logging info messages;
 # used in loggers.py
 LOGGING_CONFIG_PATH = 'config/logging/logging.conf'
-CERTIFICATE_PATH = 'config/security/ca_sap_root_base64.crt'
 
 FUZZER_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir))
 FUZZER_LOGGING_CONFIG_PATH = os.path.join(FUZZER_PATH, LOGGING_CONFIG_PATH)
