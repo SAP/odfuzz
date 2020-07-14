@@ -1,4 +1,4 @@
-"""This module defines an interface for local databases. At the moment, the only supported databases are mongoDB and sqlite."""
+"""This module defines an interface for local databases. At the moment, the only supported database is mongoDB."""
 
 import random
 import uuid
