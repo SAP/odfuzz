@@ -157,9 +157,9 @@ def patch_proprty_generator(entity_set_name, proprty, restrictions):
         elif proprty_type.endswith('64'):
             proprty.generate = EdmInt64.generate
         else:
-            logging.error('Property type {} is not supported by generator yet'.format(proprty_type))
+            logging.info('Property type {} is not supported by generator yet'.format(proprty_type))
     else:
-        logging.error('Property type {} is not supported by generator yet'.format(proprty_type))
+        logging.info('Property type {} is not supported by generator yet'.format(proprty_type))
 
 
 def patch_proprty_mutator(entity_set_name, proprty, restrictions):
@@ -187,7 +187,7 @@ def patch_proprty_mutator(entity_set_name, proprty, restrictions):
         proprty.mutate = types.MethodType(DateTimeMutator._mutate, proprty)
     else:
         proprty.mutate = lambda value: value
-        logging.error('Property type {} is not supported by mutator yet'.format(proprty_type))
+        logging.info('Property type {} is not supported by mutator yet'.format(proprty_type))
 
 
 def patch_proprty_operator(proprty):
