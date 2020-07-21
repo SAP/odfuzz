@@ -1,4 +1,4 @@
-"""This module contains functions for initializing loggers"""
+"""This module contains functions for initializing loggers. Output files created by odfuzz are considered loggers too."""
 
 import os
 import uuid
