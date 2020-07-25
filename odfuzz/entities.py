@@ -386,7 +386,10 @@ class QueryGroup:
         for proprty in self._entity_set.entity_type.proprties():
             if (proprty.name in restr_proprty_list or not getattr(proprty, attribute)) \
                     and proprty.name not in draft_proprties:
-                del entity_set.entity_type._properties[proprty.name]
+                if Config.fuzzer.ignore_restriction == 'True':
+                    continue
+                else:
+                    del entity_set.entity_type._properties[proprty.name]
         return entity_set
 
     def _expand_complex_proprties(self, entity_set):
