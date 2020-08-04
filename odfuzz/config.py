@@ -8,14 +8,14 @@ from odfuzz.constants import (
     DEFAULT_USE_ENCODER,
     DEFAULT_SAP_CLIENT,
     DEFAULT_URLS_PER_PROPERTY,
-    DEFAULT_IGNORE_RESTRICTION,
+    DEFAULT_IGNORE_METADATA_RESTRICTIONS,
     ENV_ASYNC_REQUESTS_NUM,
     ENV_DATA_FORMAT,
     ENV_USE_ENCODER,
     ENV_ODFUZZ_CERTIFICATE_PATH,
     ENV_SAP_CLIENT,
     ENV_URLS_PER_PROPERTY,
-    ENV_IGNORE_RESTRICTION,
+    ENV_IGNORE_METADATA_RESTRICTIONS,
 )
 
 
@@ -26,7 +26,7 @@ class FuzzerConfig:
         self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
         env_url_per_property =  os.getenv(ENV_URLS_PER_PROPERTY, DEFAULT_URLS_PER_PROPERTY)
         self._urls_per_property = int(env_url_per_property)
-        env_ignore_restriction = os.getenv(ENV_IGNORE_RESTRICTION,DEFAULT_IGNORE_RESTRICTION)
+        env_ignore_restriction = os.getenv(ENV_IGNORE_METADATA_RESTRICTIONS,DEFAULT_IGNORE_METADATA_RESTRICTIONS)
         self._ignore_restriction = env_ignore_restriction
 
         if os.getenv(ENV_USE_ENCODER, DEFAULT_USE_ENCODER) == 'True':
