@@ -365,7 +365,10 @@ class QueryGroup:
             return
 
         option_restr = self.get_restrictions(option_name, restriction_type)
-        is_queryable = getattr(self._entity_set, metadata_attr)
+        if Config.fuzzer.ignore_restriction == 'True':
+            is_queryable = True
+        else:
+            is_queryable = getattr(self._entity_set, metadata_attr)
 
         if is_queryable and not option_restr.is_restricted:
             self._query_options[option_name] = query_object(self._entity_set, option_restr.restr, dispatcher)
