@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.3]
+
+### Added
+- New possibility to ignore metadata restrictions by ENV variable ODFUZZ_IGNORE_METADATA_RESTRICTIONS
+
+### Fixed
+ - Fix env ODFUZZ_URLS_PER_PROPERY typing to int
+ - Lower loglevel from error to info for unsupported generators and mutators
+
 ## [0.13.2]
 
 ### Fixed
