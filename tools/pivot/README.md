@@ -10,5 +10,7 @@ Simple script that groups and aggregates elements imported from CSV file. All re
 
 3. To visualise data, drag'n'drop elements to the left or top side of the pivot table.
 
+gif animation: https://gist.github.com/phanak-sap/cc026949544efef00291712f23b052a5
+
 ## Dependencies
 This tool uses the [pivottable.js](https://pivottable.js.org/examples/) library.
