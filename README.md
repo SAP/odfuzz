@@ -72,10 +72,9 @@ export ODFUZZ_DATA_FORMAT=xml
 
 A number of initial URLs which will be generated per single property per Queryable group defined in the
 metadata document. Currently are 4 Queryable groups (the total count can be further subtracted
-by employing restrictions to the property.
+by employing restrictions to the property ( [documentation - query-groups](doc/architecture.rst#query-groups),[documentation - restrictions](doc/restrictions.rst) ).
 
-/ODfuzz/ODfuzz/blob/doc_architecture/doc/architecture.rst#query-groups
-/ODfuzz/ODfuzz/blob/doc_architecture/doc/restrictions.rst
+
 ```
 export ODFUZZ_URLS_PER_PROPERTY=100
 ```
