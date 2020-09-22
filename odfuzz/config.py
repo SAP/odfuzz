@@ -28,6 +28,7 @@ class FuzzerConfig:
         self._urls_per_property = int(env_url_per_property)
         env_ignore_restriction = os.getenv(ENV_IGNORE_METADATA_RESTRICTIONS,DEFAULT_IGNORE_METADATA_RESTRICTIONS)
         self._ignore_restriction = env_ignore_restriction
+        self._method = os.getenv("ODFUZZ_HTTP_METHOD", "GET")
 
         if os.getenv(ENV_USE_ENCODER, DEFAULT_USE_ENCODER) == 'True':
             self._use_encoder = True
@@ -53,6 +54,11 @@ class FuzzerConfig:
     @property
     def ignore_restriction(self):
         return self._ignore_restriction
+
+    
+    @property
+    def method(self):
+        return self._method
 
 
 class DispatcherConfig:
