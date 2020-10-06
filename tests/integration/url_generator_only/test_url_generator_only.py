@@ -50,3 +50,62 @@ def test_expected_integration_sample():
             '''
             assert queries[0].query_string != ""
 
+    
+def expected_test_for_get():
+    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
+    metadata_file_contents = path_to_metadata.read_bytes()
+    restrictions = RestrictionsGroup(None)
+    get_builder = DirectBuilder(metadata_file_contents, restrictions,"GET")
+    get_entities = get_builder.build()
+    queryable_factory = SingleQueryable
+    queries_list = []
+    queries_list.clear()
+    for queryable in get_entities.all():
+        entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
+        for _ in range(entityset_urls_count):
+            q = queryable_factory(queryable, logger, 1)
+            queries = q.generate()
+            queries_list.append(queries[0].query_string)
+    queries_list=set(queries_list)
+    choice = queries_list.pop()
+    if("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice):
+        return True
+    else:
+        return False
+    
+
+def expected_test_for_delete():
+    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
+    metadata_file_contents = path_to_metadata.read_bytes()
+    restrictions = RestrictionsGroup(None)
+    del_builder = DirectBuilder(metadata_file_contents, restrictions,"DELETE")
+    del_entities = del_builder.build()
+    queryable_factory = SingleQueryable
+    queries_list = []
+    queries_list.clear()
+    for queryable in del_entities.all():
+        entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
+        for _ in range(entityset_urls_count):
+            q = queryable_factory(queryable, logger, 1)
+            queries = q.generate()
+            queries_list.append(queries[0].query_string)
+    queries_list=set(queries_list)
+    choice = queries_list.pop()
+    if("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice):
+        return False
+    else:
+        return True
+    
+def expected_test_for_get_and_delete():
+    if expected_test_for_get and expected_test_for_delete:
+        return True
+    else:
+        return False
+
+'''uncomment for testing
+
+print(expected_test_for_get())
+print(expected_test_for_delete())
+print(expected_test_for_get_and_delete())
+'''
+
