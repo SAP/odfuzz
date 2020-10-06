@@ -21,7 +21,7 @@ def test_expected_integration_sample():
     # do not pass metadata as python string but read as bytes, usually ends with Unicode vs xml encoding mismatch.
 
     restrictions = RestrictionsGroup(None)
-    builder = DirectBuilder(metadata_file_contents, restrictions)
+    builder = DirectBuilder(metadata_file_contents, restrictions,"GET")
     entities = builder.build()
 
     ''' uncomment for code sample purposes
