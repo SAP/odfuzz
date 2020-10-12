@@ -9,7 +9,6 @@ from odfuzz.constants import (
     DEFAULT_SAP_CLIENT,
     DEFAULT_URLS_PER_PROPERTY,
     DEFAULT_IGNORE_METADATA_RESTRICTIONS,
-    DEFAULT_HTTP_METHOD_ENABLED,
     ENV_ASYNC_REQUESTS_NUM,
     ENV_DATA_FORMAT,
     ENV_USE_ENCODER,
@@ -17,7 +16,6 @@ from odfuzz.constants import (
     ENV_SAP_CLIENT,
     ENV_URLS_PER_PROPERTY,
     ENV_IGNORE_METADATA_RESTRICTIONS,
-    ENV_HTTP_METHOD_ENABLED,
 )
 
 
@@ -30,7 +28,7 @@ class FuzzerConfig:
         self._urls_per_property = int(env_url_per_property)
         env_ignore_restriction = os.getenv(ENV_IGNORE_METADATA_RESTRICTIONS,DEFAULT_IGNORE_METADATA_RESTRICTIONS)
         self._ignore_restriction = env_ignore_restriction
-        self._http_method_enabled = os.getenv(ENV_HTTP_METHOD_ENABLED, DEFAULT_HTTP_METHOD_ENABLED)
+        self._http_method_enabled = "GET"
 
         if os.getenv(ENV_USE_ENCODER, DEFAULT_USE_ENCODER) == 'True':
             self._use_encoder = True

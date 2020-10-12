@@ -95,17 +95,10 @@ def expected_test_for_delete():
         return False
     else:
         return True
-    
-def expected_test_for_get_and_delete():
-    if expected_test_for_get and expected_test_for_delete:
-        return True
-    else:
-        return False
 
-'''uncomment for testing
 
-print(expected_test_for_get())
-print(expected_test_for_delete())
-print(expected_test_for_get_and_delete())
-'''
+def test_direct_builder_http_get():
+    assert expected_test_for_get() == True
 
+def test_direct_builder_http_delete():
+    assert expected_test_for_delete() == True
