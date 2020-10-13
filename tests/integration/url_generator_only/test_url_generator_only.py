@@ -50,8 +50,9 @@ def test_expected_integration_sample():
             '''
             assert queries[0].query_string != ""
 
-    
-def expected_test_for_get():
+
+
+def test_direct_builder_http_get():
     path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
     metadata_file_contents = path_to_metadata.read_bytes()
     restrictions = RestrictionsGroup(None)
@@ -68,13 +69,10 @@ def expected_test_for_get():
             queries_list.append(queries[0].query_string)
     queries_list=set(queries_list)
     choice = queries_list.pop()
-    if("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice):
-        return True
-    else:
-        return False
-    
+    assert ("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice) == True
 
-def expected_test_for_delete():
+
+def test_direct_builder_http_delete():
     path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
     metadata_file_contents = path_to_metadata.read_bytes()
     restrictions = RestrictionsGroup(None)
@@ -91,14 +89,5 @@ def expected_test_for_delete():
             queries_list.append(queries[0].query_string)
     queries_list=set(queries_list)
     choice = queries_list.pop()
-    if("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice):
-        return False
-    else:
-        return True
+    assert ("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice) == False
 
-
-def test_direct_builder_http_get():
-    assert expected_test_for_get() == True
-
-def test_direct_builder_http_delete():
-    assert expected_test_for_delete() == True
