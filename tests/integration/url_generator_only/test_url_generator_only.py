@@ -21,7 +21,7 @@ def test_expected_integration_sample():
     # do not pass metadata as python string but read as bytes, usually ends with Unicode vs xml encoding mismatch.
 
     restrictions = RestrictionsGroup(None)
-    builder = DirectBuilder(metadata_file_contents, restrictions)
+    builder = DirectBuilder(metadata_file_contents, restrictions,"GET")
     entities = builder.build()
 
     ''' uncomment for code sample purposes
@@ -49,4 +49,45 @@ def test_expected_integration_sample():
             #hardcoded 0, since SingleQueryable is used and therefore generate only one URL
             '''
             assert queries[0].query_string != ""
+
+
+
+def test_direct_builder_http_get():
+    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
+    metadata_file_contents = path_to_metadata.read_bytes()
+    restrictions = RestrictionsGroup(None)
+    get_builder = DirectBuilder(metadata_file_contents, restrictions,"GET")
+    get_entities = get_builder.build()
+    queryable_factory = SingleQueryable
+    queries_list = []
+    queries_list.clear()
+    for queryable in get_entities.all():
+        entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
+        for _ in range(entityset_urls_count):
+            q = queryable_factory(queryable, logger, 1)
+            queries = q.generate()
+            queries_list.append(queries[0].query_string)
+    queries_list=set(queries_list)
+    choice = queries_list.pop()
+    assert ("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice) == True
+
+
+def test_direct_builder_http_delete():
+    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
+    metadata_file_contents = path_to_metadata.read_bytes()
+    restrictions = RestrictionsGroup(None)
+    del_builder = DirectBuilder(metadata_file_contents, restrictions,"DELETE")
+    del_entities = del_builder.build()
+    queryable_factory = SingleQueryable
+    queries_list = []
+    queries_list.clear()
+    for queryable in del_entities.all():
+        entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
+        for _ in range(entityset_urls_count):
+            q = queryable_factory(queryable, logger, 1)
+            queries = q.generate()
+            queries_list.append(queries[0].query_string)
+    queries_list=set(queries_list)
+    choice = queries_list.pop()
+    assert ("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice) == False
 

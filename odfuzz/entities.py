@@ -12,7 +12,6 @@ import random
 import inspect
 import uuid
 import requests
-
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
@@ -109,15 +108,15 @@ class DispatchedBuilder:
 
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
-    def __init__(self, metadata, restrictions):
+    def __init__(self, metadata, restrictions,method):
         self._queryable = QueryableEntities()
         self._metadata_string = metadata
         self._restrictions = restrictions
-
         Config.init()
+        Config.fuzzer.http_method_enabled = method
+
         # Ugly but necessary so the field exists for classes and methods in fuzzer.py using the Config.
         # Normally initialized in the middle of CLI calls, but in this case this is the first entrypoint and Config does not exists yet.
-
     def build(self):
         # call just once on fuzzer process start
         data_model = self._get_data_model()

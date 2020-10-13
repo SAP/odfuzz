@@ -1115,20 +1115,21 @@ class Query:
     def build_string(self):
     #TODO refactor rename build_url_part - this creates the parts after /Entity?$filter... etc ; not entire URL to send to Dispatcher.
         self._query_string = self._accessible_entity.path + '?'
-        for option_name in self._order:
-            if option_name.endswith('filter'):
-                filter_data = deepcopy(self._options[option_name[1:]])
-                option_string = build_filter_string(filter_data)
-            elif option_name.endswith('orderby'):
-                orderby_data = self._options[option_name[1:]]
-                orderby_option = OrderbyOption(orderby_data)
-                option_string = OrderbyOptionBuilder(orderby_option).build()
-            elif option_name.endswith('expand'):
-                option_string = ','.join(self._options[option_name[1:]])
-            else:
-                option_string = self._options[option_name[1:]]
-            self._options_strings[option_name[1:]] = option_string
-            self._query_string += option_name[1:] + '=' + option_string + '&'
+        if Config.fuzzer.http_method_enabled == "GET":
+            for option_name in self._order:
+                if option_name.endswith('filter'):
+                    filter_data = deepcopy(self._options[option_name[1:]])
+                    option_string = build_filter_string(filter_data)
+                elif option_name.endswith('orderby'):
+                    orderby_data = self._options[option_name[1:]]
+                    orderby_option = OrderbyOption(orderby_data)
+                    option_string = OrderbyOptionBuilder(orderby_option).build()
+                elif option_name.endswith('expand'):
+                    option_string = ','.join(self._options[option_name[1:]])
+                else:
+                    option_string = self._options[option_name[1:]]
+                self._options_strings[option_name[1:]] = option_string
+                self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
         self._add_appendix()
 
