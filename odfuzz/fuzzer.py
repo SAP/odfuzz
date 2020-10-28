@@ -346,9 +346,16 @@ class Queryable:
         accessible_entity = self._queryable.get_accessible_entity()
         query = Query(accessible_entity)
         self.generate_options(query)
+        body={}
+        if Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "POST":
+            properties = accessible_entity.entity_set.entity_type._properties
+            for prprty in properties.values():
+                body[prprty._name]= prprty.generate()
+  
+
         Stats.tests_num += 1
         # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
-        return query
+        return query,body
 
     def generate_options(self, query):
         depending_data = {}
@@ -581,8 +588,8 @@ class SingleQueryable(Queryable):
     used when fuzzer is not triggered with async option, generates URLs  by one
     """
     def generate(self):
-        query = self.generate_query()
-        return [query]
+        query,body = self.generate_query()
+        return [query,body]
 
     def crossover(self, crossable_selection):
         query1, query2 = crossable_selection
