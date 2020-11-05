@@ -1139,6 +1139,7 @@ class Query:
                 self._query_string += option_name[1:] + '=' + option_string + '&'
         self._query_string = self._query_string.rstrip('&')
         self._add_appendix()
+        self._query_string = self._query_string.replace("?&","?")
 
         self._url_hash = HashGenerator.generate(self._query_string)
 
@@ -1172,7 +1173,7 @@ class Query:
     def _add_appendix(self):
         if Config.fuzzer.sap_client:
             self._query_string += '&' + 'sap-client=' + Config.fuzzer.sap_client
-        if Config.fuzzer.data_format:
+        if Config.fuzzer.data_format and (Config.fuzzer.http_method_enabled != "DELETE"):
             self._query_string += '&' + '$format=' + Config.fuzzer.data_format
 
 
