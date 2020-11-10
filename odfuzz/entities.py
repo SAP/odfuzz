@@ -140,9 +140,11 @@ class DirectBuilder:
 
     def _append_queryable(self, query_group_data):
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
-        self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
-        self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
-        self._append_associated_queryables(query_group_data)
+        if Config.fuzzer.http_method_enabled != "POST":
+            self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
+        if Config.fuzzer.http_method_enabled != "PUT":
+            self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
+            self._append_associated_queryables(query_group_data)
 
     def _append_associated_queryables(self, query_group_data):
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
