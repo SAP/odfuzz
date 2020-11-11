@@ -8,6 +8,7 @@ import logging
 import gevent
 import requests
 import requests.adapters
+import json
 
 from copy import deepcopy
 from datetime import datetime
@@ -591,6 +592,7 @@ class SingleQueryable(Queryable):
     """
     def generate(self):
         query,body = self.generate_query()
+        body = json.dumps(body)
         return [query,body]
 
     def crossover(self, crossable_selection):
