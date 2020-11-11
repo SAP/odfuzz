@@ -346,16 +346,18 @@ class Queryable:
         accessible_entity = self._queryable.get_accessible_entity()
         query = Query(accessible_entity)
         self.generate_options(query)
+        body = self.generate_body(accessible_entity)
+        Stats.tests_num += 1
+        # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
+        return query,body
+
+    def generate_body(self,accessible_entity):
         body={}
         if Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "POST":
             properties = accessible_entity.entity_set.entity_type._properties
             for prprty in properties.values():
                 body[prprty._name]= prprty.generate()
-  
-
-        Stats.tests_num += 1
-        # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
-        return query,body
+        return body
 
     def generate_options(self, query):
         depending_data = {}
