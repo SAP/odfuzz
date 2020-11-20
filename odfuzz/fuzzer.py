@@ -357,9 +357,11 @@ class Queryable:
         if Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "POST":
             properties = accessible_entity.entity_set.entity_type._properties
             for prprty in properties.values():
-                generated_body = prprty.generate()
-                if generated_body.startswith("date") or generated_body.startswith("time") == False:
-                    generated_body = generated_body[1:-1]
+                generated_body = prprty.generate(format='body')
+                try:
+                    generated_body = generated_body.strip("\'")
+                except:
+                    pass
                 body[prprty._name] = generated_body
         return body
 
