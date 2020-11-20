@@ -4,7 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [Unreleased - Alpha version 0.14a1]
+
+### Added
+- New faeature - Add support for HTTP DELETE method in fuzzing   
 
 ## [0.13.3]
 
