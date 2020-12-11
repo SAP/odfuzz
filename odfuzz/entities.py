@@ -1855,10 +1855,10 @@ class SingleEntity(EntitySetRequest):
     NavPropSingle in https://www.odata.org/documentation/odata-version-2-0/uri-conventions/
     """
     def generate_accessible_entity(self):
-        key_pairs = generate_accessible_entity_key_values(self._entity_set)
+        key_pairs, body_key_pairs = generate_accessible_entity_key_values(self._entity_set)
         null_principal_entity = NullEntityType(None, NullNavProperties([]))
         accessible_entity = AccessibleEntity(self._entity_set, key_pairs, null_principal_entity)
-        return accessible_entity
+        return accessible_entity, body_key_pairs
 
 
 class MultipleEntities(EntitySetRequest):
@@ -1869,7 +1869,7 @@ class MultipleEntities(EntitySetRequest):
         key_pairs = {}
         null_principal_entity = NullEntityType(None, NullNavProperties([]))
         accessible_entity = AccessibleEntity(self._entity_set, key_pairs, null_principal_entity)
-        return accessible_entity
+        return accessible_entity, {}
 
 
 class AssociatedEntities(EntitySetRequest):
@@ -1878,9 +1878,9 @@ class AssociatedEntities(EntitySetRequest):
     """
     def generate_accessible_entity(self):
         containing_entity = random.choice(self._principal_entities)
-        key_pairs = generate_accessible_entity_key_values(containing_entity)
+        key_pairs, body_key_pairs = generate_accessible_entity_key_values(containing_entity)
         accessible_entity = AccessibleEntity(self._entity_set, key_pairs, containing_entity)
-        return accessible_entity
+        return accessible_entity, {}
 
 
 class AccessibleEntity(object):
@@ -2119,9 +2119,13 @@ class GroupedPrincipalEntities:
 
 def generate_accessible_entity_key_values(containing_entity_set):
     key_pairs = {}
+    body_key_pairs = {}
     for proprty in containing_entity_set.entity_type.key_proprties:
-        key_pairs[proprty.name] = proprty.generate()
-    return key_pairs
+        uri, body = proprty.generate(format='key')
+        key_pairs[proprty.name] = uri
+        body_key_pairs[proprty.name] = body
+
+    return key_pairs, body_key_pairs
 
 
 def get_draft_properties(entity_set_name, draft_objects):

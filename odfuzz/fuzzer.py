@@ -344,20 +344,23 @@ class Queryable:
         self._async_requests_num = async_requests_num
 
     def generate_query(self):
-        accessible_entity = self._queryable.get_accessible_entity()
+        accessible_entity, body_key_pairs = self._queryable.get_accessible_entity()
         query = Query(accessible_entity)
         self.generate_options(query)
-        body = self.generate_body(accessible_entity)
+        body = self.generate_body(accessible_entity, body_key_pairs)
         Stats.tests_num += 1
         # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
         return query,body
 
-    def generate_body(self,accessible_entity):
+    def generate_body(self,accessible_entity,key_pairs):
         body={}
         if Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "POST":
             properties = accessible_entity.entity_set.entity_type._properties
             for prprty in properties.values():
-                generated_body = prprty.generate(format='body')
+                if prprty.name in key_pairs:
+                    generated_body = key_pairs[prprty.name]
+                else:
+                    generated_body = prprty.generate(format='body')
                 try:
                     generated_body = generated_body.strip("\'")
                 except:

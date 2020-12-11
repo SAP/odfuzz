@@ -9,7 +9,7 @@ import time
 from odfuzz.constants import BASE_CHARSET, HEX_BINARY
 from odfuzz.encoders import EncoderMixin
 
-START_DATE = datetime.datetime(1900, 1, 1, 0, 0, 0)
+START_DATE = datetime.datetime(1970, 1, 1, 0, 0, 0)
 END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
 DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
 
@@ -26,33 +26,42 @@ class EdmBinary:
         value = '{0}\'{1}\''.format(prefix, binary)
         if format == 'body':
             return EdmBinary.generate_body(value)
-        else:
+        elif format == 'uri':
             return value
-
+        elif format == 'key':
+            return value, EdmBinary.generate_body(value)
+        else:
+            raise ValueError
 
 class EdmBoolean:
-
-    def generate_body():
-        return True if random.random() < 0.5 else False
 
     @staticmethod
     def generate(format='uri'):
         if format == 'body':
-            return EdmBoolean.generate_body()
-        else:
+            return True if random.random() < 0.5 else False
+        elif format == 'uri':
             return 'true' if random.random() < 0.5 else 'false'
-
+        elif format == 'key':
+            if random.random() < 0.5:
+                return "true", True
+            else:
+                return "false", False
+        else:
+            raise ValueError
 
 class EdmByte:
     @staticmethod
     def generate(format='uri'):
-        return str(round(random.randint(0, 255)))
+        value = str(round(random.randint(0, 255)))
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value, value
+        else:
+            raise ValueError
 
 
 class EdmDateTime:
-
-    def generate_body():
-        return "\'/Date("+str(int(time.time()*1000))+")/\'"
 
     @staticmethod
     def generate(format='uri'):
@@ -60,11 +69,17 @@ class EdmDateTime:
         The format of Edm.DateTime is defined as datetime'yyyy-mm-ddThh:mm[:ss[.fffffff]]'. The attribute Precision,
         which is used for declaring a microsecond as a decimal number, is ignored.
         """
-        if format == 'body':
-            return EdmDateTime.generate_body()
-        else:
-            random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
-            return 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S'))
+        body_value = random.randint(0, DATE_INTERVAL)
+        random_date = START_DATE + datetime.timedelta(seconds=body_value)
+        uri_value = 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S'))
+        if format == 'uri':
+            return uri_value
+        elif format == 'body':
+            return body_value
+        elif format == 'key':
+            return uri_value, body_value
+
+
 
 
 class EdmDecimal:
@@ -73,56 +88,108 @@ class EdmDecimal:
         divider = random.randint(1, 10 ** self.scale)
         scale_range = random.randint(0, self.scale)
         rand_int = random.randint(1, (10 ** (self.precision - scale_range)) - 1)
-        return '{0:.{1}f}'.format(rand_int / divider, scale_range) + 'm'
-
+        value = '{0:.{1}f}'.format(rand_int / divider, scale_range) + 'm'
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 class EdmDouble(EncoderMixin):
     @staticmethod
     def generate(format='uri'):
         random_double = '{}d'.format(round(random.uniform(2.23e-40, 1.19e+40), 15))
-        return EdmDouble._encode_string(random_double)
+        value = EdmDouble._encode_string(random_double)
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 
 class EdmSingle:
     @staticmethod
     def generate(format='uri'):
-        return '{}f'.format(round(random.uniform(1.18e-20, 3.40e+20), 7))
+        value = '{}f'.format(round(random.uniform(1.18e-20, 3.40e+20), 7))
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 
 class EdmGuid:
     @staticmethod
     def generate(format='uri'):
-        return 'guid\'{0}\''.format(str(uuid.UUID(int=random.getrandbits(128), version=4)))
+        value = 'guid\'{0}\''.format(str(uuid.UUID(int=random.getrandbits(128), version=4)))
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 
 class EdmInt16:
     @staticmethod
     def generate(format='uri'):
-        return str(random.randint(-32768, 32767))
+        value = str(random.randint(-32768, 32767))
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 
 class EdmInt32:
     @staticmethod
     def generate(format='uri'):
-        return str(random.randint(-2147483648, 2147483647))
+        value = str(random.randint(-2147483648, 2147483647))
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 
 class EdmInt64:
     @staticmethod
     def generate(format='uri'):
-        return str(random.randint(-9223372036854775808, 9223372036854775807)) + 'L'
+        value = str(random.randint(-9223372036854775808, 9223372036854775807)) + 'L'
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 
 class EdmSByte:
     @staticmethod
     def generate(format='uri'):
-        return str(random.randint(-128, 127))
-
+        value = str(random.randint(-128, 127))
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 class EdmString:
     @staticmethod
     def generate(self,format='uri'):
-        return '\'{}\''.format(RandomGenerator.random_string(self.max_length))
+        value = '\'{}\''.format(RandomGenerator.random_string(self.max_length))
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 
 class EdmTime:
@@ -130,29 +197,33 @@ class EdmTime:
     def generate(format='uri'):
         random_time = START_DATE + datetime.timedelta(
             hours=random.randrange(23), minutes=random.randrange(59), seconds=random.randrange(59))
-        return 'time\'P{0}\''.format(datetime.datetime.strftime(random_time, 'T%IH%MM%SS'))
+        value = 'time\'P{0}\''.format(datetime.datetime.strftime(random_time, 'T%IH%MM%SS'))
+        if format == 'uri' or format == 'body':
+            return value
+        elif format == 'key':
+            return value , value
+        else:
+            raise ValueError
 
 
 class EdmDateTimeOffset:
 
-    def generate_body():
-        value = EdmDateTime.generate_body().rstrip(")/\'") + random.choice("+-") + str(random.randrange(720)) + ")/\'"
-        return value
-
     @staticmethod
     def generate(format='uri'):
-        if format == 'body':
-            return EdmDateTimeOffset.generate_body()
+        random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
+        formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
+        offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
+        value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
+        if format == 'body' or format == 'uri':
+            return value
+        elif format == 'key':
+            return value, value
         else:
-            random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
-            formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
-            offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
-            return 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
-
+            raise ValueError
 
 class RandomGenerator(EncoderMixin):
     @staticmethod
-    def random_string(max_length,format='uri'):
+    def random_string(max_length):
         string_length = round(random.random() * max_length)
         generated_string = ''.join(random.choice(BASE_CHARSET) for _ in range(string_length))
         return RandomGenerator._encode_string(generated_string)
