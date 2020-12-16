@@ -45,7 +45,8 @@ class Manager:
         self._first_touch = arguments.first_touch
         self._restrictions = RestrictionsGroup(arguments.restrictions)
         self._collection_name = collection_name
-
+        self._logger = logging.getLogger(FUZZER_LOGGER)
+        
         self._using_encoder = Config.fuzzer.use_encoder
 
         if bind is None:
@@ -55,6 +56,7 @@ class Manager:
 
     def start(self):
         self._output_handler.print_status('odfuzz version: ' + __version__)
+        self._logger.info('odfuzz version: ' + __version__)
 
         database = self.establish_database_connection(MongoDBHandler, MongoDB)
         entities = self.build_entities()
