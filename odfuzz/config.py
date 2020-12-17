@@ -68,7 +68,9 @@ class DispatcherConfig:
     def __init__(self):
         self._cert_file_path = self._data_format = os.getenv(ENV_ODFUZZ_CERTIFICATE_PATH) #intentionaly no default path
         self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
-        self._async_requests_num = os.getenv(ENV_ASYNC_REQUESTS_NUM, DEFAULT_ASYNC_REQUESTS_NUM)
+        async_requests_num =   os.getenv(ENV_ASYNC_REQUESTS_NUM, DEFAULT_ASYNC_REQUESTS_NUM)
+        self._async_requests_num = int(async_requests_num)
+
 
     @property
     def has_certificate(self):
