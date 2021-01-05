@@ -7,183 +7,26 @@ Brief Overview of HTTP verb implementation
 ------------------------------------------
 
 
-.. raw:: html
+.. csv-table:: HTTP verb implementation
+   :header: "", "GET", "DELETE", "PUT", "POST" 
+   :widths: 30, 15, 15, 15, 15
 
-    <embed>
-    <table border = 1 style="width:100%">
-    <tr>
-        <td>
-        <td>
-            GET
-        <td>
-            DELETE
-        <td>
-            PUT
-        <td>
-            POST
-    </tr>
-    <tr>
-        <td>
-            <em>$inlinecount</em>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    <tr>
-        <td>
-            <em>$search</em>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    <tr>
-        <td>
-            <em>$top</em>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    <tr>
-        <td>
-            <em>$skip</em>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    <tr>
-        <td>
-            <em>$orderby</em>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-    
-    </tr>
-    <tr>
-        <td>
-            <em>$expand</em>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    <tr>
-        <td>
-            <em>$filter</em>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    <tr>
-        <td>
-            <em>$format</em>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    <tr>
-        <td>
-            body value*
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10003;</span>
-    </tr>
-    <tr>
-        <td>
-            populated body**
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10003;</span>
-    </tr>
-    <tr>
-        <td>
-            Addressing Single entities
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    <tr>
-        <td>
-            Addressing Multiple entities
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10003;</span>
-    </tr>
-    <tr>
-        <td>
-            Synced URI and body values
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10539;</span>
-        <td>
-            <span>&#10003;</span>
-        <td>
-            <span>&#10539;</span>
-    </tr>
-    </table>
+   "$inlinecount", "Yes", "No", "No", "No"
+   "$search", "Yes", "No", "No", "No"
+   "$top", "Yes", "No", "No", "No"
+   "$skip", "Yes", "No", "No", "No"
+   "$orderby", "Yes", "No", "No", "No"
+   "$expand", "Yes", "No", "No", "No"
+   "$filter", "Yes", "No", "No", "No"
+   "$format", "Yes", "No", "No", "No"
+   "body value", "Yes", "Yes", "Yes", "Yes"
+   "populated body", "No", "No", "Yes", "Yes"
+   "Addressing Single entities", "Yes", "Yes", "Yes", "No"
+   "Addressing Multiple entities", "Yes", "Yes", "No", "Yes"
+   "Synced URI and body values", "No", "No", "Yes", "No"
 
-    <p style="color:red;">*A body value is returned by generate() function</p>
-    <p style="color:red;">**The body value has fuzzed payloads based on the properties</p>
-    </embed>
+**"body value"** refers to the fact that a value for the body is returned by *generate()* function. 
+**"populated body"** refers to the fact that the value contains data, and isnt an empty JSON parsed into a string.
 
 
 
