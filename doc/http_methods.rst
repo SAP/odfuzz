@@ -2,6 +2,191 @@
 HTTP Methods in ODFUZZ
 ======================
 
+
+Brief Overview of HTTP verb implementation
+------------------------------------------
+
+
+.. raw:: html
+
+    <embed>
+    <table border = 1 style="width:100%">
+    <tr>
+        <td>
+        <td>
+            GET
+        <td>
+            DELETE
+        <td>
+            PUT
+        <td>
+            POST
+    </tr>
+    <tr>
+        <td>
+            <em>$inlinecount</em>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    <tr>
+        <td>
+            <em>$search</em>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    <tr>
+        <td>
+            <em>$top</em>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    <tr>
+        <td>
+            <em>$skip</em>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    <tr>
+        <td>
+            <em>$orderby</em>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+    
+    </tr>
+    <tr>
+        <td>
+            <em>$expand</em>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    <tr>
+        <td>
+            <em>$filter</em>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    <tr>
+        <td>
+            <em>$format</em>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    <tr>
+        <td>
+            body value*
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10003;</span>
+    </tr>
+    <tr>
+        <td>
+            populated body**
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10003;</span>
+    </tr>
+    <tr>
+        <td>
+            Addressing Single entities
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    <tr>
+        <td>
+            Addressing Multiple entities
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10003;</span>
+    </tr>
+    <tr>
+        <td>
+            Synced URI and body values
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10539;</span>
+        <td>
+            <span>&#10003;</span>
+        <td>
+            <span>&#10539;</span>
+    </tr>
+    </table>
+
+    <p style="color:red;">*A body value is returned by generate() function</p>
+    <p style="color:red;">**The body value has fuzzed payloads based on the properties</p>
+    </embed>
+
+
+
 Introduction
 ------------
 
@@ -138,10 +323,11 @@ DirectBuilder now has an additional parameter called **method**. This accepts th
 
 In config.py, this would be used to build the Config object, which would be looked up during query construction and check which HTTP method is set.
 
-Truncating Query Filters
+Truncating Query Options
 ------------------------
 
-For Odata queries other than **GET**, query filters need to be truncated. To implement this, in fuzzer.py *Query.build_string()* would first check if *Config.fuzzer.http_method_enabled == "GET"* before generating the filters and appending them. 
+For Odata queries other than **GET**, query options need to be truncated. To implement this, in fuzzer.py *Query.build_string()* would first check if *Config.fuzzer.http_method_enabled == "GET"* before generating the options and appending them. 
+The list of options are illustrated in the table above.
 
 
 Generating a Body
