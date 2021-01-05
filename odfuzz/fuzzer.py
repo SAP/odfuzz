@@ -1185,7 +1185,7 @@ class Query:
     def _add_appendix(self):
         if Config.fuzzer.sap_client:
             self._query_string += '&' + 'sap-client=' + Config.fuzzer.sap_client
-        if Config.fuzzer.data_format and (Config.fuzzer.http_method_enabled != "DELETE"):
+        if Config.fuzzer.data_format and (Config.fuzzer.http_method_enabled == "GET"):
             self._query_string += '&' + '$format=' + Config.fuzzer.data_format
 
 
