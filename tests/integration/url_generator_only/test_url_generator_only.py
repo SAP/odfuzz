@@ -65,8 +65,8 @@ def test_direct_builder_http_get():
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
-            queries = q.generate()
-            queries_list.append(queries[0].query_string)
+            queries, body = q.generate()
+            queries_list.append(queries.query_string)
     queries_list=set(queries_list)
     choice = queries_list.pop()
     assert ("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice) == True
@@ -85,9 +85,8 @@ def test_direct_builder_http_delete():
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
-            queries = q.generate()
-            queries_list.append(queries[0].query_string)
+            queries,body = q.generate()
+            queries_list.append(queries.query_string)
     queries_list=set(queries_list)
     choice = queries_list.pop()
     assert ("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice) == False
-
