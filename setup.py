@@ -24,10 +24,10 @@ setup(
         'greenlet==0.4.15',
         'requests==2.23.0',
         'pymongo==3.10.1',
-        'lxml==4.5.0',
+        'lxml==4.6.2',
         'pyyaml==5.3.1',
         'python-dateutil==2.8.1',
-        'pyodata==1.4.0',
+        'pyodata==1.7.0',
     ],
     tests_require=[
         'mongomock>=3.14.0',

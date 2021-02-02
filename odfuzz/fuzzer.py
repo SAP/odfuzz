@@ -46,7 +46,8 @@ class Manager:
         self._first_touch = arguments.first_touch
         self._restrictions = RestrictionsGroup(arguments.restrictions)
         self._collection_name = collection_name
-
+        self._logger = logging.getLogger(FUZZER_LOGGER)
+        
         self._using_encoder = Config.fuzzer.use_encoder
 
         if bind is None:
@@ -56,6 +57,7 @@ class Manager:
 
     def start(self):
         self._output_handler.print_status('odfuzz version: ' + __version__)
+        self._logger.info('odfuzz version: ' + __version__)
 
         database = self.establish_database_connection(MongoDBHandler, MongoDB)
         entities = self.build_entities()
@@ -463,10 +465,13 @@ class Queryable:
         else:
             accessible_entity_set = self._queryable.entity_set
 
-        for proprty_name, value in key_values:
+        try:
             proprty = accessible_entity_set.entity_type.proprty(proprty_name)
             if hasattr(proprty, 'mutate'):
-                accessible_keys[proprty_name] = proprty.mutate(value)
+                accessible_keys[proprty_name] = proprty.mutate(value)                
+                #and seems that this will simply do nothing (skip to another mutation iteration) if the mutate property is not there, only would crash on the None. 
+        except AttributeError:
+            self._logger.error('_mutate_accessible_keys - AttributeError: NoneType object has no attribute entity_type')
 
     def _mutate_option(self, query, option_name, option_value):
         if option_name == FILTER:
