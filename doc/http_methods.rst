@@ -1,5 +1,5 @@
 ======================
-HTTP Methods in ODFUZZ
+HTTP Methods in ODfuzz
 ======================
 
 
