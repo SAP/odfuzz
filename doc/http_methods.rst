@@ -33,7 +33,7 @@ An Overview of Supported Query Options
 Introduction
 ------------
 
-Odfuzz through the DirectBuilder class offers developers an interface to integrate its query creation functionalities into their project.
+The class DirectBuilder provides an interface for developers to integrate the query generation functionalities into their projects.
 As of ver. **0.14a2** the supported list of HTTP methods in DirectBuilder are **"GET", "DELETE", "PUT" and "POST"**. 
 
 .. code-block:: python
