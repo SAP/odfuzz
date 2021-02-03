@@ -3,7 +3,7 @@ HTTP Methods in ODFUZZ
 ======================
 
 
-Brief Overview of HTTP verb implementation
+An Overview of Supported Query Options
 ------------------------------------------
 
 
