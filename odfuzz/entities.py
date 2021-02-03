@@ -2121,7 +2121,7 @@ def generate_accessible_entity_key_values(containing_entity_set):
     key_pairs = {}
     body_key_pairs = {}
     for proprty in containing_entity_set.entity_type.key_proprties:
-        uri, body = proprty.generate(format='key')
+        uri, body = proprty.generate(generator_format='key')
         key_pairs[proprty.name] = uri
         body_key_pairs[proprty.name] = body
 

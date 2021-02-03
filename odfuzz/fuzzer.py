@@ -362,7 +362,7 @@ class Queryable:
                 if prprty.name in key_pairs:
                     generated_body = key_pairs[prprty.name]
                 else:
-                    generated_body = prprty.generate(format='body')
+                    generated_body = prprty.generate(generator_format='body')
                 try:
                     generated_body = generated_body.strip("\'")
                 except:
