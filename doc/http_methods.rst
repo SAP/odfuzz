@@ -148,7 +148,7 @@ On calling *SingleQueryable.generate()*, this would return a fuzzed URI string a
 Code Documentation
 ==================
 
-Adding method parameter in DirectBuilder
+The **method** parameter in DirectBuilder
 ----------------------------------------
 
 DirectBuilder now has an additional parameter called **method**. This accepts the users choice of HTTP method to get the fuzzed requests. The DirectBuilder *init* checks for validity and calls the *Config.fuzzer* setter to set the value in the Config object.
