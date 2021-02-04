@@ -72,6 +72,7 @@ class EdmDateTime:
         body_value = random.randint(0, DATE_INTERVAL)
         random_date = START_DATE + datetime.timedelta(seconds=body_value)
         uri_value = 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S'))
+        body_value = "/Date({})".format(body_value)
         if generator_format == 'uri':
             return uri_value
         elif generator_format == 'body':
@@ -124,11 +125,14 @@ class EdmSingle:
 class EdmGuid:
     @staticmethod
     def generate(generator_format='uri'):
-        value = 'guid\'{0}\''.format(str(uuid.UUID(int=random.getrandbits(128), version=4)))
-        if generator_format == 'uri' or generator_format == 'body':
-            return value
+        body_value = str(uuid.UUID(int=random.getrandbits(128), version=4))
+        uri_value = 'guid\'{0}\''.format(body_value)
+        if generator_format == 'uri':
+            return uri_value
+        elif generator_format == 'body':
+            return body_value
         elif generator_format == 'key':
-            return value , value
+            return uri_value , body_value
         else:
             raise ValueError
 
