@@ -169,7 +169,7 @@ In config.py, this would be used to build the Config object, which would be look
 Truncating Query Options
 ------------------------
 
-For Odata queries other than **GET**, query options need to be truncated. To implement this, in fuzzer.py *Query.build_string()* would first check if *Config.fuzzer.http_method_enabled == "GET"* before generating the options and appending them. 
+Except for **GET** requests, query options need to be truncated in OData. To implement this, *Query.build_string()* first checks if *Config.fuzzer.http_method_enabled == "GET"* before generating the options and appending them.
 The list of options are illustrated in the table above.
 
 
