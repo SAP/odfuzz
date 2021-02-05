@@ -8,6 +8,7 @@ import logging
 import gevent
 import requests
 import requests.adapters
+import json
 
 from copy import deepcopy
 from datetime import datetime
@@ -345,12 +346,29 @@ class Queryable:
         self._async_requests_num = async_requests_num
 
     def generate_query(self):
-        accessible_entity = self._queryable.get_accessible_entity()
+        accessible_entity, body_key_pairs = self._queryable.get_accessible_entity()
         query = Query(accessible_entity)
         self.generate_options(query)
+        body = self.generate_body(accessible_entity, body_key_pairs)
         Stats.tests_num += 1
         # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
-        return query
+        return query,body
+
+    def generate_body(self,accessible_entity,key_pairs):
+        body={}
+        if Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "POST":
+            properties = accessible_entity.entity_set.entity_type._properties
+            for prprty in properties.values():
+                if prprty.name in key_pairs:
+                    generated_body = key_pairs[prprty.name]
+                else:
+                    generated_body = prprty.generate(generator_format='body')
+                try:
+                    generated_body = generated_body.strip("\'")
+                except:
+                    pass
+                body[prprty._name] = generated_body
+        return body
 
     def generate_options(self, query):
         depending_data = {}
@@ -586,8 +604,9 @@ class SingleQueryable(Queryable):
     used when fuzzer is not triggered with async option, generates URLs  by one
     """
     def generate(self):
-        query = self.generate_query()
-        return [query]
+        query,body = self.generate_query()
+        body = json.dumps(body)
+        return [query,body]
 
     def crossover(self, crossable_selection):
         query1, query2 = crossable_selection
@@ -1171,7 +1190,7 @@ class Query:
     def _add_appendix(self):
         if Config.fuzzer.sap_client:
             self._query_string += '&' + 'sap-client=' + Config.fuzzer.sap_client
-        if Config.fuzzer.data_format and (Config.fuzzer.http_method_enabled != "DELETE"):
+        if Config.fuzzer.data_format and (Config.fuzzer.http_method_enabled == "GET"):
             self._query_string += '&' + '$format=' + Config.fuzzer.data_format
 
 
