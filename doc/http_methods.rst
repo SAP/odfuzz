@@ -63,7 +63,7 @@ As of ver. **0.14a2** the supported list of HTTP methods in DirectBuilder are **
                 queries,body = q.generate()
 
 
-As shown above, DirectBuilder needs to called with the metadata file and restrictions file(if there is any, or else None) along with the HTTP method as a String.
+As shown in the snippet above, DirectBuilder is initialized with the metadata file, the restrictions, and the HTTP method defined as a string.
 
 .. code-block:: python
 
