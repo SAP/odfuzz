@@ -605,7 +605,7 @@ class SingleQueryable(Queryable):
     """
     def generate(self):
         query,body = self.generate_query()
-        body = json.dumps(body)
+        body = json.dumps(body, ensure_ascii=False)
         return [query,body]
 
     def crossover(self, crossable_selection):
