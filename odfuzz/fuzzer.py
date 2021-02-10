@@ -367,8 +367,15 @@ class Queryable:
                     generated_body = generated_body.strip("\'")
                 except:
                     pass
-                body[prprty._name] = generated_body
+                if Queryable.check_valid_property(prprty._name) == True: 
+                    body[prprty._name] = generated_body
         return body
+
+    def check_valid_property(prprty_name):
+        if prprty_name.endswith("_fc"):
+            return False
+        else:
+            return True
 
     def generate_options(self, query):
         depending_data = {}
