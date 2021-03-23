@@ -52,11 +52,13 @@ class EdmBoolean:
 class EdmByte:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(round(random.randint(0, 255)))
-        if generator_format == 'uri' or generator_format == 'body':
+        value = round(random.randint(0, 255))
+        if generator_format == 'uri':
+            return str(value)
+        elif generator_format == 'body':
             return value
         elif generator_format == 'key':
-            return value, value
+            return str(value), value
         else:
             raise ValueError
 
@@ -140,11 +142,13 @@ class EdmGuid:
 class EdmInt16:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(random.randint(-32768, 32767))
-        if generator_format == 'uri' or generator_format == 'body':
+        value = random.randint(-32768, 32767)
+        if generator_format == 'uri':
+            return str(value)
+        elif generator_format == 'body':
             return value
         elif generator_format == 'key':
-            return value , value
+            return str(value) , value
         else:
             raise ValueError
 
@@ -152,11 +156,13 @@ class EdmInt16:
 class EdmInt32:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(random.randint(-2147483648, 2147483647))
-        if generator_format == 'uri' or generator_format == 'body':
+        value = random.randint(-2147483648, 2147483647)
+        if generator_format == 'uri':
+            return str(value)
+        elif generator_format == 'body':
             return value
         elif generator_format == 'key':
-            return value , value
+            return str(value) , value
         else:
             raise ValueError
 
@@ -176,11 +182,13 @@ class EdmInt64:
 class EdmSByte:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(random.randint(-128, 127))
-        if generator_format == 'uri' or generator_format == 'body':
+        value = random.randint(-128, 127)
+        if generator_format == 'uri':
+            return str(value)
+        elif generator_format == 'body':
             return value
         elif generator_format == 'key':
-            return value , value
+            return str(value) , value
         else:
             raise ValueError
 
