@@ -52,11 +52,13 @@ class EdmBoolean:
 class EdmByte:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(round(random.randint(0, 255)))
-        if generator_format == 'uri' or generator_format == 'body':
+        value = round(random.randint(0, 255))
+        if generator_format == 'uri':
+            return str(value)
+        elif generator_format == 'body':
             return value
         elif generator_format == 'key':
-            return value, value
+            return str(value), value
         else:
             raise ValueError
 
@@ -72,7 +74,7 @@ class EdmDateTime:
         body_value = random.randint(0, DATE_INTERVAL)
         random_date = START_DATE + datetime.timedelta(seconds=body_value)
         uri_value = 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S'))
-        body_value = "/Date({})".format(body_value)
+        body_value = "/Date({})/".format(body_value)
         if generator_format == 'uri':
             return uri_value
         elif generator_format == 'body':
@@ -140,11 +142,13 @@ class EdmGuid:
 class EdmInt16:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(random.randint(-32768, 32767))
-        if generator_format == 'uri' or generator_format == 'body':
+        value = random.randint(-32768, 32767)
+        if generator_format == 'uri':
+            return str(value)
+        elif generator_format == 'body':
             return value
         elif generator_format == 'key':
-            return value , value
+            return str(value) , value
         else:
             raise ValueError
 
@@ -152,11 +156,13 @@ class EdmInt16:
 class EdmInt32:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(random.randint(-2147483648, 2147483647))
-        if generator_format == 'uri' or generator_format == 'body':
+        value = random.randint(-2147483648, 2147483647)
+        if generator_format == 'uri':
+            return str(value)
+        elif generator_format == 'body':
             return value
         elif generator_format == 'key':
-            return value , value
+            return str(value) , value
         else:
             raise ValueError
 
@@ -176,22 +182,26 @@ class EdmInt64:
 class EdmSByte:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(random.randint(-128, 127))
-        if generator_format == 'uri' or generator_format == 'body':
+        value = random.randint(-128, 127)
+        if generator_format == 'uri':
+            return str(value)
+        elif generator_format == 'body':
             return value
         elif generator_format == 'key':
-            return value , value
+            return str(value) , value
         else:
             raise ValueError
 
 class EdmString:
     @staticmethod
     def generate(self,generator_format='uri'):
-        value = '\'{}\''.format(RandomGenerator.random_string(self.max_length))
         if generator_format == 'uri' or generator_format == 'body':
+            value = '\'{}\''.format(RandomGenerator.random_string(self.max_length, generator_format))
             return value
         elif generator_format == 'key':
-            return value , value
+            uri_value,body_value = RandomGenerator.random_string(self.max_length, 'key')
+            uri_value = '\'{}\''.format(uri_value)
+            return uri_value , body_value
         else:
             raise ValueError
 
@@ -227,7 +237,12 @@ class EdmDateTimeOffset:
 
 class RandomGenerator(EncoderMixin):
     @staticmethod
-    def random_string(max_length):
+    def random_string(max_length, generator_format = 'uri'):
         string_length = round(random.random() * max_length)
         generated_string = ''.join(random.choice(BASE_CHARSET) for _ in range(string_length))
-        return RandomGenerator._encode_string(generated_string)
+        if generator_format == 'uri':
+            return RandomGenerator._encode_string(generated_string)
+        elif generator_format == 'body':
+            return generated_string
+        else:
+            return (RandomGenerator._encode_string(generated_string) , generated_string)
