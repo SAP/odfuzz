@@ -25,7 +25,7 @@ setup(
         'requests==2.23.0',
         'pymongo==3.10.1',
         'lxml==4.6.2',
-        'pyyaml==5.3.1',
+        'pyyaml==5.4',
         'python-dateutil==2.8.1',
         'pyodata==1.7.0',
     ],
