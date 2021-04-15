@@ -8,7 +8,6 @@ import time
 
 from odfuzz.constants import BASE_CHARSET, HEX_BINARY
 from odfuzz.encoders import EncoderMixin
-# from odfuzz.entities import StringSelf
 
 START_DATE = datetime.datetime(1970, 1, 1, 0, 0, 0)
 END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
