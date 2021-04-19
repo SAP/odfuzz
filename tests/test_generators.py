@@ -44,7 +44,7 @@ def test_double_generator_without_encoder():
 
     assert generated_double == '1.2712595986497026e+39d'
 
-def test_string_genrator_with_nonnegative():
+def test_string_generator_with_nonnegative():
     random.seed(10)
 
     mckString = StringNonNegativeMock(5,True)
@@ -52,7 +52,7 @@ def test_string_genrator_with_nonnegative():
     
     assert generated_string == "\'74894\'"
 
-def test_string_genrator_without_nonnegative():
+def test_string_generator_without_nonnegative():
     random.seed(10)
     
     mckString = StringNonNegativeMock(5,False)
