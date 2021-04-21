@@ -196,10 +196,20 @@ class EdmString:
     @staticmethod
     def generate(self,generator_format='uri'):
         if generator_format == 'uri' or generator_format == 'body':
-            value = '\'{}\''.format(RandomGenerator.random_string(self.max_length, generator_format))
+            if hasattr(self, 'non_negative')== False or self.non_negative==False:
+            #if sap:display-format="NonNegative" is used in Edm.String properties, then the string should contain only numeric characters
+            #Because of StringSelf in entities.py (used in StringFilterFunctions.func_concat()) doesnt have non-negative property, so hasattr() is used.
+                value = '\'{}\''.format(RandomGenerator.random_string(self.max_length, generator_format))
+            else:
+                upper_limit = (10**self.max_length)-1
+                value = '\'{}\''.format(random.randint(0,upper_limit))
             return value
         elif generator_format == 'key':
-            uri_value,body_value = RandomGenerator.random_string(self.max_length, 'key')
+            if hasattr(self, 'non_negative')== False or self.non_negative==False:
+                uri_value,body_value = RandomGenerator.random_string(self.max_length, 'key')
+            else:
+                upper_limit = (10**self.max_length)-1
+                uri_value = body_value = str(random.randint(0,upper_limit))
             uri_value = '\'{}\''.format(uri_value)
             return uri_value , body_value
         else:
