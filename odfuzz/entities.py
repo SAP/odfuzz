@@ -189,7 +189,7 @@ class FirstTouch:
         non_addressable_entity = SingleEntity(entity_set)
         queryable_entity = non_addressable_entity.generate_accessible_entity()
 
-        response = self._dispatcher.get(queryable_entity.path + '?sap-client=' + Config.fuzzer.sap_client)
+        response = self._dispatcher.get(queryable_entity[0].path + '?sap-client=' + Config.fuzzer.sap_client)
         if response.status_code == requests.codes.not_implemented:
             self._restrictions.add_exclude_restriction(entity_set.name, GLOBAL_ENTITY)
 

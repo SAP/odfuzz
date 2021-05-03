@@ -208,9 +208,9 @@ class Fuzzer:
             self._decode_single_query(query)
 
     def _decode_single_query(self, query):
-        self._decode_filter_option(query)
-        self._decode_search_option(query)
-        self._decode_accessible_keys(query)
+        self._decode_filter_option(query[0])
+        self._decode_search_option(query[0])
+        self._decode_accessible_keys(query[0])
 
     def _decode_filter_option(self, query):
         filter_option = query.dictionary.get('_$filter')
@@ -270,14 +270,14 @@ class Fuzzer:
         return True
 
     def _get_response(self, query):
-        query.response = self._dispatcher.get(query.query_string, timeout=REQUEST_TIMEOUT)
-        if query.response.status_code != 200:
+        query[0].response = self._dispatcher.get(query[0].query_string, timeout=REQUEST_TIMEOUT)
+        if query[0].response.status_code != 200:
             self._set_error_attributes(query)
             Stats.fails_num += 1
         else:
-            self._response_logger.log_response_time_and_data(query, Config.fuzzer.data_format)
-            setattr(query.response, 'error_code', '')
-            setattr(query.response, 'error_message', '')
+            self._response_logger.log_response_time_and_data(query[0], Config.fuzzer.data_format)
+            setattr(query[0].response, 'error_code', '')
+            setattr(query[0].response, 'error_message', '')
 
     def _handle_dispatcher_exception(self):
         Stats.exceptions_num += 1
@@ -300,7 +300,7 @@ class Fuzzer:
 
     def _save_to_database(self, queries):
         for query in queries:
-            self._database.save_entry(query.dictionary)
+            self._database.save_entry(query[0].dictionary)
 
     def _set_error_attributes(self, query):
         self._set_attribute_value(query, 'error_code', 'error', 'code')
@@ -308,11 +308,11 @@ class Fuzzer:
 
     def _set_attribute_value(self, query, attr, *args):
         try:
-            json = query.response.json()
+            json = query[0].response.json()
             value = self._get_attr_from_json(json, *args)
         except ValueError:
-            value = self._get_attr_from_xml(query.response.content, *args)
-        setattr(query.response, attr, value)
+            value = self._get_attr_from_xml(query[0].response.content, *args)
+        setattr(query[0].response, attr, value)
 
     def _get_attr_from_json(self, json, *args):
         for arg in args:
@@ -626,7 +626,7 @@ class URLsLogger:
 
     def log_ursl(self, queries):
         for query in queries:
-            self._urls_logger.info(query.url_hash + ':' + query.query_string)
+            self._urls_logger.info(query[0].url_hash + ':' + query[0].query_string)
 
 
 class StatsLogger:
@@ -646,7 +646,7 @@ class StatsLogger:
 
     def log_overall(self, queries):
         for query in queries:
-            query_dict = query.dictionary
+            query_dict = query[0].dictionary
             query_proprties = self._get_proprties(query_dict)
             for proprty in query_proprties:
                 self._log_formatted_stats(query, query_dict, proprty)
@@ -655,21 +655,21 @@ class StatsLogger:
         self._stats_logger.info(
             '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{AccessibleSet};{AccessibleKeys};'
             '{Property};{orderby};{top};{skip};"{filter}";{expand};"{search}";{inlinecount};{hash}'.format(
-                StatusCode=query.response.status_code,
-                ErrorCode=query.response.error_code,
-                ErrorMessage=query.response.error_message.replace('"', '""'),
+                StatusCode=query[0].response.status_code,
+                ErrorCode=query[0].response.error_code,
+                ErrorMessage=query[0].response.error_message.replace('"', '""'),
                 EntitySet=query_dict['entity_set'],
                 AccessibleSet=query_dict['accessible_set'],
                 AccessibleKeys=KeyValuesBuilder.build_string(query_dict['accessible_keys']),
                 Property=proprty,
-                orderby=query.options_strings['$orderby'],
-                top=query.options_strings['$top'],
-                skip=query.options_strings['$skip'],
-                filter=query.options_strings['$filter'].replace('"', '""'),
-                expand=query.options_strings['$expand'],
-                search=query.options_strings['search'].replace('"', '""'),
-                inlinecount=query.options_strings['$inlinecount'],
-                hash=query.url_hash
+                orderby=query[0].options_strings['$orderby'],
+                top=query[0].options_strings['$top'],
+                skip=query[0].options_strings['$skip'],
+                filter=query[0].options_strings['$filter'].replace('"', '""'),
+                expand=query[0].options_strings['$expand'],
+                search=query[0].options_strings['search'].replace('"', '""'),
+                inlinecount=query[0].options_strings['$inlinecount'],
+                hash=query[0].url_hash
             )
         )
 
@@ -699,7 +699,7 @@ class StatsLogger:
 
     def log_filter(self, queries):
         for query in queries:
-            filter_option = query.dictionary.get('_$filter')
+            filter_option = query[0].dictionary.get('_$filter')
             if filter_option:
                 logical_names = {logical['name'] for logical in filter_option['logicals']}
                 if 'and' in logical_names and 'or' in logical_names:
@@ -724,16 +724,16 @@ class StatsLogger:
         self._filter_logger.info(
             '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{Property};{logical};'
             '{operator};{function};"{operand}";{hash}'.format(
-                StatusCode=query.response.status_code,
-                ErrorCode=query.response.error_code,
-                ErrorMessage=query.response.error_message.replace('"', '""'),
-                EntitySet=query.dictionary['entity_set'],
+                StatusCode=query[0].response.status_code,
+                ErrorCode=query[0].response.error_code,
+                ErrorMessage=query[0].response.error_message.replace('"', '""'),
+                EntitySet=query[0].dictionary['entity_set'],
                 Property=proprty,
                 logical=logical_name,
                 operator=part['operator'],
                 function=func,
                 operand=part['operand'].replace('"', '""'),
-                hash=query.url_hash
+                hash=query[0].url_hash
             )
         )
 
@@ -896,11 +896,11 @@ class Analyzer:
 
     def analyze(self, query):
         new_score = FitnessEvaluator.evaluate(query)
-        query.score = new_score
+        query[0].score = new_score
         self._update_population_score(new_score)
-        predecessors_ids = query.dictionary['predecessors']
+        predecessors_ids = query[0].dictionary['predecessors']
         if predecessors_ids:
-            offspring = self._build_offspring_by_score(predecessors_ids, query, new_score)
+            offspring = self._build_offspring_by_score(predecessors_ids, query[0], new_score)
         else:
             offspring = EmptyOffspring(self._database)
         return offspring
@@ -981,12 +981,12 @@ class FitnessEvaluator:
     @staticmethod
     def evaluate(query):
         total_score = 0
-        keys_len = sum(len(option_name) for option_name in query.options.keys())
-        query_len = len(query.query_string) - len(query.entity_name) - keys_len
+        keys_len = sum(len(option_name) for option_name in query[0].options.keys())
+        query_len = len(query[0].query_string) - len(query[0].entity_name) - keys_len
         total_score += FitnessEvaluator.eval_string_length(query_len)
         total_score += FitnessEvaluator.eval_http_status_code(
-            query.response.status_code, query.response.error_code, query.response.error_message)
-        total_score += FitnessEvaluator.eval_http_response_time(query.response)
+            query[0].response.status_code, query[0].response.error_code, query[0].response.error_message)
+        total_score += FitnessEvaluator.eval_http_response_time(query[0].response)
         return total_score
 
     @staticmethod
