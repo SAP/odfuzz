@@ -368,6 +368,20 @@ class Queryable:
                 except:
                     pass
                 body[prprty._name] = generated_body
+        elif Config.fuzzer.http_method_enabled == "MERGE":
+            properties = accessible_entity.entity_set.entity_type._properties
+            property_count = random.randrange(0,len(properties))
+            for i in range(0,property_count):
+                selected_property = random.choice(list(properties.values()))
+                generated_body = selected_property.generate(generator_format='body')
+                try:
+                    generated_body = generated_body.strip("\'")
+                except:
+                    pass
+                body[selected_property._name] = generated_body
+                properties.pop(selected_property._name)
+        else:
+            raise ValueError("Config.fuzzer.http_method_enabled has unknown value")
         return body
 
     def generate_options(self, query):

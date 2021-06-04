@@ -109,8 +109,8 @@ class DispatchedBuilder:
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
     def __init__(self, metadata, restrictions,method):
-        if method not in ["GET","DELETE","PUT","POST"]:
-            raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT or POST".format(method))
+        if method not in ["GET","DELETE","PUT","POST","MERGE"]:
+            raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
         self._metadata_string = metadata
         self._restrictions = restrictions
