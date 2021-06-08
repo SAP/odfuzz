@@ -380,6 +380,8 @@ class Queryable:
                     pass
                 body[selected_property._name] = generated_body
                 properties.pop(selected_property._name)
+        elif Config.fuzzer.http_method_enabled == "GET" or Config.fuzzer.http_method_enabled == "DELETE":
+            pass
         else:
             raise ValueError("Config.fuzzer.http_method_enabled has unknown value")
         return body
