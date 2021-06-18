@@ -142,11 +142,18 @@ class DirectBuilder:
 
     def _append_queryable(self, query_group_data):
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
-        if Config.fuzzer.http_method_enabled != "POST":
+        if Config.fuzzer.http_method_enabled == "GET" or Config.fuzzer.http_method_enabled == "DELETE":
             self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
-        if Config.fuzzer.http_method_enabled != "PUT" and Config.fuzzer.http_method_enabled != "MERGE":
             self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
             self._append_associated_queryables(query_group_data)
+        elif Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "MERGE":
+            self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
+        elif Config.fuzzer.http_method_enabled == "POST":
+            self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
+            self._append_associated_queryables(query_group_data)
+        else:
+            raise ValueError("Config.http_method_enabled has unknown value")
+
 
     def _append_associated_queryables(self, query_group_data):
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
