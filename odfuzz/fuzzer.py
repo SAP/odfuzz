@@ -353,33 +353,57 @@ class Queryable:
         Stats.tests_num += 1
         # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
         return query,body
+    
+    def generate_put_post_body(self, accessible_entity, body_key_pairs):
+        body={}
+        properties = accessible_entity.entity_set.entity_type._properties
+        for prprty in properties.values():
+            #checking if the property exists in generated body_key_pairs. If yes, then the body equivalent value is used
+            if prprty.name in body_key_pairs:
+                generated_body = body_key_pairs[prprty.name]
+            else:
+                generated_body = prprty.generate(generator_format='body')
+            try:
+                generated_body = generated_body.strip("\'")
+            except:
+                pass
+            body[prprty._name] = generated_body
+        return body
 
-    def generate_body(self,accessible_entity,key_pairs):
+
+    def generate_merge_body(self, accessible_entity, body_key_pairs):
+        body = {}
+        properties = {}
+        #if the property is a key, then its omitted from the body
+        for proprty in accessible_entity.entity_set.entity_type._properties:
+            if proprty not in body_key_pairs:
+                properties[proprty] = accessible_entity.entity_set.entity_type._properties[proprty]
+        #if no non-key properties exist, then empty body returned
+        if len(properties) == 0:
+            return properties
+        #The length of the body is randomly choosen, between 1 and the number of non-key properties
+        property_count = random.randint(1,len(properties))
+        #The body is populated with properties selected at random
+        for i in range(0,property_count):
+            selected_property = random.choice(list(properties.values()))
+            generated_body = selected_property.generate(generator_format='body')
+            try:
+                generated_body = generated_body.strip("\'")
+            except:
+                pass
+            body[selected_property._name] = generated_body
+            #property removed from the properties dict to avoid creating duplicates
+            properties.pop(selected_property._name)
+        return body
+        
+
+    def generate_body(self,accessible_entity,body_key_pairs):
+        #body initialised as empty dict. For GET and DELETE the body would remain empty
         body={}
         if Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "POST":
-            properties = accessible_entity.entity_set.entity_type._properties
-            for prprty in properties.values():
-                if prprty.name in key_pairs:
-                    generated_body = key_pairs[prprty.name]
-                else:
-                    generated_body = prprty.generate(generator_format='body')
-                try:
-                    generated_body = generated_body.strip("\'")
-                except:
-                    pass
-                body[prprty._name] = generated_body
+            body = self.generate_put_post_body(accessible_entity, body_key_pairs)
         elif Config.fuzzer.http_method_enabled == "MERGE":
-            properties = deepcopy(accessible_entity.entity_set.entity_type._properties)
-            property_count = random.randint(1,len(properties))
-            for i in range(0,property_count):
-                selected_property = random.choice(list(properties.values()))
-                generated_body = selected_property.generate(generator_format='body')
-                try:
-                    generated_body = generated_body.strip("\'")
-                except:
-                    pass
-                body[selected_property._name] = generated_body
-                properties.pop(selected_property._name)
+            body = self.generate_merge_body(accessible_entity, body_key_pairs)
         elif Config.fuzzer.http_method_enabled == "GET" or Config.fuzzer.http_method_enabled == "DELETE":
             pass
         else:
