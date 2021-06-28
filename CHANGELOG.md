@@ -4,10 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased - Alpha version 0.14a2]
+## [Unreleased - Alpha version 0.14a3]
 
 ### Added
-- New feature - Add support for HTTP DELETE method in fuzzing.
+- New feature - Add support for HTTP DELETE, PUT, POST and MERGE methods in fuzzing - intentionaly DirectBuilder usage only, CLI pending.
 
 ## [0.13.3]
 
