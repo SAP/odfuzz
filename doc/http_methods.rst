@@ -8,22 +8,22 @@ An Overview of Supported Query Options
 
 
 .. csv-table:: HTTP verb implementation
-   :header: "", "GET", "DELETE", "PUT", "POST" 
-   :widths: 30, 15, 15, 15, 15
+   :header: "", "GET", "DELETE", "PUT", "POST", "MERGE" 
+   :widths: 30, 15, 15, 15, 15, 15
 
-   "$inlinecount", "Yes", "No", "No", "No"
-   "$search", "Yes", "No", "No", "No"
-   "$top", "Yes", "No", "No", "No"
-   "$skip", "Yes", "No", "No", "No"
-   "$orderby", "Yes", "No", "No", "No"
-   "$expand", "Yes", "No", "No", "No"
-   "$filter", "Yes", "No", "No", "No"
-   "$format", "Yes", "No", "No", "No"
-   "body value", "Yes", "Yes", "Yes", "Yes"
-   "populated body", "No", "No", "Yes", "Yes"
-   "Addressing Single entities", "Yes", "Yes", "Yes", "No"
-   "Addressing Multiple entities", "Yes", "Yes", "No", "Yes"
-   "Synced URI and body values", "No", "No", "Yes", "No"
+   "$inlinecount", "Yes", "No", "No", "No", "No"
+   "$search", "Yes", "No", "No", "No", "No"
+   "$top", "Yes", "No", "No", "No", "No"
+   "$skip", "Yes", "No", "No", "No", "No"
+   "$orderby", "Yes", "No", "No", "No", "No"
+   "$expand", "Yes", "No", "No", "No", "No"
+   "$filter", "Yes", "No", "No", "No", "No"
+   "$format", "Yes", "No", "No", "No", "No"
+   "body value", "Yes", "Yes", "Yes", "Yes", "Yes"
+   "properties in body", "None", "None", "All", "All", "Random subset of non-key properties"
+   "Addressing Single entities", "Yes", "Yes", "Yes", "No", "Yes"
+   "Addressing Multiple entities", "Yes", "Yes", "No", "Yes", "No"
+   "Synced URI and body values", "No", "No", "Yes", "No", "No, Keys get omitted"
 
 **"body value"** refers to the fact that a value for the body is returned by *generate()* function. 
 **"populated body"** refers to the fact that the value contains data, and isnt an empty JSON parsed into a string.
@@ -34,7 +34,7 @@ Introduction
 ------------
 
 The class DirectBuilder provides an interface for developers to integrate the query generation functionalities into their projects.
-As of ver. **0.14a2** the supported list of HTTP methods in DirectBuilder are **"GET", "DELETE", "PUT" and "POST"**. 
+As of ver. **0.14a2** the supported list of HTTP methods in DirectBuilder are **"GET", "DELETE", "PUT", "POST" and "MERGE"**. 
 
 .. code-block:: python
 
@@ -141,6 +141,22 @@ On calling *SingleQueryable.generate()*, this would return a fuzzed URI string a
      {"CategoryID": "1714953551", "CategoryName": "%21%C2%9Dla%C3%92l%24", "Description": "hz%60%C3%8F%C3%8F%7B%C3%AAi%2Bk%C3%81%C2%A4%C3%96xc%C5%93%C2%A85k%C3%93%2A%C3%B5%C2%BBrLD%2A%E2%80%A1", "Picture": "YmluYXJ5J2FjOTkxNjY2OWZBZWIyJw=="}
 
 
+MERGE Queries
+-------------
+
+For generating MERGE queries, DirectBuilder needs to be called with **method = "MERGE"**
+
+.. code-block:: python
+
+    examplebuilder = DirectBuilder(metadata_file_contents, restrictions, "MERGE")
+
+On calling *SingleQueryable.generate()*, this would return a fuzzed URI string and a JSON body with a subset of non-key properties.
+
+::
+
+     Categories(CategoryID=1714953551)?sap-client=500
+
+     {"CategoryName": "%21%C2%9Dla%C3%92l%24", "Description": "hz%60%C3%8F%C3%8F%7B%C3%AAi%2Bk%C3%81%C2%A4%C3%96xc%C5%93%C2%A85k%C3%93%2A%C3%B5%C2%BBrLD%2A%E2%80%A1", "Picture": "YmluYXJ5J2FjOTkxNjY2OWZBZWIyJw=="}
 
 
 
@@ -149,15 +165,15 @@ Code Documentation
 ==================
 
 The **method** parameter in DirectBuilder
-----------------------------------------
+-----------------------------------------
 
 DirectBuilder now has an additional parameter called **method**. This accepts the users choice of HTTP method to get the fuzzed requests. The DirectBuilder *init* checks for validity and calls the *Config.fuzzer* setter to set the value in the Config object.
 
 .. code-block:: python
 
     def __init__(self, metadata, restrictions,method):
-        if method not in ["GET","DELETE","PUT","POST"]:
-            raise ValueError("The http method value \'{}\' is invalid\nUse either GET, DELETE, PUT or POST".format(method))
+        if method not in ["GET","DELETE","PUT","POST","MERGE"]:
+            raise ValueError("The http method value \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
         self._metadata_string = metadata
         self._restrictions = restrictions
@@ -176,46 +192,56 @@ The list of options are illustrated in the table above.
 Generating a Body
 -----------------
 
-For PUT and POST queries, a new element for the queries need to be generated i.e. the **body** of the request. 
+For **PUT**, **POST** and **MERGE** queries, a new element for the queries need to be generated i.e. the **body** of the request. 
 The first change is returning a tuple of *query, body* instead of just the *query* from *SingleQueryable.generate()*.
-A new function *generate_body()* is added which fetches the proprties from the metadata and calls the generator on each of them, and appends them is a dictionary.
-The dictionary is jsonified before being returned as the body. This process is skipped for **GET** and **DELETE**,and they return an empty jsonified string instead, to be compatible with the tuple returned. The changes made to the generators are described further below.
+A new function *generate_body()* is added which fetches the proprties from the metadata and calls the generator on each of them, and appends them is a dictionary. While generating body for **MERGE** the key properties are skipped.
+The dictionary is jsonified before being returned as the body.
+
+This process is skipped for **GET** and **DELETE**,and they return an empty jsonified string instead, to be compatible with the tuple returned. The changes made to the generators are described further below.
 
 
-Differentiating between PUT and POST
-------------------------------------
+Differentiating between PUT, POST and MERGE
+-------------------------------------------
 
-PUT is idempotent and address single entities, whereas POST isnt idempotent and addresses multiple entities. Therefore changes are made in *DirectBuilder._append_queryable()* so that PUT avoids generating multiple entities and POST avoids generating single entities, during query generation.
+**PUT** and **MERGE** are idempotent and address single entities, whereas **POST** isnt idempotent and addresses multiple entities. Therefore changes are made in *DirectBuilder._append_queryable()* so that **PUT/MERGE** avoids generating multiple entities and **POST** avoids generating single entities, during query generation.
+
+**GET** and **DELETE** address both single entities and multiple entities.
 
 .. code-block:: python
 
     def _append_queryable(self, query_group_data):
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
-        if Config.fuzzer.http_method_enabled != "POST":
+        if Config.fuzzer.http_method_enabled == "GET" or Config.fuzzer.http_method_enabled == "DELETE":
             self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
-        if Config.fuzzer.http_method_enabled != "PUT":
             self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
             self._append_associated_queryables(query_group_data)
+        elif Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "MERGE":
+            self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
+        elif Config.fuzzer.http_method_enabled == "POST":
+            self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
+            self._append_associated_queryables(query_group_data)
+        else:
+            raise ValueError("Config.http_method_enabled has unknown value")
 
 
 Alternative EDM Generators for Body
 -----------------------------------
 
-Some EDM data types have different representation format in the body than in the URI. So the generators needed to adapt for the body implementation. The *generate()* function in the generator classes now have an additional parameter **format** which is provided the value "body". The default generation is done by **generate(format="uri")**. Following is an example of calling generator on a property for body format.
+Some EDM data types have different representation format in the body than in the URI. So the generators needed to adapt for the body implementation. The *generate()* function in the generator classes now have an additional parameter **generator_format** which is provided the value "body". The default generation is done by **generate(generator_format="uri")**. Following is an example of calling generator on a property for body format.
 
 .. code-block:: python
 
-    generated_body = prprty.generate(format='body')
+    generated_body = prprty.generate(generator_format='body')
 
 
 
 Synchronizing values between URI and Body
 -----------------------------------------
 
-The fuzzed values for properties in both the URI and Body needs to be in sync, even across the formats to make them valid Odata requests in most cases. For this scenario, both the URI and body value for a property needs to be generated simultaneously in both the formats in a single step. A new **format** value "key" is used for this purpose.
+The fuzzed values for properties in both the URI and Body needs to be in sync, even across the formats to make them valid Odata requests in most cases. For this scenario, both the URI and body value for a property needs to be generated simultaneously in both the formats in a single step. A new **generator_format** value "key" is used for this purpose.
 
 .. code-block:: python
 
-    uri_value, body_value = prprty.generate(format="key")
+    uri_value, body_value = prprty.generate(generator_format="key")
 
 This would return a tuple, where the first value would be in the standard URI(literal) format, and the second value would be the same in body(JSON) format.

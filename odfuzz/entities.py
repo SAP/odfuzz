@@ -109,8 +109,8 @@ class DispatchedBuilder:
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
     def __init__(self, metadata, restrictions,method):
-        if method not in ["GET","DELETE","PUT","POST"]:
-            raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT or POST".format(method))
+        if method not in ["GET","DELETE","PUT","POST","MERGE"]:
+            raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
         self._metadata_string = metadata
         self._restrictions = restrictions
@@ -142,11 +142,18 @@ class DirectBuilder:
 
     def _append_queryable(self, query_group_data):
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
-        if Config.fuzzer.http_method_enabled != "POST":
+        if Config.fuzzer.http_method_enabled == "GET" or Config.fuzzer.http_method_enabled == "DELETE":
             self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
-        if Config.fuzzer.http_method_enabled != "PUT":
             self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
             self._append_associated_queryables(query_group_data)
+        elif Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "MERGE":
+            self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
+        elif Config.fuzzer.http_method_enabled == "POST":
+            self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
+            self._append_associated_queryables(query_group_data)
+        else:
+            raise ValueError("Config.http_method_enabled has unknown value")
+
 
     def _append_associated_queryables(self, query_group_data):
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
