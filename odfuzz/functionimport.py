@@ -8,11 +8,9 @@ from odfuzz.generators import (
 import xmltodict
 from odfuzz import generators
 
-#opens the xml file and parses it to create an OrderDict, and returns the dict back
-def extract_metadata(file):
-    with open(file) as xml_file:
-        metadata = xmltodict.parse(xml_file.read())
-    xml_file.close()
+# parses metadata to create an OrderDict, and returns the dict back
+def extract_metadata(metadata_string):
+    metadata = xmltodict.parse(metadata_string)
     return metadata
 
 #generates custom objects for EdmString and EdmDecimal because the generator expects an object an object with attributes
@@ -73,13 +71,12 @@ def construct_query(function_import):
 
 
 #equivalent to the main function
-def start(file_name :str,method):
-    urls_per_fi = int(ENV['ODFUZZ_URLS_PER_PROPERTY'])
+def start(metadata ,method,urls_per_fi):
     method_filter = ["GET", "POST", "Not Specified"]
     payload_list = []
+    metadata = extract_metadata(metadata)
     if method not in method_filter:
         raise ValueError("Incorrect HTTP method. Please use either GET or POST. \"Not Specified\" would default to GET.")
-    metadata = extract_metadata(file_name)
     func_import_list = metadata['edmx:Edmx']['edmx:DataServices']['Schema']['EntityContainer']['FunctionImport']
     for i in func_import_list:
         if i['@m:HttpMethod'] == "Not Specified": #putting default of GET if not specified
