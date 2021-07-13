@@ -12,7 +12,7 @@ from pyodata.exceptions import PyODataException
 
 class FunctionImport:
     #calls pyodata to parse the metadata file and give back the list of Function Imports 
-    def get_functionimport(metadata_string):
+    def get_functionimport_list(metadata_string):
         try:
             service_model = Edmx.parse(metadata_string)
         except (PyODataException, RuntimeError) as pyodata_ex:
@@ -38,7 +38,7 @@ class FunctionImport:
 
 
     #calls the generate() on different Edmtypes, by overloading the respective class. Equivalent to monkey.py
-    def generate(parameter):
+    def generate_payload_per_param_type(parameter):
         if parameter.typ.name == 'Edm.String' or parameter.typ.name == 'Edm.Decimal':
             payload = FunctionImport.generate_object(parameter)
         else:
@@ -49,11 +49,11 @@ class FunctionImport:
         return parameter.name, payload
 
 
-    def fuzz(functionimport_single):
+    def generate_queries_for_functionimport(functionimport_single):
         name = functionimport_single.name
         parameters = {}
         for parameter in functionimport_single.parameters:
-            a = FunctionImport.generate(parameter)
+            a = FunctionImport.generate_payload_per_param_type(parameter)
             parameters[a[0]]= a[1]
         #constructing the url
         url = name+"?"
