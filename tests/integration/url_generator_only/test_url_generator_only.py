@@ -52,14 +52,18 @@ def test_expected_integration_sample():
             assert queries[0].query_string != ""
 
 
-
-def test_direct_builder_http_get():
+def builder(method):
     path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
     metadata_file_contents = path_to_metadata.read_bytes()
     restrictions = RestrictionsGroup(None)
-    get_builder = DirectBuilder(metadata_file_contents, restrictions,"GET")
-    get_entities = get_builder.build()
+    builder = DirectBuilder(metadata_file_contents, restrictions,method)
+    entities = builder.build()
     queryable_factory = SingleQueryable
+    return entities, queryable_factory
+
+
+def test_direct_builder_http_get():
+    get_entities , queryable_factory = builder("GET")
     queries_list = []
     queries_list.clear()
     for queryable in get_entities.all():
@@ -74,12 +78,7 @@ def test_direct_builder_http_get():
 
 
 def test_direct_builder_http_delete():
-    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
-    metadata_file_contents = path_to_metadata.read_bytes()
-    restrictions = RestrictionsGroup(None)
-    del_builder = DirectBuilder(metadata_file_contents, restrictions,"DELETE")
-    del_entities = del_builder.build()
-    queryable_factory = SingleQueryable
+    del_entities , queryable_factory = builder("DELETE")
     queries_list = []
     queries_list.clear()
     for queryable in del_entities.all():
@@ -94,12 +93,7 @@ def test_direct_builder_http_delete():
 
 def test_direct_builder_http_put_url():
     random.seed(20)
-    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
-    metadata_file_contents = path_to_metadata.read_bytes()
-    restrictions = RestrictionsGroup(None)
-    put_builder = DirectBuilder(metadata_file_contents, restrictions,"PUT")
-    put_entities = put_builder.build()
-    queryable_factory = SingleQueryable
+    put_entities , queryable_factory = builder("PUT")
     queries_list = []
     queries_list.clear()
     for queryable in put_entities.all():
@@ -114,12 +108,7 @@ def test_direct_builder_http_put_url():
 
 def test_direct_builder_http_post_url():
     random.seed(20)
-    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
-    metadata_file_contents = path_to_metadata.read_bytes()
-    restrictions = RestrictionsGroup(None)
-    post_builder = DirectBuilder(metadata_file_contents, restrictions,"POST")
-    post_entities = post_builder.build()
-    queryable_factory = SingleQueryable
+    post_entities , queryable_factory = builder("POST")
     queries_list = []
     queries_list.clear()
     for queryable in post_entities.all():
@@ -134,12 +123,7 @@ def test_direct_builder_http_post_url():
 
 def test_direct_builder_body_generation():
     random.seed(20)
-    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
-    metadata_file_contents = path_to_metadata.read_bytes()
-    restrictions = RestrictionsGroup(None)
-    dir_builder = DirectBuilder(metadata_file_contents, restrictions,"PUT")
-    dir_entities = dir_builder.build()
-    queryable_factory = SingleQueryable
+    dir_entities , queryable_factory = builder("PUT")
     body_list = []
     body_list.clear()
     for queryable in dir_entities.all():
@@ -152,15 +136,10 @@ def test_direct_builder_body_generation():
 
 def test_direct_builder_http_merge_body():
     random.seed(20)
-    path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
-    metadata_file_contents = path_to_metadata.read_bytes()
-    restrictions = RestrictionsGroup(None)
-    dir_builder = DirectBuilder(metadata_file_contents, restrictions,"MERGE")
-    dir_entities = dir_builder.build()
-    queryable_factory = SingleQueryable
+    merge_entities , queryable_factory = builder("MERGE")
     body_list = []
     body_list.clear()
-    for queryable in dir_entities.all():
+    for queryable in merge_entities.all():
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
