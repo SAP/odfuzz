@@ -88,10 +88,14 @@ class EdmDateTime:
 class EdmDecimal:
     @staticmethod
     def generate(self,generator_format='uri'):
-        divider = random.randint(1, 10 ** self.scale)
-        scale_range = random.randint(0, self.scale)
-        rand_int = random.randint(1, (10 ** (self.precision - scale_range)) - 1)
-        value = '{0:.{1}f}'.format(rand_int / divider, scale_range) + 'm'
+        if self.precision == self.scale:
+            rand_decimal = random.randint(1, (10 ** self.precision) - 1) / (10 ** self.scale)
+            value = "{}m".format(rand_decimal)
+        else:
+            divider = random.randint(1, 10 ** self.scale)
+            scale_range = random.randint(0, self.scale)
+            rand_int = random.randint(1, (10 ** (self.precision - scale_range)) - 1)
+            value = '{0:.{1}f}'.format(rand_int / divider, scale_range) + 'm'
         if generator_format == 'uri' or generator_format == 'body':
             return value
         elif generator_format == 'key':

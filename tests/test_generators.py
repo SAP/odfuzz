@@ -2,11 +2,12 @@ import random
 
 from collections import namedtuple
 
-from odfuzz.generators import EdmDouble, EdmString, RandomGenerator
+from odfuzz.generators import EdmDecimal, EdmDouble, EdmString, RandomGenerator
 from odfuzz.encoders import encode_string
 
 StringPropertyMock = namedtuple('StringPropertyMock', 'max_length')
 StringNonNegativeMock = namedtuple('StringNonNegativeMock',['max_length','non_negative'])
+DecimalMock = namedtuple('DecimalMock', ['precision','scale'])
 
 
 def test_string_generator_with_encoder():
@@ -60,3 +61,10 @@ def test_string_generator_without_nonnegative():
     
     assert generated_string == "\'©¹Ñ\'"
 
+def test_decimal_precision_equals_scale():
+    random.seed(10)
+
+    mckdecimal = DecimalMock(3,3)
+    generated_decimal = EdmDecimal.generate(mckdecimal)
+    
+    assert generated_decimal == '0.586m'
