@@ -26,8 +26,7 @@ class FuzzerConfig:
         self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
         env_url_per_property =  os.getenv(ENV_URLS_PER_PROPERTY, DEFAULT_URLS_PER_PROPERTY)
         self._urls_per_property = int(env_url_per_property)
-        env_ignore_restriction = os.getenv(ENV_IGNORE_METADATA_RESTRICTIONS,DEFAULT_IGNORE_METADATA_RESTRICTIONS)
-        self._ignore_restriction = env_ignore_restriction
+        self._ignore_restriction = os.getenv(ENV_IGNORE_METADATA_RESTRICTIONS,DEFAULT_IGNORE_METADATA_RESTRICTIONS)
         self._http_method_enabled = "GET"
 
         if os.getenv(ENV_USE_ENCODER, DEFAULT_USE_ENCODER) == 'True':
