@@ -1,6 +1,6 @@
 """This module contains global constants."""
-
 import os
+from datetime import datetime
 
 # configuration constants, used while initializing loggers which are used for logging stats and logging info messages;
 # used in loggers.py
@@ -41,6 +41,7 @@ ENV_ASYNC_REQUESTS_NUM = 'ODFUZZ_ASYNC_REQUESTS_NUM'
 ENV_ODFUZZ_CERTIFICATE_PATH = 'ODFUZZ_CERTIFICATE_PATH'
 ENV_USE_ENCODER = 'ODFUZZ_USE_ENCODER'
 ENV_IGNORE_METADATA_RESTRICTIONS = 'ODFUZZ_IGNORE_METADATA_RESTRICTIONS'
+ENV_CLI_RUNNER_SEED = 'ODFUZZ_CLI_RUNNER_SEED' #ability to set the "random.seed()" in CLI runner for example for debugging or experiments.
 
 # default configuration values; these values are retrieved by default if no environment variable overwrites them
 DEFAULT_SAP_CLIENT = '500'
@@ -48,8 +49,9 @@ DEFAULT_DATA_FORMAT = 'json'
 DEFAULT_URLS_PER_PROPERTY = 100
 DEFAULT_ASYNC_REQUESTS_NUM = 10
 DEFAULT_IGNORE_METADATA_RESTRICTIONS = 'False'
-
 DEFAULT_USE_ENCODER = 'True'
+DEFAULT_CLI_RUNNER_SEED = datetime.now() #the default value for random.seed() in CLI runner, as was in fuzzer.py hardcoded
+
 
 # names of restrictions which are used for searching for keywords; these constants are also used in the module fuzzer.py
 # for creating dictionary which is going to be saved to the database - these constants are truly global, so the user

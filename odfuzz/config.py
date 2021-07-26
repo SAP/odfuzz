@@ -9,6 +9,7 @@ from odfuzz.constants import (
     DEFAULT_SAP_CLIENT,
     DEFAULT_URLS_PER_PROPERTY,
     DEFAULT_IGNORE_METADATA_RESTRICTIONS,
+    DEFAULT_CLI_RUNNER_SEED,
     ENV_ASYNC_REQUESTS_NUM,
     ENV_DATA_FORMAT,
     ENV_USE_ENCODER,
@@ -16,6 +17,7 @@ from odfuzz.constants import (
     ENV_SAP_CLIENT,
     ENV_URLS_PER_PROPERTY,
     ENV_IGNORE_METADATA_RESTRICTIONS,
+    ENV_CLI_RUNNER_SEED,
 )
 
 
@@ -27,6 +29,7 @@ class FuzzerConfig:
         env_url_per_property =  os.getenv(ENV_URLS_PER_PROPERTY, DEFAULT_URLS_PER_PROPERTY)
         self._urls_per_property = int(env_url_per_property)
         self._ignore_restriction = os.getenv(ENV_IGNORE_METADATA_RESTRICTIONS,DEFAULT_IGNORE_METADATA_RESTRICTIONS)
+        self._cli_runner_seed = os.getenv(ENV_CLI_RUNNER_SEED, DEFAULT_CLI_RUNNER_SEED)
         self._http_method_enabled = "GET"
 
         if os.getenv(ENV_USE_ENCODER, DEFAULT_USE_ENCODER) == 'True':
@@ -54,6 +57,9 @@ class FuzzerConfig:
     def ignore_restriction(self):
         return self._ignore_restriction
 
+    @property
+    def cli_runner_seed(self):
+        return self._cli_runner_seed
 
     @property
     def http_method_enabled(self):

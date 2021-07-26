@@ -20,8 +20,8 @@ setup(
     },
     zip_safe=False,
     install_requires=[
-        'gevent==20.5.0',
-        'greenlet==0.4.15',
+        'gevent==21.1.2',
+        'greenlet==1.1.0',
         'requests==2.23.0',
         'pymongo==3.10.1',
         'lxml==4.6.3',
