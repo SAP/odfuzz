@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - New feature - Add support for HTTP DELETE, PUT, POST and MERGE methods in fuzzing - intentionaly DirectBuilder usage only, CLI pending.
 - fuzzing - Add support for sap:display-format="NonNegative"
 - chore: Add version logging for CLI usage
+- chore: Add config option to set random.seed() via env.var ODFUZZ_CLI_RUNNER_SEED
 
 ## [0.13.3]
 
