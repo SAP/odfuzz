@@ -1,5 +1,4 @@
 """This module contains core parts of the fuzzer and additional handler classes."""
-"""This module contains core parts of the fuzzer and additional handler classes."""
 
 import random
 import io

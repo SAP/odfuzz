@@ -21,7 +21,6 @@ from odfuzz.constants import (
 )
 
 
-#TODO: This is in the state of working, but is there any real need for distinguishing Fuzzer and Dispatecher config? even in fuzzer is part of dispatching (url part)
 class FuzzerConfig:
     def __init__(self):
         self._sap_client = os.getenv(ENV_SAP_CLIENT, DEFAULT_SAP_CLIENT)
