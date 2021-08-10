@@ -11,7 +11,6 @@ import requests.adapters
 import json
 
 from copy import deepcopy
-from datetime import datetime
 from collections import namedtuple
 from abc import ABCMeta, abstractmethod
 from lxml import etree
@@ -59,6 +58,11 @@ class Manager:
         self._output_handler.print_status('odfuzz version: ' + __version__)
         self._logger.info('odfuzz version: ' + __version__)
 
+        seed = Config.fuzzer.cli_runner_seed
+        random.seed(seed, version=1)
+        self._output_handler.print_status('random.seed() is set to \'{}\''.format(seed))
+        self._logger.info('random.seed() is set to \'{}\''.format(seed))
+
         database = self.establish_database_connection(MongoDBHandler, MongoDB)
         entities = self.build_entities()
         fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler, self._asynchronous,
@@ -68,7 +72,8 @@ class Manager:
         fuzzer.run()
 
     def establish_database_connection(self, database_handler, database_client):
-        self._output_handler.print_status('Connecting to the database...')
+        self._output_handler.print_status('Connecting to the database - Collection: {}'.format(self._collection_name))
+        self._logger.info('Connecting to the database - Collection: {}'.format(self._collection_name))
         try:
             return database_handler(database_client(self._collection_name))
         except ServerSelectionTimeoutError:
@@ -79,7 +84,6 @@ class Manager:
         """ Performs the first HTTP request of fuzzer to target server for $metadata and generates queryable entities for further fuzzing.
 
         """
-        self._output_handler.print_status('Collection: {}'.format(self._collection_name))
         self._output_handler.print_status('Initializing queryable entities...')
         builder = DispatchedBuilder(self._dispatcher, self._restrictions, self._first_touch)
         return builder.build()
@@ -130,9 +134,6 @@ class Fuzzer:
         sys.stderr = LoggerErrorWritter(self._logger)
 
     def run(self):
-        time_seed = datetime.now()
-        random.seed(time_seed, version=1)
-        self._logger.info('Seed is set to \'{}\''.format(time_seed))
 
         self._database.delete_collection()
         self.seed_population()

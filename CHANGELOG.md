@@ -4,12 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased - Alpha version 0.14a3]
+## [Unreleased]
+
+## [0.14.0]
 
 ### Added
 - New feature - Add support for HTTP DELETE, PUT, POST and MERGE methods in fuzzing - intentionaly DirectBuilder usage only, CLI pending.
 - fuzzing - Add support for sap:display-format="NonNegative"
 - chore: Add version logging for CLI usage
+- chore: Add config option to set random.seed() via env.var ODFUZZ_CLI_RUNNER_SEED
+- chore: Update dependencies (setup.py)
 
 ## [0.13.3]
 
