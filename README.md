@@ -1,5 +1,7 @@
 ﻿[![Build Status](https://travis-ci.com/SAP/odfuzz.svg?branch=master)](https://travis-ci.com/SAP/odfuzz)
 [![codecov](https://codecov.io/gh/SAP/odfuzz/branch/master/graph/badge.svg)](https://codecov.io/gh/SAP/odfuzz)
+[![REUSE status](https://api.reuse.software/badge/github.com/SAP/odfuzz)](https://api.reuse.software/info/github.com/SAP/odfuzz)
+
 
 # Odata service fuzzer - odfuzz
 The fuzzer for testing applications communicating via the OData protocol.
