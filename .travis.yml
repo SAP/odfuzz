@@ -27,3 +27,18 @@ notifications:
             - petr.hanak@sap.com            
     on_success: always
     on_failure: always
+    
+# reuse tool linter check    
+jobs:
+  include:    
+    - os: linux
+      language: minimal
+      services:
+      - docker
+      env:
+      - REUSE_TEST=1
+      before_install:
+      - docker pull fsfe/reuse:latest
+      - docker run -v ${TRAVIS_BUILD_DIR}:/data fsfe/reuse:latest lint
+      script:
+      - true 
