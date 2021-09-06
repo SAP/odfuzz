@@ -551,6 +551,17 @@
           <End Role="Employees" EntitySet="Employees" />
           <End Role="Territories" EntitySet="Territories" />
         </AssociationSet>
+        <FunctionImport Name="DuplicateCategory" ReturnType="NorthwindModel.Category"
+          m:HttpMethod="POST" action-for="NorthwindModel.Category">
+          <Parameter Name="CategoryName" Type="Edm.String" Mode="In" MaxLength="256" />
+          <Parameter Name="DuplicateName" Type="Edm.String" Mode="In" MaxLength="256" />
+          <Parameter Name="DuplicationComment" Type="Edm.String" Mode="In" MaxLength="256" />
+          <Parameter Name="DeleteOriginal" Type="Edm.Boolean" Mode="In" />
+        </FunctionImport>
+        <FunctionImport Name="TerritoryUpdate" ReturnType="NorthwindModel.Territory"
+          m:HttpMethod="POST" action-for="NorthwindModel.Territory">
+            <Parameter Name="TerritoryID" Type="Edm.String" Mode="In" />
+      </FunctionImport>
       </EntityContainer>
     </Schema>
   </edmx:DataServices>
