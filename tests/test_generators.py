@@ -1,4 +1,5 @@
 import random
+import pytest
 
 from collections import namedtuple
 
@@ -8,6 +9,12 @@ from odfuzz.encoders import encode_string
 StringPropertyMock = namedtuple('StringPropertyMock', 'max_length')
 StringNonNegativeMock = namedtuple('StringNonNegativeMock',['max_length','non_negative'])
 DecimalMock = namedtuple('DecimalMock', ['precision','scale'])
+
+@pytest.fixture(autouse=True, scope="module")
+def teardown_module():
+    #setup part of the fixture
+    yield None #control back to the test instance
+    RandomGenerator._reset() #teardown part of the fixture
 
 
 def test_string_generator_with_encoder():
