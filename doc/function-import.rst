@@ -73,8 +73,53 @@ All the parameters need to be present in the service request, and a subset might
 This is an example of a fuzzed payload based on the definition provided above. This service request has to made with **POST** method.
 
 
-Further Learning
+Code Documentation & Usage
+==========================
+
+A new moudule **functionimport.py** is added which provides a standalone Function Import fuzzing workflow.
+There are 2 basic steps:
+
+1. Parsing
+   
+2. Query generation 
+
+Parsing
+-------
+
+The $metadata needs to parsed to obtain the Function Imports. This is done through Pyodata. 
+
+.. code-block:: python
+
+    def get_functionimport_list(metadata_string):
+        try:
+            service_model = Edmx.parse(metadata_string)
+        except (PyODataException, RuntimeError) as pyodata_ex:
+            raise BuilderError('An exception occurred while parsing metadata: {}'.format(pyodata_ex))
+        return service_model.function_imports
+    
+The above function accepts the $metadata string as bytes, and returns only the parsed list of Function Imports. Below is an example usage.
+
+.. code-block:: python
+  
+  import odfuzz.functionimport as FunctionImport
+  function_import_list = FunctionImport.get_functionimport_list(metadata_string_as_bytes)
+
+Query generation
 ----------------
+
+Each element of the list returned from above function is passed to **FunctionImport.generate_queries_for_functionimport()**.
+
+.. code-block:: python
+
+  for each_fi in function_import_list:
+      fuzzed_payload = FunctionImport.generate_queries_for_functionimport(each_fi)
+
+The function iterates through each parameter in the provided Function Import, and calls the corresponding generator based on the EDM Type.
+The generated values are then used to construct the URI string. 
+
+
+Further Learning
+================
 
 https://www.odata.org/documentation/odata-version-2-0/uri-conventions/ (3.3. Addressing Service Operations)
 https://help.sap.com/saphelp_nw74/helpdata/en/c5/dc22512c312314e10000000a44176d/frameset.htm
