@@ -11,6 +11,10 @@ class EncoderMixin:
     def _encode_string(cls, value):
         return cls._encode(value)
 
+    @classmethod
+    def _reset(cls):
+        cls._encode = encode_string if Config.fuzzer.use_encoder else lambda x: x
+
 
 class DecoderMixin:
     _decode = decode_string if Config.fuzzer.use_encoder else lambda x: x
