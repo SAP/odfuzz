@@ -23,7 +23,7 @@ def test_string_generator_with_encoder():
     random.seed(14)
     generated_string = EdmString.generate(StringPropertyMock(10))
 
-    assert generated_string == '\'%C3%B1\''
+    assert generated_string == '\'%C3%B2\''
 
 
 def test_string_generator_without_encoder():
@@ -32,7 +32,7 @@ def test_string_generator_without_encoder():
     random.seed(14)
     generated_string = EdmString.generate(StringPropertyMock(10))
 
-    assert generated_string == '\'ñ\''
+    assert generated_string == '\'ò\''
 
 
 def test_double_generator_with_encoder():
@@ -66,7 +66,7 @@ def test_string_generator_without_nonnegative():
     mckString = StringNonNegativeMock(5,False)
     generated_string = EdmString.generate(mckString)
     
-    assert generated_string == "\'©¹Ñ\'"
+    assert generated_string == "\'ªºÒ\'"
 
 def test_decimal_precision_equals_scale():
     random.seed(10)
