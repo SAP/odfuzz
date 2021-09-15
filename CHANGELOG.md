@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0]
+
 - New feature: Function imports fuzzing
 
 ## [0.14.0]
