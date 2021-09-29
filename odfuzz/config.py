@@ -10,6 +10,7 @@ from odfuzz.constants import (
     DEFAULT_URLS_PER_PROPERTY,
     DEFAULT_IGNORE_METADATA_RESTRICTIONS,
     DEFAULT_CLI_RUNNER_SEED,
+    DEFAULT_SAP_VENDOR_ENABLED,
     ENV_ASYNC_REQUESTS_NUM,
     ENV_DATA_FORMAT,
     ENV_USE_ENCODER,
@@ -18,6 +19,7 @@ from odfuzz.constants import (
     ENV_URLS_PER_PROPERTY,
     ENV_IGNORE_METADATA_RESTRICTIONS,
     ENV_CLI_RUNNER_SEED,
+    ENV_SAP_VENDOR_ENABLED,
 )
 
 
@@ -30,6 +32,7 @@ class FuzzerConfig:
         self._ignore_restriction = os.getenv(ENV_IGNORE_METADATA_RESTRICTIONS,DEFAULT_IGNORE_METADATA_RESTRICTIONS)
         self._cli_runner_seed = os.getenv(ENV_CLI_RUNNER_SEED, DEFAULT_CLI_RUNNER_SEED)
         self._http_method_enabled = "GET"
+        self._sap_vendor_enabled = True if os.getenv(ENV_SAP_VENDOR_ENABLED, DEFAULT_SAP_VENDOR_ENABLED) == 'True' else False
 
         if os.getenv(ENV_USE_ENCODER, DEFAULT_USE_ENCODER) == 'True':
             self._use_encoder = True
@@ -67,6 +70,14 @@ class FuzzerConfig:
     @http_method_enabled.setter
     def http_method_enabled(self, value):
         self._http_method_enabled = value
+    
+    @property
+    def sap_vendor_enabled(self):
+        return self._sap_vendor_enabled
+    
+    @sap_vendor_enabled.setter
+    def sap_vendor_enabled(self, value):
+        self._sap_vendor_enabled = value
 
 class DispatcherConfig:
     def __init__(self):

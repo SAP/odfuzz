@@ -42,6 +42,7 @@ ENV_ODFUZZ_CERTIFICATE_PATH = 'ODFUZZ_CERTIFICATE_PATH'
 ENV_USE_ENCODER = 'ODFUZZ_USE_ENCODER'
 ENV_IGNORE_METADATA_RESTRICTIONS = 'ODFUZZ_IGNORE_METADATA_RESTRICTIONS'
 ENV_CLI_RUNNER_SEED = 'ODFUZZ_CLI_RUNNER_SEED' #ability to set the "random.seed()" in CLI runner for example for debugging or experiments.
+ENV_SAP_VENDOR_ENABLED = 'ODFUZZ_SAP_VENDOR_ENABLED'
 
 # default configuration values; these values are retrieved by default if no environment variable overwrites them
 DEFAULT_SAP_CLIENT = '500'
@@ -51,6 +52,7 @@ DEFAULT_ASYNC_REQUESTS_NUM = 10
 DEFAULT_IGNORE_METADATA_RESTRICTIONS = 'False'
 DEFAULT_USE_ENCODER = 'True'
 DEFAULT_CLI_RUNNER_SEED = datetime.now() #the default value for random.seed() in CLI runner, as was in fuzzer.py hardcoded
+DEFAULT_SAP_VENDOR_ENABLED = 'False'
 
 
 # names of restrictions which are used for searching for keywords; these constants are also used in the module fuzzer.py
