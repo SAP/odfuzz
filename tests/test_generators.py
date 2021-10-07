@@ -3,8 +3,9 @@ import pytest
 
 from collections import namedtuple
 
-from odfuzz.generators import EdmDecimal, EdmDouble, EdmString, RandomGenerator
+from odfuzz.generators import EdmDecimal, EdmDouble, EdmString, EdmTime, RandomGenerator
 from odfuzz.encoders import encode_string
+from odfuzz.config import Config
 
 StringPropertyMock = namedtuple('StringPropertyMock', 'max_length')
 StringNonNegativeMock = namedtuple('StringNonNegativeMock',['max_length','non_negative'])
@@ -75,3 +76,24 @@ def test_decimal_precision_equals_scale():
     generated_decimal = EdmDecimal.generate(mckdecimal)
     
     assert generated_decimal == '0.586m'
+
+
+def test_decimal_for_sap_vendor_enabled():
+    random.seed(10)
+    Config.fuzzer.sap_vendor_enabled = True
+    
+    mckdecimal = DecimalMock(15,14)
+    generated_decimal = EdmDecimal.generate(mckdecimal,generator_format='body')
+    Config.fuzzer.sap_vendor_enabled = False
+
+    assert generated_decimal == '0.000113'
+
+
+def test_time_for_sap_vendor_enabled():
+    random.seed(10)
+    Config.fuzzer.sap_vendor_enabled = True
+
+    generated_time = EdmTime.generate(generator_format='body')
+    Config.fuzzer.sap_vendor_enabled = False
+
+    assert generated_time == 'PT06H02M27S'
