@@ -108,7 +108,7 @@ class DispatchedBuilder:
 
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
-    def __init__(self, metadata, restrictions,method):
+    def __init__(self, metadata, restrictions,method, sap_vendor_enabled = False):
         if method not in ["GET","DELETE","PUT","POST","MERGE"]:
             raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
@@ -116,6 +116,7 @@ class DirectBuilder:
         self._restrictions = restrictions
         Config.init()
         Config.fuzzer.http_method_enabled = method
+        Config.fuzzer.sap_vendor_enabled = sap_vendor_enabled
 
         # Ugly but necessary so the field exists for classes and methods in fuzzer.py using the Config.
         # Normally initialized in the middle of CLI calls, but in this case this is the first entrypoint and Config does not exists yet.

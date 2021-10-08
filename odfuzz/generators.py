@@ -8,6 +8,7 @@ import time
 
 from odfuzz.constants import BASE_CHARSET, HEX_BINARY
 from odfuzz.encoders import EncoderMixin
+from odfuzz.config import Config
 
 START_DATE = datetime.datetime(1970, 1, 1, 0, 0, 0)
 END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
@@ -90,16 +91,26 @@ class EdmDecimal:
     def generate(self,generator_format='uri'):
         if self.precision == self.scale:
             rand_decimal = random.randint(1, (10 ** self.precision) - 1) / (10 ** self.scale)
-            value = "{}m".format(rand_decimal)
+            sap_value = "{}".format(rand_decimal)
         else:
             divider = random.randint(1, 10 ** self.scale)
             scale_range = random.randint(0, self.scale)
             rand_int = random.randint(1, (10 ** (self.precision - scale_range)) - 1)
-            value = '{0:.{1}f}'.format(rand_int / divider, scale_range) + 'm'
-        if generator_format == 'uri' or generator_format == 'body':
-            return value
+            sap_value = '{0:.{1}f}'.format(rand_int / divider, scale_range)
+        
+        generic_value = sap_value + 'm'
+        if generator_format == 'uri':
+            return generic_value
+        elif generator_format == 'body':
+            if Config.fuzzer.sap_vendor_enabled == True:
+                return sap_value
+            else:
+                return generic_value
         elif generator_format == 'key':
-            return value , value
+            if Config.fuzzer.sap_vendor_enabled == True:
+                return generic_value, sap_value
+            else:
+                return generic_value, generic_value
         else:
             raise ValueError
 
@@ -225,11 +236,20 @@ class EdmTime:
     def generate(generator_format='uri'):
         random_time = START_DATE + datetime.timedelta(
             hours=random.randrange(23), minutes=random.randrange(59), seconds=random.randrange(59))
-        value = 'time\'P{0}\''.format(datetime.datetime.strftime(random_time, 'T%IH%MM%SS'))
-        if generator_format == 'uri' or generator_format == 'body':
-            return value
+        sap_value = 'P{}'.format(datetime.datetime.strftime(random_time, 'T%IH%MM%SS'))
+        generic_value = 'time\'{0}\''.format(sap_value)
+        if generator_format == 'uri':
+            return generic_value
+        elif generator_format == 'body':
+            if Config.fuzzer.sap_vendor_enabled == True:
+                return sap_value
+            else:
+                return generic_value
         elif generator_format == 'key':
-            return value , value
+            if Config.fuzzer.sap_vendor_enabled == True:
+                return generic_value, sap_value
+            else:
+                return generic_value, generic_value
         else:
             raise ValueError
 
