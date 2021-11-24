@@ -6,9 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0]
+
+- New feature: Add support for switching between Generic vs SAP OData implementation 
+
 ## [0.15.0]
 
-- New feature: Function imports fuzzing
+ - New feature: Function imports fuzzing
 
 ## [0.14.0]
 
