@@ -11,7 +11,11 @@ from odfuzz.encoders import EncoderMixin
 from odfuzz.config import Config
 
 START_DATE = datetime.datetime(1970, 1, 1, 0, 0, 0)
-END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
+END_DATE = datetime.datetime(3000, 12, 31, 23, 59, 59)
+
+'''The END_DATE is reduced to 23:59:59 31st DEC 3000 as that is the highest supported timestamp possible on Windows x64 platforms. 
+https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/localtime-localtime32-localtime64 '''
+
 DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
 
 
@@ -261,13 +265,25 @@ class EdmDateTimeOffset:
         random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
         formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
         offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
-        value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
-        if generator_format == 'body' or generator_format == 'uri':
-            return value
-        elif generator_format == 'key':
-            return value, value
+        generic_value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
+        sap_value = "/Date({0}{1})/".format(int(random_date.timestamp()),offset.replace("Z","+0000").replace(":",""))
+        if Config.fuzzer.sap_vendor_enabled == True:
+            if generator_format == 'uri':
+                return generic_value
+            elif generator_format == 'body':
+                return sap_value
+            elif generator_format == 'key':
+                return generic_value, sap_value
+            else:
+                raise ValueError
+
         else:
-            raise ValueError
+            if generator_format == 'body' or generator_format == 'uri':
+                return generic_value
+            elif generator_format == 'key':
+                return generic_value, generic_value
+            else:
+                raise ValueError
 
 class RandomGenerator(EncoderMixin):
     @staticmethod
