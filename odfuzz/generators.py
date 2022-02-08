@@ -264,9 +264,13 @@ class EdmDateTimeOffset:
     def generate(generator_format='uri'):
         random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
         formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
-        offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
-        generic_value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
-        sap_value = "/Date({0}{1})/".format(int(random_date.timestamp()),offset.replace("Z","+0000").replace(":",""))
+        offset = f'{random.randint(0, 1439):04d}'
+        offset_operator = random.choice('+-')
+        sap_offset = ''.join([offset_operator,offset])
+        div, mod  = divmod(int(offset),60)
+        generic_offset = ''.join([offset_operator, f'{div:02d}',':', f'{mod:02d}'])
+        generic_value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, generic_offset)
+        sap_value = "/Date({0}{1})/".format(int(random_date.timestamp()),sap_offset)
         if Config.fuzzer.sap_vendor_enabled == True:
             if generator_format == 'uri':
                 return generic_value
