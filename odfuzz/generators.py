@@ -267,8 +267,8 @@ class EdmDateTimeOffset:
         offset = f'{random.randint(0, 1439):04d}'
         offset_operator = random.choice('+-')
         sap_offset = ''.join([offset_operator,offset])
-        div, mod  = divmod(int(offset),60)
-        generic_offset = ''.join([offset_operator, f'{div:02d}',':', f'{mod:02d}'])
+        offset_hrs, offset_mins  = divmod(int(offset),60)
+        generic_offset = ''.join([offset_operator, f'{offset_hrs:02d}',':', f'{offset_mins:02d}'])
         generic_value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, generic_offset)
         sap_value = "/Date({0}{1})/".format(int(random_date.timestamp()),sap_offset)
         if Config.fuzzer.sap_vendor_enabled == True:
