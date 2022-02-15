@@ -262,15 +262,25 @@ class EdmDateTimeOffset:
 
     @staticmethod
     def generate(generator_format='uri'):
-        random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
-        formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
-        offset = f'{random.randint(0, 1439):04d}'
-        offset_operator = random.choice('+-')
-        sap_offset = ''.join([offset_operator,offset])
-        offset_hrs, offset_mins  = divmod(int(offset),60)
-        generic_offset = ''.join([offset_operator, f'{offset_hrs:02d}',':', f'{offset_mins:02d}'])
-        generic_value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, generic_offset)
-        sap_value = "/Date({0}{1})/".format(int(random_date.timestamp()),sap_offset)
+        '''
+        Once in roughly 10 attempts the generator will return values for 31 DEC 9999, 23:59:59.
+        This value represents infinity. Windows x64 systems cannot generate this timestamp so its hardcoded.
+        '''
+        chance_of_infinity = random.randint(1,10)
+        if chance_of_infinity == 10:
+            generic_value = "datetimeoffset'9999-12-31T23:59:59+00:00'"
+            sap_value = "/Date(253402300799+0000)/"
+        else:
+            random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
+            formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
+            offset = f'{random.randint(0, 1439):04d}'
+            offset_operator = random.choice('+-')
+            sap_offset = ''.join([offset_operator,offset])
+            offset_hrs, offset_mins  = divmod(int(offset),60)
+            generic_offset = ''.join([offset_operator, f'{offset_hrs:02d}',':', f'{offset_mins:02d}'])
+            generic_value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, generic_offset)
+            sap_value = "/Date({0}{1})/".format(int(random_date.timestamp()),sap_offset)
+
         if Config.fuzzer.sap_vendor_enabled == True:
             if generator_format == 'uri':
                 return generic_value
@@ -280,7 +290,6 @@ class EdmDateTimeOffset:
                 return generic_value, sap_value
             else:
                 raise ValueError
-
         else:
             if generator_format == 'body' or generator_format == 'uri':
                 return generic_value
