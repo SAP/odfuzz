@@ -76,10 +76,20 @@ class EdmDateTime:
         The format of Edm.DateTime is defined as datetime'yyyy-mm-ddThh:mm[:ss[.fffffff]]'. The attribute Precision,
         which is used for declaring a microsecond as a decimal number, is ignored.
         """
-        body_value = random.randint(0, DATE_INTERVAL)
-        random_date = START_DATE + datetime.timedelta(seconds=body_value)
-        uri_value = 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S'))
-        body_value = "/Date({})/".format(body_value)
+        '''
+        Once in roughly 10 attempts the generator will return values for 31 DEC 9999, 23:59:59.
+        This value represents infinity. Windows x64 systems cannot generate this timestamp so its hardcoded.
+        '''
+        chance_of_infinity = random.randint(1,10)
+        if chance_of_infinity == 10:
+            uri_value = "datetime'9999-12-31T23:59:59'"
+            body_value = "/Date(253402300799)/"
+        else:
+            body_value = random.randint(0, DATE_INTERVAL)
+            random_date = START_DATE + datetime.timedelta(seconds=body_value)
+            uri_value = 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%H:%M:%S'))
+            body_value = "/Date({})/".format(body_value)
+
         if generator_format == 'uri':
             return uri_value
         elif generator_format == 'body':
@@ -272,7 +282,7 @@ class EdmDateTimeOffset:
             sap_value = "/Date(253402300799+0000)/"
         else:
             random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
-            formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
+            formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%H:%M:%S')
             offset = f'{random.randint(0, 1439):04d}'
             offset_operator = random.choice('+-')
             sap_offset = ''.join([offset_operator,offset])

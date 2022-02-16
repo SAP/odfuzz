@@ -105,7 +105,7 @@ def test_direct_builder_http_put_url():
             queries_list.append(queries.query_string)
     queries_list=queries_list
     choice = random.choice(queries_list)
-    assert "Orders(OrderID=-1961596080)?sap-client=500" == choice
+    assert "Order_Details(OrderID=2080823154,ProductID=-477501033)?sap-client=500" == choice
 
 def test_direct_builder_http_post_url():
     random.seed(20)
@@ -120,7 +120,7 @@ def test_direct_builder_http_post_url():
             queries_list.append(queries.query_string)
     queries_list=queries_list
     choice = random.choice(queries_list)
-    assert "Invoices?sap-client=500" == choice
+    assert "Suppliers(SupplierID=1127307038)/Products?sap-client=500" == choice
 
 def test_direct_builder_body_generation():
     random.seed(20)
@@ -133,7 +133,7 @@ def test_direct_builder_body_generation():
             q = queryable_factory(queryable, logger, 1)
             queries,body = q.generate()
             body_list.append(body)
-    assert random.choice(body_list) == "{\"OrderID\": -1961596080, \"CustomerID\": \"\\u00cd\\u00caASf\", \"EmployeeID\": -833792634, \"OrderDate\": \"/Date(31098082911)/\", \"RequiredDate\": \"/Date(6541958641)/\", \"ShippedDate\": \"/Date(28904813410)/\", \"ShipVia\": 1402723007, \"Freight\": \"3727901615905.091m\", \"ShipName\": \"Y[\\u00fb\\u008d\\u00fe\\u00ce\\u00fd\\u00a2d\\u00b3\\u00eb\\u00c5\\u00a6\\u00b0\\u00cb^q:\\u2022C\", \"ShipAddress\": \"i\\u00c2hNQ\\u2018\\u00e4\\u00db8\\u2013\\u00f7\\u00cf\\u00e1ezB}\\u00b2\\u00e6a\\u00e7\\u00f6\\u00aa\", \"ShipCity\": \"J\\u00f5f07\\u00b4\\u00d8\", \"ShipRegion\": \"\\u00cfBr\\u00c0\", \"ShipPostalCode\": \"\\u00ac\", \"ShipCountry\": \"\\u2026h\\u00bd\\u201c\\u00bbUe\\u00e0hIT\\u00fd\"}"
+    assert random.choice(body_list) == "{\"OrderID\": 2080823154, \"ProductID\": -477501033, \"UnitPrice\": \"5644108454722995m\", \"Quantity\": 9551, \"Discount\": \"1.6719705272889652e+20f\"}"
 
 def test_direct_builder_http_merge_body():
     random.seed(20)
