@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.1]
+
+-  Fixed SAP_VENDOR_ENABLED for DateTimeOffset
+
 ## [0.16.0]
 
 - New feature: Add support for switching between Generic vs SAP OData implementation 
