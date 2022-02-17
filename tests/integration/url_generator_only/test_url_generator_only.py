@@ -105,7 +105,7 @@ def test_direct_builder_http_put_url():
             queries_list.append(queries.query_string)
     queries_list=queries_list
     choice = random.choice(queries_list)
-    assert "Employees(EmployeeID=-1187303908)?sap-client=500" == choice
+    assert "Order_Details(OrderID=2080823154,ProductID=-477501033)?sap-client=500" == choice
 
 def test_direct_builder_http_post_url():
     random.seed(20)
@@ -120,7 +120,7 @@ def test_direct_builder_http_post_url():
             queries_list.append(queries.query_string)
     queries_list=queries_list
     choice = random.choice(queries_list)
-    assert "Sales_Totals_by_Amounts?sap-client=500" == choice
+    assert "Suppliers(SupplierID=1127307038)/Products?sap-client=500" == choice
 
 def test_direct_builder_body_generation():
     random.seed(20)
@@ -133,7 +133,7 @@ def test_direct_builder_body_generation():
             q = queryable_factory(queryable, logger, 1)
             queries,body = q.generate()
             body_list.append(body)
-    assert random.choice(body_list) == "{\"EmployeeID\": -1187303908, \"LastName\": \"\\u2021\\u0152\\u0153\\u00e3d\\u00a9\\u00dd\\u00a7\\u00ab\\u00d4\\u00f56\", \"FirstName\": \"\\u00e1(P\\u2122\\u00a9\\u00a5d\\u00d3}n\", \"Title\": \"\\u00d7\\u2020\\u00e6 \\u2018\\u00f6V\\u00c1\\u00e5\\u00db\\u2013\\u00cc\\u00cc\", \"TitleOfCourtesy\": \"\\u00ba\\u2026\", \"BirthDate\": \"/Date(251388392975)/\", \"HireDate\": \"/Date(78762567516)/\", \"Address\": \"\\u00eefI\\u00cd\\u009dJ\\u00f2\\u00fa\\u201d\\u00da\\u00dc\\u00b4sn>\\u00da\\u00d0\\u008f\\u00b23\\u00ac]=\\u009d[\\u00abQ}7\\u00a6\\u201ct\\u00acT\\u0090\\u00f3vt\\u00db\\u00fbQE8B|34\\u00c5\\u00c4\\u009d}\\u00b5:\\u00d9\\u00a1nR\", \"City\": \"C\\u00e7\\u00a3\\u00a2\\u00bc\", \"Region\": \"L-\\u00d4E\\u00db\\u00f7)4`Ef\", \"PostalCode\": \"\\u00dem\", \"Country\": \"E\", \"HomePhone\": \"\\u00b2\\u00a6OR\\u00fbLrcI\\u00bc\\u00f6\\u00efy6\\u00ab\", \"Extension\": \"k\\u00d1\", \"Photo\": \"WCdiRic=\", \"Notes\": \"\\u00f6\\u00b5[V\\u20209n\\u00b1\\u00fcf\\u00a3\\u00ec\\u00daf\\u00ce\\u00ec`\\u2026\\u00ae\\u2021\\u00cf9A\\u00b3\\u00f1_\\u00ce\\u008f\\u00db\\u00b6\\u00f1\\u0153\\u00b5e.\\u2030\\u00b9\\u2014K\\u00f7kz-\", \"ReportsTo\": 14526380, \"PhotoPath\": \"c\\u008dY\\u00c2ah\\u00db0\\u00e3.<\\u00fa\\u00da\\u00a6xdM$7\\u00a5\\u2026 GN:r5+u\\u00db\\u00d2!\\u00bc\\u00c8\\u00cf\\u2019\\u00b6{\\u00c3\\u00cf9\\u20192\\u00cc\\u2020O\\u00d4\\u00df\\u00ed\\u00f1\\u00dc\\u00ee.\\u00f8\\u00eb\\u00da\\u00d5\\u00c4f\\u00e8\\u00calR\\u00da\\u00bf\\u00b3\\u00c1\\u00ca*\\u00a8\\u0081\\u00d7t\\u00b7-@\\u00da\\u00c1n\\u00d6EXF\\u2018\\u00dc1\\u00c7\\u00f6\\u00ec\\u00efIp\\u00dd\\u201dq\\u00cb1\\u00c8O\\u00d5\\u00c8\\u2122\\u2022\\u00a5>\\u00a4\\u00c9O\\u00cf@P=4.\\u00ac\\u00dd\\u00f3\\u00a9\\u00cflu\\u00aa\\u00a5:\\u00b7\\u00f6VhE\\u00f0\\u00f6u\\u00a7-\\u2022\\u00aap\\u2019\\u00ea\\u00f1@\\u00c3xvp\\u00c2O0$F\\u00bf\\u00ae\\u00df\\u00d4N\\u0081\\u00feD\\u00cb\\u00f9\\u00d6\\u00d4!\\u00f7v\\u00e9\\u00c3Z\\u00a1\\u00eb\\u00de5--\\u00bd9S|\\u00c7\\u00f4\\u00f3O\\u00a95.\\u00dc\\u00e2\\u00aau.\\u00b1\\u00fb\\u00f8y\\u00f5\\u00da\\u00d3\\u00fa\\u00a6(\\u00c3i\\u00c1=\\u00b0\\u201c\\u00b5r\\u00dd\\u00bcU\\u00fd\\u00eaTAK\\u00ab\\u00d1u\\u00ec\\u00d9\\u00f1\\u00c1\\u00b8@\\u00d7\\u00d2S\\u00a2\\u00ccDg=|\\u00c1\\u201d\\u00dcmXaJuN_\\u00aa\"}"
+    assert random.choice(body_list) == "{\"OrderID\": 2080823154, \"ProductID\": -477501033, \"UnitPrice\": \"5644108454722995m\", \"Quantity\": 9551, \"Discount\": \"1.6719705272889652e+20f\"}"
 
 def test_direct_builder_http_merge_body():
     random.seed(20)

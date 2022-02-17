@@ -11,7 +11,11 @@ from odfuzz.encoders import EncoderMixin
 from odfuzz.config import Config
 
 START_DATE = datetime.datetime(1970, 1, 1, 0, 0, 0)
-END_DATE = datetime.datetime(9999, 12, 31, 23, 59, 59)
+END_DATE = datetime.datetime(3000, 12, 31, 23, 59, 59)
+
+'''The END_DATE is reduced to 23:59:59 31st DEC 3000 as that is the highest supported timestamp possible on Windows x64 platforms. 
+https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/localtime-localtime32-localtime64 '''
+
 DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
 
 
@@ -72,10 +76,20 @@ class EdmDateTime:
         The format of Edm.DateTime is defined as datetime'yyyy-mm-ddThh:mm[:ss[.fffffff]]'. The attribute Precision,
         which is used for declaring a microsecond as a decimal number, is ignored.
         """
-        body_value = random.randint(0, DATE_INTERVAL)
-        random_date = START_DATE + datetime.timedelta(seconds=body_value)
-        uri_value = 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S'))
-        body_value = "/Date({})/".format(body_value)
+        '''
+        Once in roughly 10 attempts the generator will return values for 31 DEC 9999, 23:59:59.
+        This value represents infinity. Windows x64 systems cannot generate this timestamp so its hardcoded.
+        '''
+        chance_of_infinity = random.randint(1,10)
+        if chance_of_infinity == 10:
+            uri_value = "datetime'9999-12-31T23:59:59'"
+            body_value = "/Date(253402300799)/"
+        else:
+            body_value = random.randint(0, DATE_INTERVAL)
+            random_date = START_DATE + datetime.timedelta(seconds=body_value)
+            uri_value = 'datetime\'{0}\''.format(datetime.datetime.strftime(random_date, '%Y-%m-%dT%H:%M:%S'))
+            body_value = "/Date({})/".format(body_value)
+
         if generator_format == 'uri':
             return uri_value
         elif generator_format == 'body':
@@ -258,16 +272,41 @@ class EdmDateTimeOffset:
 
     @staticmethod
     def generate(generator_format='uri'):
-        random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
-        formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%I:%M:%S')
-        offset = random.choice(['Z', '']) or ''.join(['-', str(random.randint(0, 24)), ':00'])
-        value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, offset)
-        if generator_format == 'body' or generator_format == 'uri':
-            return value
-        elif generator_format == 'key':
-            return value, value
+        '''
+        Once in roughly 10 attempts the generator will return values for 31 DEC 9999, 23:59:59.
+        This value represents infinity. Windows x64 systems cannot generate this timestamp so its hardcoded.
+        '''
+        chance_of_infinity = random.randint(1,10)
+        if chance_of_infinity == 10:
+            generic_value = "datetimeoffset'9999-12-31T23:59:59+00:00'"
+            sap_value = "/Date(253402300799+0000)/"
         else:
-            raise ValueError
+            random_date = START_DATE + datetime.timedelta(seconds=random.randint(0, DATE_INTERVAL))
+            formatted_datetime = datetime.datetime.strftime(random_date, '%Y-%m-%dT%H:%M:%S')
+            offset = f'{random.randint(0, 1439):04d}'
+            offset_operator = random.choice('+-')
+            sap_offset = ''.join([offset_operator,offset])
+            offset_hrs, offset_mins  = divmod(int(offset),60)
+            generic_offset = ''.join([offset_operator, f'{offset_hrs:02d}',':', f'{offset_mins:02d}'])
+            generic_value = 'datetimeoffset\'{0}{1}\''.format(formatted_datetime, generic_offset)
+            sap_value = "/Date({0}{1})/".format(int(random_date.timestamp()),sap_offset)
+
+        if Config.fuzzer.sap_vendor_enabled == True:
+            if generator_format == 'uri':
+                return generic_value
+            elif generator_format == 'body':
+                return sap_value
+            elif generator_format == 'key':
+                return generic_value, sap_value
+            else:
+                raise ValueError
+        else:
+            if generator_format == 'body' or generator_format == 'uri':
+                return generic_value
+            elif generator_format == 'key':
+                return generic_value, generic_value
+            else:
+                raise ValueError
 
 class RandomGenerator(EncoderMixin):
     @staticmethod
