@@ -262,9 +262,8 @@ class Fuzzer:
         return True
 
     def _get_single_response(self, queries):
-        query = queries[0]
         try:
-            self._get_response(query)
+            self._get_response(queries)
         except DispatcherError:
             self._handle_dispatcher_exception()
             return False
