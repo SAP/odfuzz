@@ -2,33 +2,26 @@
 
 import random
 import hashlib
-import logging
-import requests
-import requests.adapters
 import json
 
 from copy import deepcopy
 from collections import namedtuple
-from abc import ABCMeta, abstractmethod
 
 from odfuzz.entities import FilterOptionBuilder, FilterOption, \
     OrderbyOptionBuilder, OrderbyOption
 from odfuzz.config import Config
 
-
 # pylint: disable=wildcard-import
 from odfuzz.constants import *  
 
 class Queryable:
-    """ Assemble the final query by appending different entitity parts.
+    """ Assemble the final query by appending different enttity parts.
     """
 
     SelfMock = namedtuple('SelfMock', 'max_length')
 
     def __init__(self, queryable, logger, async_requests_num):
         self._queryable = queryable
-        self._logger = logger
-        self._async_requests_num = async_requests_num
 
     def generate_query(self):
         accessible_entity, body_key_pairs = self._queryable.get_accessible_entity()
