@@ -40,14 +40,7 @@ from odfuzz.generators import (
     EdmInt32,
     EdmInt64,
 )
-from odfuzz.mutators import (
-    BooleanMutator,
-    DateTimeMutator,
-    DecimalMutator,
-    GuidMutator,
-    NumberMutator,
-    StringMutator,
-)
+
 from odfuzz.constants import (
     BOOLEAN_OPERATORS,
     EXPRESSION_OPERATORS,
@@ -89,7 +82,6 @@ def patch_proprties(entity_set_name, proprties, restrictions):
         patch_proprty_max_length(proprty)
         patch_proprty_precision_scale(proprty)
         patch_proprty_generator(entity_set_name, proprty, restrictions)
-        patch_proprty_mutator(entity_set_name, proprty, restrictions)
         patch_proprty_operator(proprty)
 
 
@@ -160,35 +152,6 @@ def patch_proprty_generator(entity_set_name, proprty, restrictions):
             logging.info('Property type {} is not supported by generator yet'.format(proprty_type))
     else:
         logging.info('Property type {} is not supported by generator yet'.format(proprty_type))
-
-
-def patch_proprty_mutator(entity_set_name, proprty, restrictions):
-    filter_restriction = restrictions.get(VALUE)
-    if filter_restriction.include:
-        entity_set_restr = filter_restriction.include.get(entity_set_name)
-        if entity_set_restr:
-            proprty_restr = entity_set_restr.get(proprty.name)
-            if proprty_restr:
-                proprty.mutate = lambda _: random.choice(proprty_restr)
-                return
-
-    proprty_type = proprty.typ.name
-    if proprty_type == 'Edm.String':
-        proprty.mutate = types.MethodType(StringMutator._mutate, proprty)
-    elif proprty_type.startswith('Edm.Int'):
-        proprty.mutate = types.MethodType(NumberMutator._mutate, proprty)
-    elif proprty_type == 'Edm.Decimal':
-        proprty.mutate = types.MethodType(DecimalMutator._mutate, proprty)
-    elif proprty_type == 'Edm.Guid':
-        proprty.mutate = GuidMutator.replace_char
-    elif proprty_type == 'Edm.Boolean':
-        proprty.mutate = BooleanMutator.flip_value
-    elif proprty_type == 'Edm.DateTime':
-        proprty.mutate = types.MethodType(DateTimeMutator._mutate, proprty)
-    else:
-        proprty.mutate = lambda value: value
-        logging.info('Property type {} is not supported by mutator yet'.format(proprty_type))
-
 
 def patch_proprty_operator(proprty):
     proprty_type = proprty.typ.name

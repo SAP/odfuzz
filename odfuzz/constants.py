@@ -145,7 +145,7 @@ YEAR_IN_SECONDS = 31622400
 REQUEST_TIMEOUT = 600
 RETRY_TIMEOUT = 100
 
-# range for basic charsets for generator (generators.py) and mutators (mutators.py)
+# range for basic charsets for generator (generators.py)
 HEX_BINARY = 'ABCDEFabcdef0123456789'
 
 # The character "~" has been  removed from BASE_CHARSET, as since Python 3.7, urllib.parse.quote() uses RFC 3986 for encoding.

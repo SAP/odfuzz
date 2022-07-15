@@ -22,7 +22,6 @@ from odfuzz.entities import DispatchedBuilder, FilterOptionBuilder, FilterOption
     OrderbyOptionBuilder, OrderbyOption, KeyValuesBuilder
 from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.databases import MongoDB, MongoDBHandler
-from odfuzz.mutators import NumberMutator, StringMutator
 from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
 from odfuzz.utils import decode_string
@@ -47,42 +46,31 @@ class Manager:
         
         self._using_encoder = Config.fuzzer.use_encoder
 
-        if bind is None:
-            self._output_handler = StandardOutput(bind)
-        else:
-            self._output_handler = BindOutput(bind)
-
     def start(self):
-        self._output_handler.print_status('odfuzz version: ' + __version__)
         self._logger.info('odfuzz version: ' + __version__)
 
         seed = Config.fuzzer.cli_runner_seed
         random.seed(seed, version=1)
-        self._output_handler.print_status('random.seed() is set to \'{}\''.format(seed))
         self._logger.info('random.seed() is set to \'{}\''.format(seed))
 
         database = self.establish_database_connection(MongoDBHandler, MongoDB)
         entities = self.build_entities()
-        fuzzer = Fuzzer(self._dispatcher, entities, database, self._output_handler, self._asynchronous,
+        fuzzer = Fuzzer(self._dispatcher, entities, database, self._asynchronous,
                         self._using_encoder)
 
-        self._output_handler.print_status('Fuzzing...')
         fuzzer.run()
 
     def establish_database_connection(self, database_handler, database_client):
-        self._output_handler.print_status('Connecting to the database - Collection: {}'.format(self._collection_name))
         self._logger.info('Connecting to the database - Collection: {}'.format(self._collection_name))
         try:
             return database_handler(database_client(self._collection_name))
         except ServerSelectionTimeoutError:
-            self._output_handler.print_status('Error: Cannot connect establish connection to the database.')
             sys.exit(1)
 
     def build_entities(self):
         """ Performs the first HTTP request of fuzzer to target server for $metadata and generates queryable entities for further fuzzing.
 
         """
-        self._output_handler.print_status('Initializing queryable entities...')
         builder = DispatchedBuilder(self._dispatcher, self._restrictions, self._first_touch)
         return builder.build()
         # TODO: possible feature/enhancement.. only generate metadata calls and save them or requests X URLS without evolution algorithm (REST service)
@@ -91,12 +79,11 @@ class Manager:
 class Fuzzer:
     """A main class that is responsible for the fuzzing process."""
 
-    def __init__(self, dispatcher, entities, database, output_handler, asynchronous, using_encoder):
+    def __init__(self, dispatcher, entities, database, asynchronous, using_encoder):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._urls_logger = URLsLogger()
         self._dispatcher = dispatcher
         self._entities = entities
-        self._output_handler = output_handler
         self._database = database
 
         self._analyzer = Analyzer(database)
@@ -193,7 +180,6 @@ class Fuzzer:
         self._decode_queries(queries)
         self._urls_logger.log_ursl(queries)
         self._save_to_database(queries)
-        self._output_handler.print_test_num()
 
     def _decode_queries(self, queries):
         for query in queries:
@@ -270,7 +256,6 @@ class Fuzzer:
             setattr(query[0].response, 'error_message', '')
 
     def _handle_dispatcher_exception(self):
-        self._output_handler.print_test_num()
         self._logger.info('Retrying in {} seconds...'.format(RETRY_TIMEOUT))
         gevent.sleep(RETRY_TIMEOUT)
 
@@ -406,191 +391,6 @@ class Queryable:
             #for $skip and $top; one parameter contextually depends on another and the value of top+skip must be lower than MAX(INT)
         query.build_string()
         self._logger.info('Generated query \'{}\''.format(query.query_string))
-
-    def _crossover_queries(self, query1, query2):
-        if is_filter_crossable(query1, query2):
-            replaceable_parts = [part for part in query1['_$filter']['parts'] if part.get('replaceable', True)]
-            if replaceable_parts:
-                offspring = self._crossover_filter(replaceable_parts, query1, query2)
-            else:
-                offspring = self._crossover_options(query1, query2)
-        else:
-            offspring = self._crossover_options(query1, query2)
-
-        query = self.build_offspring(deepcopy(offspring))
-        self._mutate_query(query)
-        query.add_predecessor(query1['_id'])
-        query.add_predecessor(query2['_id'])
-        query.build_string()
-        self._logger.info('Generated {}'.format(query.query_string))
-        return query
-
-    def _crossover_filter(self, replaceable_parts, query1, query2):
-        filter_option2 = query2['_$filter']
-
-        # properties that are not required for draft entities are replaceable by default
-        part_to_replace = random.choice(replaceable_parts)
-        replacing_part = random.choice(filter_option2['parts'])
-
-        if 'func' in replacing_part:
-            part_to_replace['func'] = replacing_part['func']
-            part_to_replace['params'] = replacing_part['params']
-            part_to_replace['proprties'] = replacing_part['proprties']
-            part_to_replace['return_type'] = replacing_part['return_type']
-        else:
-            if 'func' in part_to_replace:
-                part_to_replace.pop('func')
-                part_to_replace.pop('params')
-                part_to_replace.pop('proprties')
-                part_to_replace.pop('return_type')
-
-        part_to_replace['name'] = replacing_part['name']
-        part_to_replace['operator'] = replacing_part['operator']
-        part_to_replace['operand'] = replacing_part['operand']
-
-        return query1
-
-    def build_offspring(self, offspring):
-        accessible_entity = self._queryable.get_existing_accessible_entity(
-            offspring['accessible_keys'], offspring['accessible_set'])
-        query = Query(accessible_entity)
-        for option in offspring['order']:
-            query.add_option(option[1:], offspring[option])
-        return query
-
-    def _crossover_options(self, query1, query2):
-        filled_options = [option_name for option_name, value in query2.items()
-                          if value is not None and option_name.startswith('_$')]
-        selected_option = random.choice(filled_options)
-        if selected_option not in query1['order']:
-            query1['order'].append(selected_option)
-        query1[selected_option] = query2[selected_option]
-        return query1
-
-    def _mutate_query(self, query):
-        option_name, option_value = random.choice(list(query.options.items()))
-        if query.is_option_deletable(option_name) and len(query.order) > 1 and random.random() < OPTION_DEL_PROB:
-            query.delete_option(option_name)
-        else:
-            self._mutate_option(query, option_name, option_value)
-
-    def build_mutated_accessible_keys(self, accessible_keys, data_to_be_mutated):
-        self._mutate_accessible_keys(accessible_keys, data_to_be_mutated)
-        query = self.build_offspring(data_to_be_mutated)
-        query.add_predecessor(data_to_be_mutated['_id'])
-        query.build_string()
-        return query
-
-    def _mutate_accessible_keys(self, accessible_keys, entity_data):
-        keys_list = list(accessible_keys.items())
-        key_values = random.sample(keys_list, round((random.random() * (len(keys_list) - 1)) + 1))
-        if entity_data['accessible_set']:
-            accessible_entity_set = self._queryable.principal_entity(entity_data['accessible_set'])
-        else:
-            accessible_entity_set = self._queryable.entity_set
-
-        try:
-            proprty = accessible_entity_set.entity_type.proprty(proprty_name)
-            if hasattr(proprty, 'mutate'):
-                accessible_keys[proprty_name] = proprty.mutate(value)                
-                #and seems that this will simply do nothing (skip to another mutation iteration) if the mutate property is not there, only would crash on the None. 
-        except AttributeError:
-            self._logger.error('_mutate_accessible_keys - AttributeError: NoneType object has no attribute entity_type')
-
-    def _mutate_option(self, query, option_name, option_value):
-        if option_name == FILTER:
-            self._mutate_filter(option_value)
-        elif option_name == ORDERBY:
-            self._mutate_orderby_part(option_value)
-        elif option_name == EXPAND:
-            # TODO: implement mutator for expand method
-            pass
-        elif option_name == SEARCH:
-            # TODO: implement mutator for search method
-            pass
-        elif option_name == INLINECOUNT:
-            query.options[option_name] = 'allpages' if option_value == 'none' else 'none'
-        else:
-            query.options[option_name] = self._mutate_value(NumberMutator, option_value)
-
-    def _mutate_filter(self, option_value):
-        if option_value['logicals'] and random.random() < FILTER_DEL_PROB:
-            logical_index = round(random.random() * (len(option_value['logicals']) - 1))
-            parts = self._get_removable_parts(option_value, logical_index)
-            if parts:
-                random_part = random.choice(parts)
-                self._remove_logical_part(option_value, logical_index, random_part)
-            else:
-                self._mutate_filter_part(option_value)
-        else:
-            self._mutate_filter_part(option_value)
-
-    def _get_removable_parts(self, option_value, logical_index):
-        logical = option_value['logicals'][logical_index]
-        removable_ids = []
-        if is_removable(option_value, logical['left_id']):
-            removable_ids.append('left_id')
-        if is_removable(option_value, logical['right_id']):
-            removable_ids.append('right_id')
-        return removable_ids
-
-    def _remove_logical_part(self, option_value, index, adjacent_id):
-        logical = option_value['logicals'].pop(index)
-        FilterOptionDeleter(option_value, logical).remove_adjacent(adjacent_id)
-
-    def _mutate_filter_part(self, option_value):
-        part = random.choice(option_value['parts'])
-        entity_type = self._queryable.query_option(FILTER).entity_set.entity_type
-        if 'func' in part:
-            self._mutate_filter_function(part, entity_type)
-        else:
-            proprty = entity_type.proprty(part['name'])
-            if getattr(proprty, 'mutate', None):
-                part['operand'] = proprty.mutate(part['operand'])
-
-    def _mutate_filter_function(self, part, entity_type):
-        if part['params'] and random.random() < 0.5:
-            # TODO: mutate more than one parameter
-            proprty = entity_type.proprty(part['proprties'][0])
-            part['params'][0] = proprty.mutate(part['params'][0])
-        else:
-            if part['return_type'] == 'Edm.Boolean':
-                part['operand'] = 'true' if part['operand'] == 'false' else 'false'
-            elif part['return_type'] == 'Edm.String':
-                func_parameter_property = Queryable.SelfMock(max_length=5)
-                part['operand'] = self._mutate_value(StringMutator, part['operand'], func_parameter_property)
-                part['operand'] = '\'' + part['operand'] + '\''
-            elif part['return_type'].startswith('Edm.Int'):
-                part['operand'] = self._mutate_value(NumberMutator, part['operand'])
-
-    def _mutate_orderby_part(self, option_value):
-        proprties_num = len(option_value) - 1
-        if proprties_num > 1 and random.random() < ORDERBY_DEL_PROB:
-            remove_index = round(random.random() * proprties_num)
-            del option_value[remove_index]
-
-        self._mutate_proprty_order(option_value)
-
-    def _mutate_proprty_order(self, option_value):
-        random_proprty = random.choice(option_value)
-        current_order = random_proprty[1]
-        possible_orders = {'asc', 'desc', ''}
-        possible_orders.remove(current_order)
-        random_proprty[1] = random.choice(list(possible_orders))
-
-    def _mutate_value(self, mutator_class, value, self_mock=None):
-        mutators = self._get_mutators(mutator_class)
-        mutator = random.choice(mutators)
-        mutated_value = getattr(mutator_class, mutator)(self_mock, value)
-        return mutated_value
-
-    def _get_mutators(self, mutators_class):
-        mutators = []
-        for func_name in mutators_class.__dict__.keys():
-            if not func_name.startswith('_'):
-                mutators.append(func_name)
-        return mutators
-
 
 class MultipleQueryable(Queryable):
     """ Used when fuzzer triggered with async option, generates URL for requests in async batches
