@@ -12,7 +12,6 @@ from datetime import datetime
 
 from odfuzz.arguments import ArgParser
 from odfuzz.fuzzer import Manager
-from odfuzz.statistics import Stats, StatsPrinter
 from odfuzz.loggers import init_loggers, DirectoriesCreator
 from odfuzz.databases import CollectionCreator, MongoDB, MongoDBHandler
 from odfuzz.constants import INFINITY_TIMEOUT
@@ -43,13 +42,7 @@ def execute(arguments, bind=None):
 def init_logging(arguments):
     directories_creator = DirectoriesCreator(arguments.logs, arguments.stats)
     directories = directories_creator.create()
-    init_basic_stats(directories.stats) #TODO refactor, this part exposes some inner state in Stats class
     init_loggers(directories.logs, directories.stats)
-
-
-def init_basic_stats(stats_directory):
-    Stats.directory = stats_directory
-    Stats.start_datetime = datetime.now()
 
 
 # Sets MongoDB collection name to be used in current run.

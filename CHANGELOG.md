@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+
 ## [0.16.1]
 
 -  Fixed SAP_VENDOR_ENABLED for DateTimeOffset

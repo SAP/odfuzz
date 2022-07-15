@@ -21,10 +21,8 @@ from pymongo.errors import ServerSelectionTimeoutError  #TODO leaky abstraction,
 from odfuzz.entities import DispatchedBuilder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
     OrderbyOptionBuilder, OrderbyOption, KeyValuesBuilder
 from odfuzz.restrictions import RestrictionsGroup
-from odfuzz.statistics import Stats #TODO this is the part where computation of runtime statistic is done via module import
 from odfuzz.databases import MongoDB, MongoDBHandler
 from odfuzz.mutators import NumberMutator, StringMutator
-from odfuzz.output import StandardOutput, BindOutput
 from odfuzz.exceptions import DispatcherError
 from odfuzz.config import Config
 from odfuzz.utils import decode_string
@@ -96,8 +94,6 @@ class Fuzzer:
     def __init__(self, dispatcher, entities, database, output_handler, asynchronous, using_encoder):
         self._logger = logging.getLogger(FUZZER_LOGGER)
         self._urls_logger = URLsLogger()
-        self._stats_logger = StatsLogger()
-        self._response_logger = ResponseTimeLogger()
         self._dispatcher = dispatcher
         self._entities = entities
         self._output_handler = output_handler
@@ -116,10 +112,6 @@ class Fuzzer:
 
         if not using_encoder:
             self._decode_queries = lambda *args: None
-
-        Stats.tests_num = 0
-        Stats.fails_num = 0
-        Stats.exceptions_num = 0
 
         # This step is required to redirect printing of stack trace by greenlets. I haven't
         # found any other conventional way to suppress such a printing. In the past, it was
@@ -200,7 +192,6 @@ class Fuzzer:
     def _save_queries(self, queries):
         self._decode_queries(queries)
         self._urls_logger.log_ursl(queries)
-        self._stats_logger.log_stats(queries)
         self._save_to_database(queries)
         self._output_handler.print_test_num()
 
@@ -273,14 +264,12 @@ class Fuzzer:
         query[0].response = self._dispatcher.get(query[0].query_string, timeout=REQUEST_TIMEOUT)
         if query[0].response.status_code != 200:
             self._set_error_attributes(query)
-            Stats.fails_num += 1
         else:
             self._response_logger.log_response_time_and_data(query[0], Config.fuzzer.data_format)
             setattr(query[0].response, 'error_code', '')
             setattr(query[0].response, 'error_message', '')
 
     def _handle_dispatcher_exception(self):
-        Stats.exceptions_num += 1
         self._output_handler.print_test_num()
         self._logger.info('Retrying in {} seconds...'.format(RETRY_TIMEOUT))
         gevent.sleep(RETRY_TIMEOUT)
@@ -350,8 +339,6 @@ class Queryable:
         query = Query(accessible_entity)
         self.generate_options(query)
         body = self.generate_body(accessible_entity, body_key_pairs)
-        Stats.tests_num += 1
-        # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
         return query,body
     
     def generate_put_post_body(self, accessible_entity, body_key_pairs):
@@ -429,7 +416,6 @@ class Queryable:
                 offspring = self._crossover_options(query1, query2)
         else:
             offspring = self._crossover_options(query1, query2)
-        Stats.created_by_crossover += 1
 
         query = self.build_offspring(deepcopy(offspring))
         self._mutate_query(query)
@@ -437,7 +423,6 @@ class Queryable:
         query.add_predecessor(query2['_id'])
         query.build_string()
         self._logger.info('Generated {}'.format(query.query_string))
-        Stats.tests_num += 1
         return query
 
     def _crossover_filter(self, replaceable_parts, query1, query2):
@@ -488,7 +473,6 @@ class Queryable:
             query.delete_option(option_name)
         else:
             self._mutate_option(query, option_name, option_value)
-        Stats.created_by_mutation += 1
 
     def build_mutated_accessible_keys(self, accessible_keys, data_to_be_mutated):
         self._mutate_accessible_keys(accessible_keys, data_to_be_mutated)
@@ -629,8 +613,6 @@ class MultipleQueryable(Queryable):
             if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
                 query = self.build_mutated_accessible_keys(accessible_keys, crossable_selection[0])
                 children.append(query)
-                Stats.tests_num += 1
-                Stats.created_by_mutation += 1
             else:
                 query1, query2 = crossable_selection
                 offspring = self._crossover_queries(query1, query2)
@@ -653,8 +635,6 @@ class SingleQueryable(Queryable):
         accessible_keys = crossable_selection[0].get('accessible_keys', None)
         if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
             query = self.build_mutated_accessible_keys(accessible_keys, crossable_selection[0])
-            Stats.tests_num += 1
-            Stats.created_by_mutation += 1
         else:
             query = self._crossover_queries(query1, query2)
         return [query]
@@ -667,190 +647,6 @@ class URLsLogger:
     def log_ursl(self, queries):
         for query in queries:
             self._urls_logger.info(query[0].url_hash + ':' + query[0].query_string)
-
-
-class StatsLogger:
-    """
-    for .csv output (displayed in Pivot table). Do not mistake with runtime statistics computed trough statistics.py
-    TODO refactor perhaps move to logger.py
-    """
-    def __init__(self):
-        self._stats_logger = logging.getLogger(STATS_LOGGER)
-        self._filter_logger = logging.getLogger(FILTER_LOGGER)
-        self._stats_logger.info(CSV)
-        self._filter_logger.info(CSV_FILTER)
-
-    def log_stats(self, queries):
-        self.log_overall(queries)
-        self.log_filter(queries)
-
-    def log_overall(self, queries):
-        for query in queries:
-            query_dict = query[0].dictionary
-            query_proprties = self._get_proprties(query_dict)
-            for proprty in query_proprties:
-                self._log_formatted_stats(query, query_dict, proprty)
-
-    def _log_formatted_stats(self, query, query_dict, proprty):
-        self._stats_logger.info(
-            '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{AccessibleSet};{AccessibleKeys};'
-            '{Property};{orderby};{top};{skip};"{filter}";{expand};"{search}";{inlinecount};{hash}'.format(
-                StatusCode=query[0].response.status_code,
-                ErrorCode=query[0].response.error_code,
-                ErrorMessage=query[0].response.error_message.replace('"', '""'),
-                EntitySet=query_dict['entity_set'],
-                AccessibleSet=query_dict['accessible_set'],
-                AccessibleKeys=KeyValuesBuilder.build_string(query_dict['accessible_keys']),
-                Property=proprty,
-                orderby=query[0].options_strings['$orderby'],
-                top=query[0].options_strings['$top'],
-                skip=query[0].options_strings['$skip'],
-                filter=query[0].options_strings['$filter'].replace('"', '""'),
-                expand=query[0].options_strings['$expand'],
-                search=query[0].options_strings['search'].replace('"', '""'),
-                inlinecount=query[0].options_strings['$inlinecount'],
-                hash=query[0].url_hash
-            )
-        )
-
-    def _get_proprties(self, query_dict):
-        proprties = set()
-        filter_option = query_dict.get('_$filter')
-        if filter_option:
-            proprties.update(self._get_filter_proprties(filter_option))
-        orderby_option = query_dict.get('_$orderby')
-        if orderby_option:
-            for proprty, _ in orderby_option:
-                proprties.update([proprty])
-        if not proprties:
-            return [None]
-        else:
-            return list(proprties)
-
-    def _get_filter_proprties(self, filter_option):
-        proprties = set()
-        for part in filter_option['parts']:
-            if 'func' in part:
-                for proprty in part['proprties']:
-                    proprties.update([proprty])
-            else:
-                proprties.update([part['name']])
-        return proprties
-
-    def log_filter(self, queries):
-        for query in queries:
-            filter_option = query[0].dictionary.get('_$filter')
-            if filter_option:
-                logical_names = {logical['name'] for logical in filter_option['logicals']}
-                if 'and' in logical_names and 'or' in logical_names:
-                    logical = 'combination'
-                else:
-                    if filter_option['logicals']:
-                        logical = filter_option['logicals'][0]['name']
-                    else:
-                        logical = ''
-                self._log_filter_parts(filter_option, query, logical)
-
-    def _log_filter_parts(self, filter_option, query, logical_name):
-        for part in filter_option['parts']:
-            if 'func' in part:
-                for proprty in part['proprties']:
-                    self._log_formatted_filter(query, proprty, logical_name, part, part['func'])
-            else:
-                proprty = part['name']
-                self._log_formatted_filter(query, proprty, logical_name, part, '')
-
-    def _log_formatted_filter(self, query, proprty, logical_name, part, func):
-        self._filter_logger.info(
-            '{StatusCode};{ErrorCode};"{ErrorMessage}";{EntitySet};{Property};{logical};'
-            '{operator};{function};"{operand}";{hash}'.format(
-                StatusCode=query[0].response.status_code,
-                ErrorCode=query[0].response.error_code,
-                ErrorMessage=query[0].response.error_message.replace('"', '""'),
-                EntitySet=query[0].dictionary['entity_set'],
-                Property=proprty,
-                logical=logical_name,
-                operator=part['operator'],
-                function=func,
-                operand=part['operand'].replace('"', '""'),
-                hash=query[0].url_hash
-            )
-        )
-
-
-class ResponseTimeLogger:
-    """
-    output results for Odfuzz-scatterpy
-    TODO refactor perhaps move to logger.py
-    """
-    def __init__(self):
-        self._main_logger = logging.getLogger(FUZZER_LOGGER)
-        self._data_logger = logging.getLogger(RESPONSE_LOGGER)
-        self._data_logger.info(CSV_RESPONSES_HEADER)
-
-    def log_response_time_and_data(self, query, data_type):
-        if data_type == 'xml':
-            self.log_xml_data(query)
-        elif data_type == 'json':
-            self.log_json_data(query)
-        else:
-            self._main_logger.error('Format \'{}\' is not supported yet.'.format(data_type))
-
-    def log_xml_data(self, query):
-        try:
-            parsed_xml = etree.fromstring(query.response.content)
-        except etree.XMLSyntaxError as xml_error:
-            self._main_logger.error('An error occurred while parsing XML respones {}'.format(xml_error))
-        else:
-            count = self.get_xml_data_count(parsed_xml)
-            self.log_data(query, count)
-
-    def get_xml_data_count(self, parsed_xml):
-        count = len(parsed_xml.xpath("//atom:entry", namespaces=NAMESPACES))
-        return count
-
-    def log_json_data(self, query):
-        try:
-            json_response = query.response.json()
-        except ValueError:
-            self._main_logger.error('JSON response cannot be loaded.')
-        else:
-            count = self.get_json_data_count(json_response)
-            self.log_data(query, count)
-
-    def get_json_data_count(self, json_response):
-        count = 0
-        try:
-            root = json_response['d']
-        except KeyError:
-            self._main_logger.error('JSON response does not contain root key \'d\'')
-        else:
-            multiple_entities = root.get('results')
-            if multiple_entities is not None:
-                count = len(multiple_entities)
-            else:
-                count = self._get_json_count_from_single_entity(root)
-        return count
-
-    def _get_json_count_from_single_entity(self, root):
-        count = 1
-        for value in root.values():
-            if isinstance(value, dict) and value.get('results'):
-                count += len(value['results'])
-        return count
-
-    def log_data(self, query, count):
-        elapsed_seconds = query.response.elapsed.total_seconds()
-        response_size = len(query.response.content)
-        entity_set_name = query.entity_name
-        url = query.response.request.url
-
-        query_options = '+'.join([query_option for query_option in query.options])
-        brief_info = '{} {} ({})'.format(entity_set_name, query_options, count)
-
-        self._data_logger.info('{};{};{};"{}";{}'.format(
-            elapsed_seconds, response_size, entity_set_name, url.replace('"', '""'), brief_info))
-
 
 class Selector:
     """
