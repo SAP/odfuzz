@@ -1,4 +1,6 @@
 """This module contains classes that convert restrictions to manageable objects."""
+#TODO refactor - Include and Exlude "restrictions" are nonsense. split to two. Exclure is really restriction (what to ignore).
+# Include restriction is wrong attempt to cover inout test data, incomplete as well (compound primary keys cannot be modelled for example)
 
 import yaml
 
