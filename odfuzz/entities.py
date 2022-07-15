@@ -38,77 +38,9 @@ StringSelf = namedtuple('StringSelf', 'max_length')
 OptionRestriction = namedtuple('OptionRestriction', 'restr is_restricted')
 
 
-class DispatchedBuilder:
-    """A class for building and initializing all queryable entities trough network call."""
-
-    def __init__(self, dispatcher, restrictions, first_touch):
-        self._dispatcher = dispatcher
-        self._queryable = QueryableEntities()
-        self._restrictions = restrictions
-
-        if first_touch:
-            self._first_touch = FirstTouch(restrictions, dispatcher)
-        else:
-            self._first_touch = NullFirstTouch(restrictions)
-
-    def build(self):
-        # call just once on fuzzer process start
-        data_model = self._get_data_model()
-
-        for entity_set in data_model.entity_sets:
-            patch_entity_set(entity_set, data_model.association_sets)
-            patch_proprties(entity_set.name, entity_set.entity_type.proprties(), self._restrictions)
-            principal_entities = get_principal_entities(data_model, entity_set)
-            restrictions = self._first_touch.analyze(entity_set)
-
-            query_group_data = QueryGroupData(entity_set, principal_entities, restrictions, self._dispatcher)
-            self._append_queryable(query_group_data)
-
-        return self._queryable
-
-    def _get_data_model(self):
-        metadata_response = self._get_metadata_from_service()
-        try:
-            service_model = Edmx.parse(metadata_response.content)
-        except (PyODataException, RuntimeError) as pyodata_ex:
-            raise BuilderError('An exception occurred while parsing metadata: {}'.format(pyodata_ex))
-        return service_model
-
-    def _get_metadata_from_service(self):
-        metadata_request = '$metadata?' + 'sap-client=' + Config.fuzzer.sap_client
-        try:
-            metadata_response = self._dispatcher.get(metadata_request, timeout=5)
-        except DispatcherError as disp_error:
-            raise BuilderError('An exception occurred while retrieving metadata: {}'.format(disp_error))
-        if metadata_response.status_code != 200:
-            raise BuilderError('Cannot retrieve metadata from {}. Status code is {}.'.format(
-                self._dispatcher.service, metadata_response.status_code))
-        return metadata_response
-
-    def _append_queryable(self, query_group_data):
-        self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
-        self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
-
-        self._append_associated_queryables(query_group_data)
-
-    def _append_associated_queryables(self, query_group_data):
-        if query_group_data.principal_entities:
-            principal_entities = query_group_data.principal_entities.multiplicity_one_entities
-            if principal_entities:
-                self._append_corresponding_queryable(QueryGroupAssociation(query_group_data, principal_entities))
-
-            principal_entities = query_group_data.principal_entities.multiplicity_many_entities
-            if principal_entities:
-                self._append_corresponding_queryable(QueryGroupAssociationSet(query_group_data, principal_entities))
-
-    def _append_corresponding_queryable(self, query_group):
-        if query_group.query_options():
-            self._queryable.add(query_group)
-
-
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
-    def __init__(self, metadata, restrictions,method, sap_vendor_enabled = False):
+    def __init__(self, metadata, restrictions, method, sap_vendor_enabled = False):
         if method not in ["GET","DELETE","PUT","POST","MERGE"]:
             raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
@@ -171,43 +103,6 @@ class DirectBuilder:
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
         if query_group.query_options():
             self._queryable.add(query_group)
-
-
-class FirstTouch:
-    """
-    if --first-touch CLI flag; checks if methods for entitysets are even implemented,
-    so it does not creates queries that will be ignored by user in output analysis.
-    """
-    #TODO potential refactor move, logically should be part of fuzzer.py module.
-    def __init__(self, restrictions, dispatcher):
-        self._restrictions = restrictions
-        self._dispatcher = dispatcher
-
-    def analyze(self, entity_set):
-        self.check_empty_entity_set(entity_set)
-        self.check_empty_entity(entity_set)
-        return self._restrictions
-
-    def check_empty_entity_set(self, entity_set):
-        response = self._dispatcher.get(entity_set.name + '?sap-client=' + Config.fuzzer.sap_client)
-        if response.status_code == requests.codes.not_implemented:
-            self._restrictions.add_exclude_restriction(entity_set.name, GLOBAL_ENTITY_SET)
-
-    def check_empty_entity(self, entity_set):
-        non_addressable_entity = SingleEntity(entity_set)
-        queryable_entity = non_addressable_entity.generate_accessible_entity()
-
-        response = self._dispatcher.get(queryable_entity[0].path + '?sap-client=' + Config.fuzzer.sap_client)
-        if response.status_code == requests.codes.not_implemented:
-            self._restrictions.add_exclude_restriction(entity_set.name, GLOBAL_ENTITY)
-
-
-class NullFirstTouch:
-    def __init__(self, restrictions):
-        self._restrictions = restrictions
-
-    def analyze(self, entity_set):
-        return self._restrictions
 
 
 class QueryableEntities(object):

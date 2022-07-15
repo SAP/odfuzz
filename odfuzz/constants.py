@@ -2,31 +2,6 @@
 import os
 from datetime import datetime
 
-# configuration constants, used while initializing loggers which are used for logging stats and logging info messages;
-# used in loggers.py
-LOGGING_CONFIG_PATH = 'config/logging/logging.conf'
-
-FUZZER_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir))
-FUZZER_LOGGING_CONFIG_PATH = os.path.join(FUZZER_PATH, LOGGING_CONFIG_PATH)
-
-FUZZER_LOGS_NAME = 'logs'
-STATS_LOGS_NAME = 'stats_overall'
-FILTER_LOGS_NAME = 'stats_filter'
-DATA_RESPONSES_NAME = 'data_responses'
-URLS_LOGS_NAME = 'list_urls'
-
-# this set of constants must be equal to the corresponding
-# logger keys defined in the CONFIG_PATH
-FUZZER_LOGGER = 'fuzzer'
-STATS_LOGGER = 'stats'
-FILTER_LOGGER = 'filter'
-URLS_LOGGER = 'urls'
-RESPONSE_LOGGER = 'data'
-
-# used in databases.py as a name of the database in MongoDB (https://docs.mongodb.com/manual/core/databases-and-collections/);
-# collections are created for each OData service separately
-MONGODB_NAME = 'odfuzz'
-
 # used for mounting adapters in the module `requests` (this may be located right in Dispatcher)
 ACCESS_PROTOCOL = 'https://'
 # used in Dispatcher (fuzzer.py) to obtain SAP login from environmental variables

@@ -1,11 +1,8 @@
 """This module contains core parts of the fuzzer and additional handler classes."""
 
 import random
-import io
-import sys
 import hashlib
 import logging
-import gevent
 import requests
 import requests.adapters
 import json
@@ -13,300 +10,14 @@ import json
 from copy import deepcopy
 from collections import namedtuple
 from abc import ABCMeta, abstractmethod
-from lxml import etree
-from gevent.pool import Pool
-from bson.objectid import ObjectId
-from pymongo.errors import ServerSelectionTimeoutError  #TODO leaky abstraction, should be new exception class in database.py, untied to specific database usage.
 
-from odfuzz.entities import DispatchedBuilder, FilterOptionBuilder, FilterOptionDeleter, FilterOption, \
-    OrderbyOptionBuilder, OrderbyOption, KeyValuesBuilder
-from odfuzz.restrictions import RestrictionsGroup
-from odfuzz.databases import MongoDB, MongoDBHandler
-from odfuzz.exceptions import DispatcherError
+from odfuzz.entities import FilterOptionBuilder, FilterOption, \
+    OrderbyOptionBuilder, OrderbyOption
 from odfuzz.config import Config
-from odfuzz.utils import decode_string
-from odfuzz import __version__
+
 
 # pylint: disable=wildcard-import
 from odfuzz.constants import *  
-
-
-class Manager:
-    """A class for managing the fuzzer runtime."""
-
-    def __init__(self, bind, arguments, collection_name):
-        Config.init()
-
-        self._dispatcher = Dispatcher(arguments)
-        self._asynchronous = arguments.asynchronous
-        self._first_touch = arguments.first_touch
-        self._restrictions = RestrictionsGroup(arguments.restrictions)
-        self._collection_name = collection_name
-        self._logger = logging.getLogger(FUZZER_LOGGER)
-        
-        self._using_encoder = Config.fuzzer.use_encoder
-
-    def start(self):
-        self._logger.info('odfuzz version: ' + __version__)
-
-        seed = Config.fuzzer.cli_runner_seed
-        random.seed(seed, version=1)
-        self._logger.info('random.seed() is set to \'{}\''.format(seed))
-
-        database = self.establish_database_connection(MongoDBHandler, MongoDB)
-        entities = self.build_entities()
-        fuzzer = Fuzzer(self._dispatcher, entities, database, self._asynchronous,
-                        self._using_encoder)
-
-        fuzzer.run()
-
-    def establish_database_connection(self, database_handler, database_client):
-        self._logger.info('Connecting to the database - Collection: {}'.format(self._collection_name))
-        try:
-            return database_handler(database_client(self._collection_name))
-        except ServerSelectionTimeoutError:
-            sys.exit(1)
-
-    def build_entities(self):
-        """ Performs the first HTTP request of fuzzer to target server for $metadata and generates queryable entities for further fuzzing.
-
-        """
-        builder = DispatchedBuilder(self._dispatcher, self._restrictions, self._first_touch)
-        return builder.build()
-        # TODO: possible feature/enhancement.. only generate metadata calls and save them or requests X URLS without evolution algorithm (REST service)
-
-
-class Fuzzer:
-    """A main class that is responsible for the fuzzing process."""
-
-    def __init__(self, dispatcher, entities, database, asynchronous, using_encoder):
-        self._logger = logging.getLogger(FUZZER_LOGGER)
-        self._urls_logger = URLsLogger()
-        self._dispatcher = dispatcher
-        self._entities = entities
-        self._database = database
-
-        self._analyzer = Analyzer(database)
-        self._selector = Selector(database, entities)
-
-        self._asynchronous = asynchronous
-        if asynchronous:
-            self._queryable_factory = MultipleQueryable
-            self._dispatch = self._get_multiple_responses
-        else:
-            self._queryable_factory = SingleQueryable
-            self._dispatch = self._get_single_response
-
-        if not using_encoder:
-            self._decode_queries = lambda *args: None
-
-        # This step is required to redirect printing of stack trace by greenlets. I haven't
-        # found any other conventional way to suppress such a printing. In the past, it was
-        # possible  to set which type of exceptions shouldn't be printed by:
-        # gevent.hub.Hub.NOT_ERROR=(Exception,)
-        # Source: https://github.com/gevent/gevent/issues/55
-        #
-        # If anybody in the future will want to print output to the standard error output,
-        # he/she will be required to set sys.stderr back to its default value by:
-        # sys.stderr = sys.__stderr__
-        # Source: https://docs.python.org/3/library/sys.html#sys.__stderr__
-        sys.stderr = LoggerErrorWritter(self._logger)
-
-    def run(self):
-
-        self._database.delete_collection()
-        self.seed_population()
-        if self._database.total_entries() == 0:
-            self._logger.info('There are no queries generated yet.')
-            sys.stdout.write('OData service does not contain any queryable entities. Exiting...\n')
-            sys.exit(0)
-
-        self._selector.score_average = self._database.total_score() / self._database.total_entries()
-        self.evolve_population()
-
-    def seed_population(self):
-        """
-        Initial and first half of the fuzzing process.
-
-        Parses the $metadata from the server and generates URLs for *all* entities present (random values).
-
-        After finishing, we have touched each entity and it is time to employ the genetic sampling
-        for better probability of hitting the server errors.
-
-        See: https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/doc_architecture/doc/architecture.rst#query-groups
-        See: https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/doc_architecture/doc/restrictions.rst
-
-        :return:
-        """
-        self._logger.info('Seeding population with requests...')
-        for queryable in self._entities.all():
-            entityset_urls_count = len(queryable.entity_set.entity_type.proprties()) * Config.fuzzer.urls_per_property
-            if self._asynchronous:
-                entityset_urls_count = round(entityset_urls_count / Config.dispatcher.async_requests_num)
-            self._logger.info('Population range for entity \'{}\' is set to {}'
-                              .format(queryable.entity_set.name, entityset_urls_count))
-            for _ in range(entityset_urls_count):
-                q = self._queryable_factory(queryable, self._logger, Config.dispatcher.async_requests_num)
-                queries = q.generate()
-                self._send_queries(queries)
-                self._analyze_queries(queries)
-                self._save_queries(queries)
-
-    def evolve_population(self):
-        """
-
-        :return:
-        """
-        self._logger.info('Evolving population of requests...')
-        while True:
-            selection = self._selector.select()
-            if selection.crossable:
-                self._logger.info('Crossing parents...')
-                q = self._queryable_factory(selection.queryable, self._logger, Config.dispatcher.async_requests_num)
-                queries = q.crossover(selection.crossable)
-                self._send_queries(queries)
-                analyzed_queries = self._analyze_queries(queries)
-                self._remove_weak_queries(analyzed_queries, queries)
-            else:
-                self._logger.info('Generating new queries...')
-                q = self._queryable_factory(selection.queryable, self._logger, Config.dispatcher.async_requests_num)
-                queries = q.generate()
-                self._send_queries(queries)
-                self._analyze_queries(queries)
-                self._slay_weakest_individuals(len(queries))
-            self._save_queries(queries)
-
-    def _save_queries(self, queries):
-        self._decode_queries(queries)
-        self._urls_logger.log_ursl(queries)
-        self._save_to_database(queries)
-
-    def _decode_queries(self, queries):
-        for query in queries:
-            self._decode_single_query(query)
-
-    def _decode_single_query(self, query):
-        self._decode_filter_option(query[0])
-        self._decode_search_option(query[0])
-        self._decode_accessible_keys(query[0])
-
-    def _decode_filter_option(self, query):
-        filter_option = query.dictionary.get('_$filter')
-        if filter_option:
-            for part in filter_option['parts']:
-                # decode all Edm types, even those which were not encoded
-                decoded_value = decode_string(part['operand'])
-                part['operand'] = decoded_value
-
-                # decode functions' parameters
-                params = part.get('params', None)
-                if params:
-                    for i, param in enumerate(params):
-                        params[i] = decode_string(param)
-
-    def _decode_search_option(self, query):
-        search_option = query.dictionary.get('_search')
-        if search_option:
-            decoded_value = decode_string(search_option)
-            query.dictionary['_search'] = decoded_value
-
-    def _decode_accessible_keys(self, query):
-        """Decode accessible keys that identify a single entity within an entity set.
-
-        For example: Customers(CustomerID='%C3%AF%C2%B6') -> Customers(CustomerID='ï¶')
-        """
-        accessible_keys = query.dictionary.get('accessible_keys', None)
-        if accessible_keys:
-            for key, value in accessible_keys.items():
-                accessible_keys[key] = decode_string(value)
-
-    def _send_queries(self, queries):
-        while True:
-            success = self._dispatch(queries)
-            if success:
-                break
-
-    def _get_multiple_responses(self, queries):
-        pool = Pool(Config.dispatcher.async_requests_num)
-        for query in queries:
-            pool.spawn(self._get_response, query)
-        try:
-            pool.join(raise_error=True)
-        except DispatcherError:
-            pool.kill()
-            self._handle_dispatcher_exception()
-            return False
-        return True
-
-    def _get_single_response(self, queries):
-        try:
-            self._get_response(queries)
-        except DispatcherError:
-            self._handle_dispatcher_exception()
-            return False
-        return True
-
-    def _get_response(self, query):
-        query[0].response = self._dispatcher.get(query[0].query_string, timeout=REQUEST_TIMEOUT)
-        if query[0].response.status_code != 200:
-            self._set_error_attributes(query)
-        else:
-            self._response_logger.log_response_time_and_data(query[0], Config.fuzzer.data_format)
-            setattr(query[0].response, 'error_code', '')
-            setattr(query[0].response, 'error_message', '')
-
-    def _handle_dispatcher_exception(self):
-        self._logger.info('Retrying in {} seconds...'.format(RETRY_TIMEOUT))
-        gevent.sleep(RETRY_TIMEOUT)
-
-    def _analyze_queries(self, queries):
-        analyzed_offsprings = []
-        for query in queries:
-            analyzed_offsprings.append(self._analyzer.analyze(query))
-        return analyzed_offsprings
-
-    def _remove_weak_queries(self, analyzed_offsprings, queries):
-        for offspring in analyzed_offsprings:
-            offspring.slay_weak_individual(queries)
-
-    def _slay_weakest_individuals(self, number_of_individuals):
-        self._database.delete_worst_entries(number_of_individuals)
-
-    def _save_to_database(self, queries):
-        for query in queries:
-            self._database.save_entry(query[0].dictionary)
-
-    def _set_error_attributes(self, query):
-        self._set_attribute_value(query, 'error_code', 'error', 'code')
-        self._set_attribute_value(query, 'error_message', 'error', 'message')
-
-    def _set_attribute_value(self, query, attr, *args):
-        try:
-            json = query[0].response.json()
-            value = self._get_attr_from_json(json, *args)
-        except ValueError:
-            value = self._get_attr_from_xml(query[0].response.content, *args)
-        setattr(query[0].response, attr, value)
-
-    def _get_attr_from_json(self, json, *args):
-        for arg in args:
-            json = json[arg]
-        if 'value' in json:
-            json = json['value']
-        self._logger.info('Fetched \'{}\' from JSON'.format(json))
-        return json
-
-    def _get_attr_from_xml(self, content, *args):
-        try:
-            parsed_etree = etree.parse(io.BytesIO(content))
-        except etree.XMLSyntaxError as xml_ex:
-            self._logger.info('An exception was raised while parsing the XML: {}'.format(xml_ex))
-            return ''
-        xpath_string = build_xpath_format_string(*args)
-        value = parsed_etree.xpath(xpath_string, namespaces=NAMESPACES)[0]
-        self._logger.info('Fetched \'{}\' from XML'.format(value))
-        return value
-
 
 class Queryable:
     """ Assemble the final query by appending different entitity parts.
@@ -392,288 +103,15 @@ class Queryable:
         query.build_string()
         self._logger.info('Generated query \'{}\''.format(query.query_string))
 
-class MultipleQueryable(Queryable):
-    """ Used when fuzzer triggered with async option, generates URL for requests in async batches
-    TODO refactor rename, so its not mistaken with QueryGroups.. this is about something different,
-    Query is the part of URL, QueryGroups is that urls are structurally different, this is about
-    possible name...   SendableQueryBatch for this async and SingleQueryable => SendableQuery
-    """
-    def generate(self):
-        queries = []
-        for _ in range(self._async_requests_num):
-            query = self.generate_query()
-            if query:
-                queries.append(query)
-        return queries
-
-    def crossover(self, crossable_selection):
-        children = []
-        for _ in range(self._async_requests_num):
-            accessible_keys = crossable_selection[0].get('accessible_keys', None)
-            if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
-                query = self.build_mutated_accessible_keys(accessible_keys, crossable_selection[0])
-                children.append(query)
-            else:
-                query1, query2 = crossable_selection
-                offspring = self._crossover_queries(query1, query2)
-                if offspring:
-                    children.append(offspring)
-        return children
-
 
 class SingleQueryable(Queryable):
     """
-    used when fuzzer is not triggered with async option, generates URLs  by one
+    used when fuzzer is not triggered with async option, generates URLs by one
     """
     def generate(self):
         query,body = self.generate_query()
         body = json.dumps(body)
         return [query,body]
-
-    def crossover(self, crossable_selection):
-        query1, query2 = crossable_selection
-        accessible_keys = crossable_selection[0].get('accessible_keys', None)
-        if accessible_keys and random.random() <= KEY_VALUES_MUTATION_PROB:
-            query = self.build_mutated_accessible_keys(accessible_keys, crossable_selection[0])
-        else:
-            query = self._crossover_queries(query1, query2)
-        return [query]
-
-
-class URLsLogger:
-    def __init__(self):
-        self._urls_logger = logging.getLogger(URLS_LOGGER)
-
-    def log_ursl(self, queries):
-        for query in queries:
-            self._urls_logger.info(query[0].url_hash + ':' + query[0].query_string)
-
-class Selector:
-    """
-    used in genetic loop,
-    see https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/doc_architecture/doc/architecture.rst#selector
-    """
-    def __init__(self, database, entities):
-        self._logger = logging.getLogger(FUZZER_LOGGER)
-        self._database = database
-        self._score_average = 0
-        self._passed_iterations = 0
-        self._entities = entities
-
-    @property
-    def score_average(self):
-        return self._score_average
-
-    @score_average.setter
-    def score_average(self, value):
-        self._score_average = value
-
-    def select(self):
-        if self._is_score_stagnating():
-            selection = Selection(None, random.choice(list(self._entities.all())))
-        else:
-            selection = self._crossable_selection()
-        self._passed_iterations += 1
-
-        return selection
-
-    def _crossable_selection(self):
-        queryable = random.choice(list(self._entities.all()))
-        crossable = self._get_crossable(queryable)
-        selection = Selection(crossable, queryable)
-        return selection
-
-    def _is_score_stagnating(self):
-        if self._passed_iterations > ITERATIONS_THRESHOLD:
-            self._passed_iterations = 0
-            current_average = self._database.total_score() / self._database.total_entries()
-            old_average = self._score_average
-            self._score_average = current_average
-            if (current_average - old_average) < SCORE_EPS:
-                return True
-        return False
-
-    def _get_crossable(self, queryable):
-        entity_set_name = queryable.entity_set.name
-        parent1 = self._database.sample_filter_entry(entity_set_name, None)
-        if parent1 is None:
-            return None
-        parent2 = self._database.sample_filter_entry(entity_set_name, ObjectId(parent1['_id']))
-        if parent2 is None:
-            return None
-        return parent1, parent2
-
-
-class Selection:
-    """A container that holds objects created by Selector."""
-
-    def __init__(self, crossable, queryable):
-        self._crossable = crossable
-        self._queryable = queryable
-
-    @property
-    def crossable(self):
-        return self._crossable
-
-    @property
-    def queryable(self):
-        return self._queryable
-
-
-class Analyzer:
-    """Fitness function evaluator for analyzing responses from generated queries.
-
-    Higher score propagates further in the genetic algorithm.
-    """
-
-    def __init__(self, database):
-        self._database = database
-        self._population_score = 0
-
-    def analyze(self, query):
-        new_score = FitnessEvaluator.evaluate(query)
-        query[0].score = new_score
-        self._update_population_score(new_score)
-        predecessors_ids = query[0].dictionary['predecessors']
-        if predecessors_ids:
-            offspring = self._build_offspring_by_score(predecessors_ids, query[0], new_score)
-        else:
-            offspring = EmptyOffspring(self._database)
-        return offspring
-
-    def _build_offspring_by_score(self, predecessors_id, query, new_score):
-        for predecessor_id in predecessors_id:
-            if self._database.find_entry(predecessor_id)['score'] < new_score:
-                return BetterOffspring(self._database, predecessor_id)
-        return WorseOffspring(query)
-
-    def _update_population_score(self, query_score):
-        if self._population_score == 0:
-            self._population_score = self._database.total_score()
-        else:
-            self._population_score += query_score
-
-
-class Offspring(metaclass=ABCMeta):
-    """
-        In mutation,
-    """
-    def __init__(self, database):
-        self._database = database
-
-    @abstractmethod
-    def slay_weak_individual(self, queries):
-        pass
-
-    @abstractmethod
-    def get_number_of_slayed(self):
-        pass
-
-
-class BetterOffspring(Offspring):
-    def __init__(self, database, worse_predecessor_id):
-        super(BetterOffspring, self).__init__(database)
-        self._worse_predecessor_id = worse_predecessor_id
-        self._slayed = 0
-
-    def slay_weak_individual(self,queries):
-        deleted_num = self._database.delete_entry(self._worse_predecessor_id)
-        if deleted_num == 0:
-            self._database.delete_worst_entries(1)
-        self._slayed = 1
-
-    def get_number_of_slayed(self):
-        return self._slayed
-
-
-class WorseOffspring(Offspring):
-    def __init__(self, offspring):
-        self._offspring = offspring
-        self._slayed = 0
-
-    def slay_weak_individual(self, queries):
-        queries.remove(self._offspring)
-        self._slayed = 1
-
-    def get_number_of_slayed(self):
-        return self._slayed
-
-
-class EmptyOffspring(Offspring):
-    def slay_weak_individual(self, queries):
-        self._database.delete_worst_entries(1)
-
-    def get_number_of_slayed(self):
-        return 1
-
-
-class FitnessEvaluator:
-    """A group of heuristic functions.
-
-    It is preffering shorther URLs for HTTP 500 responses and ignores other HTTP status codes.
-    It preffers URLs where smaller response content took significantly longer time (i.e. empiric observation of server handling bad requests).
-    """
-
-    @staticmethod
-    def evaluate(query):
-        total_score = 0
-        keys_len = sum(len(option_name) for option_name in query[0].options.keys())
-        query_len = len(query[0].query_string) - len(query[0].entity_name) - keys_len
-        total_score += FitnessEvaluator.eval_string_length(query_len)
-        total_score += FitnessEvaluator.eval_http_status_code(
-            query[0].response.status_code, query[0].response.error_code, query[0].response.error_message)
-        total_score += FitnessEvaluator.eval_http_response_time(query[0].response)
-        return total_score
-
-    @staticmethod
-    def eval_http_status_code(status_code, error_code, error_message):
-        if status_code == 500:
-            return SAPErrors.evaluate(error_code, error_message)
-        elif status_code == 200:
-            return 0
-        else:
-            return -50
-
-    @staticmethod
-    def eval_http_response_time(response):
-        if not response.headers.get('content-length'):
-            return 0
-        if int(response.headers['content-length']) > CONTENT_LEN_SIZE:
-            return -10
-        total_seconds = response.elapsed.total_seconds()
-        score = total_seconds / 10
-        if total_seconds < 100:
-            score += (total_seconds ** 2) / (10 ** (len(str(total_seconds)) + 1))
-        return round(score)
-
-    @staticmethod
-    def eval_string_length(string_length):
-        if string_length < 10:
-            return 0
-        else:
-            return round(STRING_THRESHOLD / string_length)
-
-
-class SAPErrors:
-    """A container of all types of errors produced by the SAP systems."""
-    #TODO this is hardcoded for expected usage of ODfuzz against SAP systems; would not work correctly against generic Odata service
-    @staticmethod
-    def evaluate(error_code, error_message):
-        # TODO: handle more types of the SY/530 error, e.g. "XYZ is not created in language", "XYZ not in system", ...
-        if error_code == 'SY/530':
-            # Wrong number of analytical ID
-            if error_message.startswith('Invalid part') and error_message.endswith('of analytical ID'):
-                return -50
-        elif error_code == '/IWBEP/CM_MGW_RT/176':
-            # Unsupported type of language
-            if error_message.startswith('\'Language') and error_message.endswith('not in system\''):
-                return -50
-        # The interpreter cannot convert generated UTF8 character
-        elif error_code == 'CONVT_CODEPAGE':
-            return -10
-
-        return 100
-
 
 class Query:
     """A wrapper of a generated query."""
@@ -683,12 +121,10 @@ class Query:
         self._options = {}
         self._query_string = ''
         self._dict = None
-        self._score = None
         self._predecessors = []
         self._order = []
         self._response = None
         self._parts = 0
-        self._id = ObjectId()
         self._options_strings = {'$orderby': '', '$filter': '', '$skip': '', '$top': '', '$expand': '',
                                  'search': '', '$inlinecount': ''}
         self._url_hash = ''
@@ -713,10 +149,6 @@ class Query:
     def dictionary(self):
         self._create_dict()
         return self._dict
-
-    @property
-    def score(self):
-        return self._score
 
     @property
     def query_id(self):
@@ -749,10 +181,6 @@ class Query:
     @response.setter
     def response(self, value):
         self._response = value
-
-    @score.setter
-    def score(self, value):
-        self._score = value
 
     @accessible_entity.setter
     def accessible_entity(self, value):
@@ -834,74 +262,6 @@ class HashGenerator:
     @staticmethod
     def generate(string):
         return hashlib.md5(string.encode('utf-8')).hexdigest()
-
-
-class Dispatcher:
-    """A dispatcher for sending HTTP requests to the particular OData service."""
-
-    def __init__(self, arguments):
-        self._config = Config.dispatcher
-
-        self._logger = logging.getLogger(FUZZER_LOGGER)
-        self._service = arguments.service.rstrip('/') + '/'
-
-        self._session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(pool_connections=self._config.async_requests_num,
-                                                pool_maxsize=self._config.async_requests_num)
-        self._session.mount(ACCESS_PROTOCOL, adapter)
-        self._session.verify = self._get_sap_certificate()
-        self._session.headers.update({'user-agent': 'odfuzz/1.0'})
-
-        self._init_auth_credentials(arguments.credentials)
-
-    @property
-    def service(self):
-        return self._service
-
-    def send(self, method, query, **kwargs):
-        url = self._service + query
-        try:
-            response = self._session.request(method, url, **kwargs)
-        except requests.exceptions.RequestException as requests_ex:
-            self._logger.error('An exception {} was raised'.format(requests_ex))
-            raise DispatcherError('An exception was raised while sending HTTP {}: {}'
-                                  .format(method, requests_ex))
-        self._logger.info('Received HTTP {} from {}'.format(response.status_code, url))
-        return response
-
-    def get(self, query, **kwargs):
-        return self.send('GET', query, **kwargs)
-
-    def post(self, query, **kwargs):
-        return self.send('POST', query, **kwargs)
-
-    def _get_sap_certificate(self):
-        certificate_path = None
-        if self._config.has_certificate:
-            candidate_path = self._config.cert_file_path
-            if not os.path.isfile(candidate_path):
-                return None
-            certificate_path = candidate_path
-        return certificate_path
-
-    def _init_auth_credentials(self, credentials):
-        if credentials:
-            try:
-                username, password = credentials.split(':')
-            except ValueError:
-                raise DispatcherError('Entered credentials {} are not valid'.format(credentials))
-            self._session.auth = (username, password)
-        else:
-            self._session.auth = (os.getenv(ENV_USERNAME), os.getenv(ENV_PASSWORD))
-
-
-class LoggerErrorWritter:
-    """ """
-    def __init__(self, logger):
-        self._logger = logger
-
-    def write(self, message):
-        self._logger.error(message)
 
 
 class NullObject:

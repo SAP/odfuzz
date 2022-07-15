@@ -3,7 +3,6 @@
 import os
 
 from odfuzz.constants import (
-    DEFAULT_ASYNC_REQUESTS_NUM,
     DEFAULT_DATA_FORMAT,
     DEFAULT_USE_ENCODER,
     DEFAULT_SAP_CLIENT,
@@ -11,10 +10,8 @@ from odfuzz.constants import (
     DEFAULT_IGNORE_METADATA_RESTRICTIONS,
     DEFAULT_CLI_RUNNER_SEED,
     DEFAULT_SAP_VENDOR_ENABLED,
-    ENV_ASYNC_REQUESTS_NUM,
     ENV_DATA_FORMAT,
     ENV_USE_ENCODER,
-    ENV_ODFUZZ_CERTIFICATE_PATH,
     ENV_SAP_CLIENT,
     ENV_URLS_PER_PROPERTY,
     ENV_IGNORE_METADATA_RESTRICTIONS,
@@ -79,33 +76,9 @@ class FuzzerConfig:
     def sap_vendor_enabled(self, value):
         self._sap_vendor_enabled = value
 
-class DispatcherConfig:
-    def __init__(self):
-        self._cert_file_path = self._data_format = os.getenv(ENV_ODFUZZ_CERTIFICATE_PATH) #intentionaly no default path
-        self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
-        async_requests_num =   os.getenv(ENV_ASYNC_REQUESTS_NUM, DEFAULT_ASYNC_REQUESTS_NUM)
-        self._async_requests_num = int(async_requests_num)
-
-
-    @property
-    def has_certificate(self):
-        return bool(self._cert_file_path)
-
-
-    @property
-    def cert_file_path(self):
-        return self._cert_file_path
-
-    @property
-    def async_requests_num(self):
-        return self._async_requests_num
-
-
 class Config:
     fuzzer = None
-    dispatcher = None
 
     @staticmethod
     def init():
         Config.fuzzer = FuzzerConfig()
-        Config.dispatcher = DispatcherConfig()
