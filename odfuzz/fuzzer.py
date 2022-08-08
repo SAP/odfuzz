@@ -9,6 +9,7 @@ import gevent
 import requests
 import requests.adapters
 import json
+import re
 
 from copy import deepcopy
 from collections import namedtuple
@@ -345,19 +346,29 @@ class Queryable:
         self._logger = logger
         self._async_requests_num = async_requests_num
 
-    def generate_query(self):
+    def generate_query(self, restrictions):
         accessible_entity, body_key_pairs = self._queryable.get_accessible_entity()
         query = Query(accessible_entity)
         self.generate_options(query)
-        body = self.generate_body(accessible_entity, body_key_pairs)
+        body = self.generate_body(accessible_entity, body_key_pairs, restrictions)
         Stats.tests_num += 1
         # TODO REFACATOR - example HARDCODED USAGE OF STATS trough import - for DirectBuilder apparently not relevant since results files are out of scope of such usage
         return query,body
+
+    def regex_match(self, entity_name, proprty_name, restrictions):
+        for entity in restrictions:
+            if len(restrictions[entity]) > 0 and re.match(entity, entity_name) != None:
+                for properties in restrictions[entity]:
+                    if re.match(properties, proprty_name) != None:
+                        return True
+        return False
     
-    def generate_put_post_body(self, accessible_entity, body_key_pairs):
+    def generate_put_post_body(self, accessible_entity, body_key_pairs, restrictions):
         body={}
         properties = accessible_entity.entity_set.entity_type._properties
         for prprty in properties.values():
+            if self.regex_match(accessible_entity.entity_set.name, prprty.name, restrictions):
+                continue
             #checking if the property exists in generated body_key_pairs. If yes, then the body equivalent value is used
             if prprty.name in body_key_pairs:
                 generated_body = body_key_pairs[prprty.name]
@@ -371,12 +382,14 @@ class Queryable:
         return body
 
 
-    def generate_merge_body(self, accessible_entity, body_key_pairs):
+    def generate_merge_body(self, accessible_entity, body_key_pairs, restrictions):
         body = {}
         properties = {}
         #if the property is a key, then its omitted from the body
         for proprty in accessible_entity.entity_set.entity_type._properties:
             if proprty not in body_key_pairs:
+                if self.regex_match(accessible_entity.entity_set.name, proprty, restrictions):
+                    continue
                 properties[proprty] = accessible_entity.entity_set.entity_type._properties[proprty]
         #if no non-key properties exist, then empty body returned
         if len(properties) == 0:
@@ -395,15 +408,14 @@ class Queryable:
             #property removed from the properties dict to avoid creating duplicates
             properties.pop(selected_property._name)
         return body
-        
 
-    def generate_body(self,accessible_entity,body_key_pairs):
+    def generate_body(self,accessible_entity,body_key_pairs,restrictions):
         #body initialised as empty dict. For GET and DELETE the body would remain empty
         body={}
         if Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "POST":
-            body = self.generate_put_post_body(accessible_entity, body_key_pairs)
+            body = self.generate_put_post_body(accessible_entity, body_key_pairs,restrictions)
         elif Config.fuzzer.http_method_enabled == "MERGE":
-            body = self.generate_merge_body(accessible_entity, body_key_pairs)
+            body = self.generate_merge_body(accessible_entity, body_key_pairs,restrictions)
         elif Config.fuzzer.http_method_enabled == "GET" or Config.fuzzer.http_method_enabled == "DELETE":
             pass
         else:
@@ -643,8 +655,8 @@ class SingleQueryable(Queryable):
     """
     used when fuzzer is not triggered with async option, generates URLs  by one
     """
-    def generate(self):
-        query,body = self.generate_query()
+    def generate(self, restrictions):
+        query,body = self.generate_query(restrictions)
         body = json.dumps(body)
         return [query,body]
 
