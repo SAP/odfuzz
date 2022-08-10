@@ -4,3 +4,4 @@ mongomock>=3.14.0
 pylint==2.8.3
 flake8==3.8.4
 bandit==1.7.0
+codecov>=2.1.12'
