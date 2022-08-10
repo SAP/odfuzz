@@ -31,11 +31,12 @@ setup(
     ],
     tests_require=[
         'mongomock>=3.14.0',
-        'pytest>=3.5.0',
-        'pytest-cov>=2.7.1',
-        'codecov>=2.0.15',
-        'pylint>=1.2.1',
-        'bandit>=1.6.2'
+        'pytest>=7.1.2',
+        'pytest-cov>=3.0.0',
+        'codecov>=2.1.12',
+        'pylint>=2.8.3',
+        'flake8==3.8.4',
+        'bandit>=1.7.0'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
