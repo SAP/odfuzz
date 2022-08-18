@@ -20,22 +20,23 @@ setup(
     },
     zip_safe=False,
     install_requires=[
-        'gevent==21.1.2',
-        'greenlet==1.1.0',
+        'gevent==21.12.0 ',
+        'greenlet==1.1.2',
         'requests==2.23.0',
         'pymongo==3.10.1',
-        'lxml==4.6.5',
+        'lxml==4.9.1',
         'pyyaml==5.4',
         'python-dateutil==2.8.1',
         'pyodata==1.7.0',
     ],
     tests_require=[
         'mongomock>=3.14.0',
-        'pytest>=3.5.0',
-        'pytest-cov>=2.7.1',
-        'codecov>=2.0.15',
-        'pylint>=1.2.1',
-        'bandit>=1.6.2'
+        'pytest>=7.1.2',
+        'pytest-cov>=3.0.0',
+        'codecov>=2.1.12',
+        'pylint>=2.8.3',
+        'flake8==3.8.4',
+        'bandit>=1.7.0'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
