@@ -8,6 +8,7 @@ QUERY = part of URL: EntitySet?queryoptions
 """
 
 import copy
+import re
 import random
 import inspect
 import uuid
@@ -108,7 +109,7 @@ class DispatchedBuilder:
 
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
-    def __init__(self, metadata, restrictions,method, sap_vendor_enabled = False):
+    def __init__(self, metadata, restrictions = None, method = "GET", sap_vendor_enabled = False):
         if method not in ["GET","DELETE","PUT","POST","MERGE"]:
             raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
@@ -131,7 +132,51 @@ class DirectBuilder:
             query_group_data = QueryGroupData(entity_set, principal_entities, self._restrictions, None)
             self._append_queryable(query_group_data)
 
-        return self._queryable
+        return self._apply_restrictions()
+    
+    def _apply_restrictions(self):
+        #Method for excluding entities and their properties as a part of exclusion_list
+        list_of_entities = self._queryable.all()
+        excluded_entites = []
+
+        for entity_set in list_of_entities:
+            if self._regex_match(entity_set._entity_set._name, None, None):
+                excluded_entites.append(entity_set)
+
+            for proprty in list(entity_set.entity_set.entity_type._properties.keys()):
+                if self._regex_match(entity_set._entity_set._name, proprty, None):
+                    entity_set.entity_set.entity_type._properties.pop(proprty)
+
+            for nav_proprties in list(entity_set.entity_set.entity_type._nav_properties.keys()):
+                if self._regex_match(entity_set._entity_set._name, proprty, nav_proprties):
+                    entity_set.entity_set.entity_type._nav_properties.pop(nav_proprties)
+
+        for entity_set in excluded_entites:
+            if entity_set in list_of_entities:
+                list_of_entities.remove(entity_set)
+
+        return list_of_entities
+    
+    def _regex_match(self, entity_name, proprty_name, nav_proprty_name):
+        #Method used to check for entities and properties which are to be excluded
+        restrictions = self._restrictions.excluded_options()
+        for entity in restrictions:
+            properties = restrictions[entity]["Properties"]
+            nav_properties = restrictions[entity]["Nav_Properties"]
+
+            if re.match(entity, entity_name) != None:
+                if len(properties) == 0 and len(nav_properties) == 0:
+                    return True
+                elif len(nav_properties) == 0:
+                    for proprty in properties:
+                        if proprty_name != None and re.match(proprty, proprty_name) != None:
+                            return True
+                else:
+                    for nav_proprty in nav_properties:
+                        if nav_proprty_name != None and re.match(nav_proprty, nav_proprty_name) != None:
+                            return True
+
+        return False
 
     def _get_data_model(self):
         try:
@@ -2123,7 +2168,6 @@ class GroupedPrincipalEntities:
     @property
     def multiplicity_one_entities(self):
         return self._multiplicity_one_entities
-
 
 def generate_accessible_entity_key_values(containing_entity_set):
     key_pairs = {}
