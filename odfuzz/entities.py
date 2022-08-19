@@ -120,7 +120,10 @@ class DirectBuilder:
         Config.fuzzer.sap_vendor_enabled = sap_vendor_enabled
 
         # Ugly but necessary so the field exists for classes and methods in fuzzer.py using the Config.
-        # Normally initialized in the middle of CLI calls, but in this case this is the first entrypoint and Config does not exists yet.
+        # Normally initialized in the middle of CLI calls, but in this case this is the first entrypoint and Config does not exists yet.     
+    def set_restrictions(self, restrictions):
+        self._restrictions = restrictions
+
     def build(self):
         # call just once on fuzzer process start
         data_model = self._get_data_model()
@@ -135,7 +138,7 @@ class DirectBuilder:
         return self._apply_restrictions()
     
     def _apply_restrictions(self):
-        #Method for excluding entities and their properties as a part of exclusion_list
+        '''Method for excluding entities and their properties as a part of RestrictionsGroup'''
         list_of_entities = self._queryable.all()
         excluded_entites = []
 
@@ -158,7 +161,7 @@ class DirectBuilder:
         return list_of_entities
     
     def _regex_match(self, entity_name, proprty_name, nav_proprty_name):
-        #Method used to check for entities and properties which are to be excluded
+        '''Method used to check for entities and properties which are to be excluded'''
         restrictions = self._restrictions.excluded_options()
         for entity in restrictions:
             properties = restrictions[entity]["Properties"]

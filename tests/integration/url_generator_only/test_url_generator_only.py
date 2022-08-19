@@ -195,7 +195,7 @@ def test_method_for_exclusion_dict(method_type):
  
     #FioriDast update the Exception List
     restrictions = RestrictionsGroup(None, exclusion_dict)
-    del_builder.restrictions = restrictions
+    del_builder.set_restrictions(restrictions)
     del_entities = del_builder.build()
 
 method_types = ["GET", "POST", "MERGE", "PUT", "DELETE"]
