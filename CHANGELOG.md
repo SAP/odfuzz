@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0]
+
+-  Implement entity and entityset restrictions
+-  DirectBuider.build() returns a list of entities after restrictions are applied, instead of the object of the class QueryableEntities  
+
 ## [0.16.1]
 
 -  Fixed SAP_VENDOR_ENABLED for DateTimeOffset
