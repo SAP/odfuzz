@@ -28,15 +28,15 @@ def test_expected_integration_sample():
     entities = builder.build()
 
     ''' uncomment for code sample purposes
-    print('\n entity count: ', len(entities.all()) )
-    for x in entities.all():
+    print('\n entity count: ', len(entities) )
+    for x in entities:
         print(x.__class__.__name__, '  --  ', x.entity_set)
     print('\n--End of listing the parsed entities--')
     '''
 
     queryable_factory = SingleQueryable
 
-    for queryable in entities.all():
+    for queryable in entities:
         URL_COUNT_PER_ENTITYSET = len(queryable.entity_set.entity_type.proprties()) * 1
         #Leaving as 1 instead of default 20, so the test output is more understandable and each property has one URL generated
 
@@ -68,7 +68,7 @@ def test_direct_builder_http_get():
     get_entities , queryable_factory = builder("GET")
     queries_list = []
     queries_list.clear()
-    for queryable in get_entities.all():
+    for queryable in get_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
@@ -83,7 +83,7 @@ def test_direct_builder_http_delete():
     del_entities , queryable_factory = builder("DELETE")
     queries_list = []
     queries_list.clear()
-    for queryable in del_entities.all():
+    for queryable in del_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
@@ -98,7 +98,7 @@ def test_direct_builder_http_put_url():
     put_entities , queryable_factory = builder("PUT")
     queries_list = []
     queries_list.clear()
-    for queryable in put_entities.all():
+    for queryable in put_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
@@ -113,7 +113,7 @@ def test_direct_builder_http_post_url():
     post_entities , queryable_factory = builder("POST")
     queries_list = []
     queries_list.clear()
-    for queryable in post_entities.all():
+    for queryable in post_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
@@ -128,7 +128,7 @@ def test_direct_builder_body_generation():
     dir_entities , queryable_factory = builder("PUT")
     body_list = []
     body_list.clear()
-    for queryable in dir_entities.all():
+    for queryable in dir_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
@@ -141,7 +141,7 @@ def test_direct_builder_http_merge_body():
     merge_entities , queryable_factory = builder("MERGE")
     body_list = []
     body_list.clear()
-    for queryable in merge_entities.all():
+    for queryable in merge_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
@@ -170,26 +170,20 @@ exclusion_dict = {
                     }
                 }
 
-def test_method_for_exclusion_dict(method_type):
+def test_method_for_exclusion_dict():
     #Method used for testing the implementation of exclusion_list
     os.environ["ODFUZZ_IGNORE_METADATA_RESTRICTIONS"] = "True"
     path_to_metadata = Path(__file__).parent.joinpath("metadata-northwind-v2.xml")
     metadata_file_contents = path_to_metadata.read_bytes()
     restrictions = RestrictionsGroup(None, exclusion_dict)
-    del_builder = DirectBuilder(metadata_file_contents, restrictions, method_type)
+    del_builder = DirectBuilder(metadata_file_contents, restrictions, "GET")
     del_entities = del_builder.build()
-    queryable_factory = SingleQueryable
-    queries_list = []
-    queries_list.clear()
-    
+    queryable_factory = SingleQueryable    
     for queryable in del_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
-
         for _ in range(entityset_urls_count):
             q = queryable_factory(queryable, logger, 1)
             queries,body = q.generate()
-
-            print(method_type, "\n")
             print(queries.query_string,"\n")
             print(body,"\n\n")
  
@@ -197,7 +191,3 @@ def test_method_for_exclusion_dict(method_type):
     restrictions = RestrictionsGroup(None, exclusion_dict)
     del_builder.set_restrictions(restrictions)
     del_entities = del_builder.build()
-
-method_types = ["GET", "POST", "MERGE", "PUT", "DELETE"]
-for methods in method_types:
-    test_method_for_exclusion_dict(methods)

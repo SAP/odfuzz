@@ -139,13 +139,9 @@ class DirectBuilder:
     
     def _apply_restrictions(self):
         '''Method for excluding entities and their properties as a part of RestrictionsGroup'''
-        list_of_entities = self._queryable.all()
-        excluded_entites = []
+        list_of_entities = []
 
-        for entity_set in list_of_entities:
-            if self._regex_match(entity_set._entity_set._name, None, None):
-                excluded_entites.append(entity_set)
-
+        for entity_set in self._queryable.all():
             for proprty in list(entity_set.entity_set.entity_type._properties.keys()):
                 if self._regex_match(entity_set._entity_set._name, proprty, None):
                     entity_set.entity_set.entity_type._properties.pop(proprty)
@@ -154,9 +150,8 @@ class DirectBuilder:
                 if self._regex_match(entity_set._entity_set._name, proprty, nav_proprties):
                     entity_set.entity_set.entity_type._nav_properties.pop(nav_proprties)
 
-        for entity_set in excluded_entites:
-            if entity_set in list_of_entities:
-                list_of_entities.remove(entity_set)
+            if not self._regex_match(entity_set._entity_set._name, None, None):
+                list_of_entities.append(entity_set)
 
         return list_of_entities
     
