@@ -114,7 +114,6 @@ class Query:
         self._options = {}
         self._query_string = ''
         self._dict = None
-        self._predecessors = []
         self._order = []
         self._response = None
         self._parts = 0
@@ -152,10 +151,6 @@ class Query:
         return self._options_strings
 
     @property
-    def predecessors(self):
-        return self._predecessors
-
-    @property
     def order(self):
         return self._order
 
@@ -190,9 +185,6 @@ class Query:
         self._options[name] = None
         self._order.remove('_' + name)
 
-    def add_predecessor(self, predecessor_id):
-        self._predecessors.append(predecessor_id)
-
     def build_string(self):
     #TODO refactor rename build_url_part - this creates the parts after /Entity?$filter... etc ; not entire URL to send to Dispatcher.
         self._query_string = self._accessible_entity.path + '?'
@@ -217,6 +209,7 @@ class Query:
 
         self._url_hash = HashGenerator.generate(self._query_string)
 
+    '''
     def _create_dict(self):
         # key fields cannot start with a dollar sign in mongoDB,
         # therefore names of query options start with an underscore;
@@ -243,6 +236,7 @@ class Query:
             '_search': self._options.get(SEARCH),
             '_$inlinecount': self._options.get(INLINECOUNT)
         }
+    '''
 
     def _add_appendix(self):
         if Config.fuzzer.sap_client:
@@ -265,15 +259,6 @@ class NullObject:
         return self
 
 # following methods were part of Queryable, Query and Fuzzer class, moved out simply because of self. warning logically are part of Queryable
-def is_filter_crossable(query1, query2):
-    crossable = False
-    if query1['order'] and query2['order'] == ['_$filter']:
-        crossable = True
-    if query1['_$filter'] and query2['_$filter'] and random.random() < FILTER_CROSS_PROBABILITY:
-        crossable = True
-    return crossable
-
-
 def build_filter_string(filter_data):
     filter_option = FilterOption(filter_data['logicals'],
                                  filter_data['parts'],
