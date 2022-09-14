@@ -33,6 +33,54 @@ Restrictions are used to embed data in queries or to suppress generation of quer
 
 EXCLUDE Restrictions
 ........................
+* \$ENTITY_SET\$. The fuzzer will not generate HTTP requests for all method types - GET, POST, DELETE, PUT and MERGE for the specified list of entity sets. For example, when we define the following restriction, ODfuzz will skip a generation of query options for the entity set Products 
+
+URI:
+
+https://services.odata.org/V2/Northwind/Northwind.svc/Products?\$filter=ProductID%20lt%202
+
+.. code-block:: yaml
+
+   Exclude:
+       $ENTITY_SET$:
+           Products:
+                Properties:
+                Nav_Properties:
+             
+* \$ENTITY_SET Propertries\$. The fuzzer will not generate HTTP requests for method types - POST, PUT and MERGE for the specified list of properties of a specific entity set. This will remove the following property from the body of the request. For example, when we define the following restriction, ODfuzz will skip a generation of query options for the property ProductID for entity set Products 
+
+URI:
+
+https://services.odata.org/V2/Northwind/Northwind.svc/Products?sap-client=500
+
+Body:
+
+{"ProductName": "Q!a\u00bfbg\u2026\u00b5|\u00ce\u00c9qj\u00eb\u00b7\u00c1{SC@\u00e0\u2026VEs\u2019i\u2026(\u00b5", "SupplierID": 1593960140, "CategoryID": -1745367456, "QuantityPerUnit": "lM\u2013\u00ceo\u00a9\u00f7\u00b4\u00f8\u00e4\u00e0\u00bc<", "UnitPrice": "203518542564.221m", "UnitsInStock": 19375, "UnitsOnOrder": -12443, "ReorderLevel": 875, "Discontinued": true}
+
+.. code-block:: yaml
+
+   Exclude:
+       $ENTITY_SET$:
+           Products:
+                Properties:
+                    - ProductID
+                Nav_Properties:
+ 
+* \$ENTITY_SET Navigation Properties\$. The fuzzer will not generate HTTP requests for all method types - GET, POST, DELETE, PUT and MERGE for the specified list of navigation properties of a specific entity set. This will remove the generation of URI for following navigation property. For example, when we define the following restriction, ODfuzz will skip a generation of query options for the navigation property Categories for entity set Products 
+
+URI:
+
+https://services.odata.org/V2/Northwind/Northwind.svc/Categories(CategoryID=950596305)/Products?sap-client=500
+
+.. code-block:: yaml
+
+   Exclude:
+       $ENTITY_SET$:
+           Products:
+                Properties:
+                Nav_Properties:
+                    - Category
+
 * \$ENTITY_SET\$. The fuzzer will not generate HTTP GET requests for a specified list of entity sets. For example, when we define the following restriction, ODfuzz will skip a generation of \$filter query options for the entity set Products (e.g. https://services.odata.org/V2/Northwind/Northwind.svc/Products?\$filter=ProductID%20lt%202):
 
 .. code-block:: yaml
