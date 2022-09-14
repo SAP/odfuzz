@@ -6,13 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-<<<<<<< HEAD
-=======
 ## [0.17.0]
 
 -  Implement entity and entityset restrictions
 -  DirectBuider.build() returns a list of entities after restrictions are applied, instead of the object of the class QueryableEntities  
->>>>>>> 5e9ebbe05e236fa319fb8207dca576f4dfdf556e
 
 ## [0.16.1]
 
