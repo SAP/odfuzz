@@ -5,22 +5,31 @@
 import yaml
 
 from odfuzz.exceptions import RestrictionsError
-from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION, VALUE
+from odfuzz.constants import EXCLUDE, INCLUDE, DRAFT_OBJECTS, QUERY_OPTIONS, FORBID_OPTION, VALUE, GLOBAL_ENTITY_SET
 
 
 class RestrictionsGroup:
     """A wrapper that holds a reference for all types of restrictions."""
 
-    def __init__(self, restrictions_file):
+    def __init__(self, restrictions_file, exclusion_dict=None):
         self._restrictions_file = restrictions_file
+        self._exclusion_dict = exclusion_dict
         self._forbidden_options = []
         self._option_restrictions = {}
+        self._excluded_options = {}
 
         if self._restrictions_file:
             parsed_restrictions = self._parse_restrictions()
         else:
             parsed_restrictions = {}
         self._init_restrictions(parsed_restrictions)
+
+        if exclusion_dict:
+            modified_excluded_dict = self._build_exclusion_dict(exclusion_dict)
+            self._init_restrictions(modified_excluded_dict)
+
+    def _build_exclusion_dict(self, exclusion_dict):
+        return {EXCLUDE: exclusion_dict, INCLUDE: {}}
 
     def _parse_restrictions(self):
         try:
@@ -41,6 +50,7 @@ class RestrictionsGroup:
             self._option_restrictions[query_option] = QueryRestrictions(query_exclude_restr, query_include_restr)
 
         self._forbidden_options = exclude_restr.get(FORBID_OPTION, [])
+        self._excluded_options = exclude_restr.get(GLOBAL_ENTITY_SET, {})
         self._init_draft_objects(include_restr)
         self._init_value_objects(include_restr)
 
@@ -64,6 +74,9 @@ class RestrictionsGroup:
 
     def get(self, option_name):
         return self._option_restrictions.get(option_name)
+    
+    def excluded_options(self):
+        return self._excluded_options
 
 
 class QueryRestrictions:

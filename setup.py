@@ -20,18 +20,36 @@ setup(
     },
     zip_safe=False,
     install_requires=[
+<<<<<<< HEAD
         'requests==2.23.0',
         'lxml==4.6.5',
+=======
+        'gevent==21.12.0 ',
+        'greenlet==1.1.2',
+        'requests==2.23.0',
+        'pymongo==3.10.1',
+        'lxml==4.9.1',
+>>>>>>> 5e9ebbe05e236fa319fb8207dca576f4dfdf556e
         'pyyaml==5.4',
         'python-dateutil==2.8.1',
         'pyodata==1.7.0',
     ],
     tests_require=[
+<<<<<<< HEAD
         'pytest>=3.5.0',
         'pytest-cov>=2.7.1',
         'codecov>=2.0.15',
         'pylint>=1.2.1',
         'bandit>=1.6.2'
+=======
+        'mongomock>=3.14.0',
+        'pytest>=7.1.2',
+        'pytest-cov>=3.0.0',
+        'codecov>=2.1.12',
+        'pylint>=2.8.3',
+        'flake8==3.8.4',
+        'bandit>=1.7.0'
+>>>>>>> 5e9ebbe05e236fa319fb8207dca576f4dfdf556e
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

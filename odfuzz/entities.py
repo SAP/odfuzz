@@ -8,6 +8,7 @@ QUERY = part of URL: EntitySet?queryoptions
 """
 
 import copy
+import re
 import random
 import inspect
 import uuid
@@ -40,7 +41,11 @@ OptionRestriction = namedtuple('OptionRestriction', 'restr is_restricted')
 
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
+<<<<<<< HEAD
     def __init__(self, metadata, restrictions, method, sap_vendor_enabled = False):
+=======
+    def __init__(self, metadata, restrictions = None, method = "GET", sap_vendor_enabled = False):
+>>>>>>> 5e9ebbe05e236fa319fb8207dca576f4dfdf556e
         if method not in ["GET","DELETE","PUT","POST","MERGE"]:
             raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
@@ -51,7 +56,10 @@ class DirectBuilder:
         Config.fuzzer.sap_vendor_enabled = sap_vendor_enabled
 
         # Ugly but necessary so the field exists for classes and methods in fuzzer.py using the Config.
-        # Normally initialized in the middle of CLI calls, but in this case this is the first entrypoint and Config does not exists yet.
+        # Normally initialized in the middle of CLI calls, but in this case this is the first entrypoint and Config does not exists yet.     
+    def set_restrictions(self, restrictions):
+        self._restrictions = restrictions
+
     def build(self):
         # call just once on fuzzer process start
         data_model = self._get_data_model()
@@ -63,7 +71,46 @@ class DirectBuilder:
             query_group_data = QueryGroupData(entity_set, principal_entities, self._restrictions, None)
             self._append_queryable(query_group_data)
 
-        return self._queryable
+        return self._apply_restrictions()
+    
+    def _apply_restrictions(self):
+        '''Method for excluding entities and their properties as a part of RestrictionsGroup'''
+        list_of_entities = []
+
+        for entity_set in self._queryable.all():
+            for proprty in list(entity_set.entity_set.entity_type._properties.keys()):
+                if self._regex_match(entity_set._entity_set._name, proprty, None):
+                    entity_set.entity_set.entity_type._properties.pop(proprty)
+
+            for nav_proprties in list(entity_set.entity_set.entity_type._nav_properties.keys()):
+                if self._regex_match(entity_set._entity_set._name, proprty, nav_proprties):
+                    entity_set.entity_set.entity_type._nav_properties.pop(nav_proprties)
+
+            if not self._regex_match(entity_set._entity_set._name, None, None):
+                list_of_entities.append(entity_set)
+
+        return list_of_entities
+    
+    def _regex_match(self, entity_name, proprty_name, nav_proprty_name):
+        '''Method used to check for entities and properties which are to be excluded'''
+        restrictions = self._restrictions.excluded_options()
+        for entity in restrictions:
+            properties = restrictions[entity]["Properties"]
+            nav_properties = restrictions[entity]["Nav_Properties"]
+
+            if re.match(entity, entity_name) != None:
+                if len(properties) == 0 and len(nav_properties) == 0:
+                    return True
+                elif len(nav_properties) == 0:
+                    for proprty in properties:
+                        if proprty_name != None and re.match(proprty, proprty_name) != None:
+                            return True
+                else:
+                    for nav_proprty in nav_properties:
+                        if nav_proprty_name != None and re.match(nav_proprty, nav_proprty_name) != None:
+                            return True
+
+        return False
 
     def _get_data_model(self):
         try:
@@ -2018,7 +2065,6 @@ class GroupedPrincipalEntities:
     @property
     def multiplicity_one_entities(self):
         return self._multiplicity_one_entities
-
 
 def generate_accessible_entity_key_values(containing_entity_set):
     key_pairs = {}

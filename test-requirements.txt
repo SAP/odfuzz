@@ -1,6 +1,7 @@
-pytest>=3.5.0
-pytest-cov>=2.7.1
-codecov>=2.0.15
-bandit>=1.6.2
-astroid>=2.4.2
-pylint>=2.6.0
+pytest>=7.1.2
+pytest-cov>=3.0.0
+mongomock>=3.14.0
+pylint==2.8.3
+flake8==3.8.4
+bandit==1.7.0
+codecov>=2.1.12
