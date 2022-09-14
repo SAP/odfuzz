@@ -41,11 +41,7 @@ OptionRestriction = namedtuple('OptionRestriction', 'restr is_restricted')
 
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
-<<<<<<< HEAD
-    def __init__(self, metadata, restrictions, method, sap_vendor_enabled = False):
-=======
     def __init__(self, metadata, restrictions = None, method = "GET", sap_vendor_enabled = False):
->>>>>>> 5e9ebbe05e236fa319fb8207dca576f4dfdf556e
         if method not in ["GET","DELETE","PUT","POST","MERGE"]:
             raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
