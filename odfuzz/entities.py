@@ -12,7 +12,6 @@ import re
 import random
 import inspect
 import uuid
-import requests
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 
