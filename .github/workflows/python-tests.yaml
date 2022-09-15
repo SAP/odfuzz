@@ -33,10 +33,5 @@ jobs:
       run: |
         python3 -m pytest --cov-report term --cov=odfuzz -v
 
-    - name: Security
-      uses: jpetrucciani/bandit-check@master
-      with:
-        bandit_flags: '-lll'
-
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v1
