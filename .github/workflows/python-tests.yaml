@@ -29,10 +29,6 @@ jobs:
         python -m pip install -r test-requirements.txt
         python -m pip install .
 
-    - name: Lint
-      run: |
-        python3 -m pylint odfuzz tests
-
     - name: Tests
       run: |
         python3 -m pytest --cov-report term --cov=odfuzz -v
