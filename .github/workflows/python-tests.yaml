@@ -2,9 +2,13 @@ name: Python Tests
 
 on:
   push:
-    branches: [ master, obliterate ]
+    branches: 
+      - master
+      - obliterate
   pull_request:
-    branches: [ master, obliterate ]
+    branches:
+      - master
+      - obliterate
 
 jobs:
   build:
