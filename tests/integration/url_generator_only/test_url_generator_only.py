@@ -1,4 +1,3 @@
-import logging
 from pathlib import Path
 import random
 import os
@@ -7,10 +6,6 @@ from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.entities import DirectBuilder
 from odfuzz.fuzzer import SingleQueryable
 from odfuzz.functionimport import FunctionImport
-
-logger = logging.getLogger("testDirectBuilder")
-logger.setLevel(logging.CRITICAL)
-#logger is needed not for the test but as part of DirectBuilder constructor
 
 
 def test_expected_integration_sample():
@@ -45,7 +40,7 @@ def test_expected_integration_sample():
         '''
 
         for _ in range(URL_COUNT_PER_ENTITYSET):
-            q = queryable_factory(queryable, logger, 1)
+            q = queryable_factory(queryable)
             queries = q.generate()
             ''' uncomment for code sample purposes            
             print(queries[0].query_string)    
@@ -71,7 +66,7 @@ def test_direct_builder_http_get():
     for queryable in get_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
+            q = queryable_factory(queryable)
             queries, body = q.generate()
             queries_list.append(queries.query_string)
     queries_list=set(queries_list)
@@ -86,7 +81,7 @@ def test_direct_builder_http_delete():
     for queryable in del_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
+            q = queryable_factory(queryable)
             queries,body = q.generate()
             queries_list.append(queries.query_string)
     queries_list=set(queries_list)
@@ -101,7 +96,7 @@ def test_direct_builder_http_put_url():
     for queryable in put_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
+            q = queryable_factory(queryable)
             queries,body = q.generate()
             queries_list.append(queries.query_string)
     queries_list=queries_list
@@ -116,7 +111,7 @@ def test_direct_builder_http_post_url():
     for queryable in post_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
+            q = queryable_factory(queryable)
             queries,body = q.generate()
             queries_list.append(queries.query_string)
     queries_list=queries_list
@@ -131,7 +126,7 @@ def test_direct_builder_body_generation():
     for queryable in dir_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
+            q = queryable_factory(queryable)
             queries,body = q.generate()
             body_list.append(body)
     assert random.choice(body_list) == "{\"OrderID\": 2080823154, \"ProductID\": -477501033, \"UnitPrice\": \"5644108454722995m\", \"Quantity\": 9551, \"Discount\": \"1.6719705272889652e+20f\"}"
@@ -144,7 +139,7 @@ def test_direct_builder_http_merge_body():
     for queryable in merge_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
+            q = queryable_factory(queryable)
             queries,body = q.generate()
             body_list.append(body)
     assert body_list[10] == "{\"Region\": \"\\u00f6\", \"ContactName\": \"\\u00a1\\u008f\\u2014\\u00e0\\u0192\\u00e6RZK\\u00bfoK-[@V\", \"Fax\": \"[|\\u00a4\\u00e0Zu\\u008f\\u00a1a\\u00efnIL=\\u00d5\\u00e6T\", \"PostalCode\": \"\\u00b61\\u0081B\\u00f9B\\u00a7\", \"CompanyName\": \"\\u00b3s\\u00f3\\u00a91\\u00b5\\u00d7\\u0081\\u00e5G\\u00ca\\u00a7o0\\u00f9\", \"Country\": \"\\u00a1\\u00d4\", \"City\": \"l]_\\u00eas\\u0090\\u00f6\\u00ff\", \"Address\": \"(F\\u00ca\\u00a4[R\\u00a7\\u00b7kT\\u00f2\\u00ef\\u2022\\u00bbd\\u00c4see\\u00cb\\u00a7y\\u2030}L6\\u2122c\\u00b4C\\u00db\\u00d1\\u00b6\\u00b1\\u00aa\\u00bc+8\\u00e2[\\u00aa^-c\\u00c6`\\u00ff\\u0081\\u00aa\", \"ContactTitle\": \"\\u00dd\\u00b5q\\u00f9\\u00bbd$E\\u0192a\\u00d0>\\u00de\\u00c8b\\u00f2u\\u00dc\\u00c1P\\u2030\"}"
@@ -182,7 +177,7 @@ def test_method_for_exclusion_dict():
     for queryable in del_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
+            q = queryable_factory(queryable)
             queries,body = q.generate()
             print(queries.query_string,"\n")
             print(body,"\n\n")

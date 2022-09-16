@@ -3,7 +3,6 @@
 import random
 import hashlib
 import json
-
 from copy import deepcopy
 from collections import namedtuple
 
@@ -20,7 +19,7 @@ class Queryable:
 
     SelfMock = namedtuple('SelfMock', 'max_length')
 
-    def __init__(self, queryable, logger, async_requests_num):
+    def __init__(self, queryable):
         self._queryable = queryable
 
     def generate_query(self):
@@ -94,7 +93,6 @@ class Queryable:
             depending_data[option.name] = option.get_depending_data()
             #for $skip and $top; one parameter contextually depends on another and the value of top+skip must be lower than MAX(INT)
         query.build_string()
-        self._logger.info('Generated query \'{}\''.format(query.query_string))
 
 
 class SingleQueryable(Queryable):
