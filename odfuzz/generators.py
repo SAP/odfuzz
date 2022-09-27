@@ -107,8 +107,11 @@ class EdmDecimal:
             rand_decimal = random.randint(1, (10 ** self.precision) - 1) / (10 ** self.scale)
             sap_value = "{}".format(rand_decimal)
         else:
-            divider = random.randint(1, 10 ** self.scale)
-            scale_range = random.randint(0, self.scale)
+            scaleValue = self.scale
+            if self.scale < 2:
+                scaleValue = 2
+            divider = random.randint(1, 10 ** scaleValue)
+            scale_range = random.randint(2, scaleValue)
             rand_int = random.randint(1, (10 ** (self.precision - scale_range)) - 1)
             sap_value = '{0:.{1}f}'.format(rand_int / divider, scale_range)
         
@@ -131,8 +134,8 @@ class EdmDecimal:
 class EdmDouble(EncoderMixin):
     @staticmethod
     def generate(generator_format='uri'):
-        random_double = '{}d'.format(round(random.uniform(2.23e-40, 1.19e+40), 15))
-        value = EdmDouble._encode_string(random_double)
+        value = '{}'.format(round(random.uniform(2.23e-40, 1.19e+40), 15))
+        # value = EdmDouble._encode_string(random_double)
         if generator_format == 'uri' or generator_format == 'body':
             return value
         elif generator_format == 'key':
@@ -199,7 +202,7 @@ class EdmInt32:
 class EdmInt64:
     @staticmethod
     def generate(generator_format='uri'):
-        value = str(random.randint(-9223372036854775808, 9223372036854775807)) + 'L'
+        value = str(random.randint(-9223372036854775808, 9223372036854775807))
         if generator_format == 'uri' or generator_format == 'body':
             return value
         elif generator_format == 'key':
