@@ -132,7 +132,7 @@ class EdmDouble(EncoderMixin):
     @staticmethod
     def generate(generator_format='uri'):
         random_double_uri = '{}d'.format(round(random.uniform(2.23e-40, 1.19e+40), 15))
-        value_uri = EdmDouble._encode_string(random_double)
+        value_uri = EdmDouble._encode_string(random_double_uri)
         value_body = '{}'.format(round(random.uniform(2.23e-40, 1.19e+40), 15))
         if generator_format == 'uri':
             return value_uri
