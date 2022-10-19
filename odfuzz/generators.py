@@ -131,15 +131,15 @@ class EdmDecimal:
 class EdmDouble(EncoderMixin):
     @staticmethod
     def generate(generator_format='uri'):
-        random_double_uri = '{}d'.format(round(random.uniform(2.23e-40, 1.19e+40), 15))
-        value_uri = EdmDouble._encode_string(random_double_uri)
-        value_body = '{}'.format(round(random.uniform(2.23e-40, 1.19e+40), 15))
+        value_body = round(random.uniform(2.23e-40, 1.19e+40), 15)
+        value_uri = '{}d'.format(value_body)
+        value_uri_encoded = EdmDouble._encode_string(value_uri)
         if generator_format == 'uri':
-            return value_uri
+            return value_uri_encoded
         elif generator_format == 'body':
             return value_body
         elif generator_format == 'key':
-            return value_uri , value_body
+            return value_uri_encoded , value_body
         else:
             raise ValueError
 
@@ -202,8 +202,8 @@ class EdmInt32:
 class EdmInt64:
     @staticmethod
     def generate(generator_format='uri'):
-        value_uri = str(random.randint(-9223372036854775808, 9223372036854775807)) + 'L'
         value_body = str(random.randint(-9223372036854775808, 9223372036854775807))
+        value_uri = value_uri + 'L'
         if generator_format == 'uri':
             return value_uri
         elif generator_format == 'body':
