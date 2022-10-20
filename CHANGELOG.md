@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.1]
+
+- Fixing Edm.Int64 + Edm.Double Giving 400 Bad Request
+
 ## [0.17.0]
 
 -  Implement entity and entityset restrictions
