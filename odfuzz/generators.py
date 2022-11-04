@@ -203,7 +203,7 @@ class EdmInt64:
     @staticmethod
     def generate(generator_format='uri'):
         value_body = str(random.randint(-9223372036854775808, 9223372036854775807))
-        value_uri = value_uri + 'L'
+        value_uri = value_body + 'L'
         if generator_format == 'uri':
             return value_uri
         elif generator_format == 'body':
