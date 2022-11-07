@@ -77,6 +77,14 @@ def test_decimal_precision_equals_scale():
     
     assert generated_decimal == '0.586m'
 
+def test_decimal_precision_scale_zero():
+    random.seed(10)
+
+    mckdecimal = DecimalMock(3,0)
+    generated_decimal = EdmDecimal.generate(mckdecimal)
+    
+    assert generated_decimal == '495m'
+
 
 def test_decimal_for_sap_vendor_enabled():
     random.seed(10)

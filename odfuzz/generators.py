@@ -108,7 +108,10 @@ class EdmDecimal:
             sap_value = "{}".format(rand_decimal)
         else:
             divider = random.randint(1, 10 ** self.scale)
-            scale_range = random.randint(0, self.scale)
+            scaleValue = self.scale
+            if self.scale < 2:
+                scaleValue = 2
+            scale_range = random.randint(2, scaleValue)
             rand_int = random.randint(1, (10 ** (self.precision - scale_range)) - 1)
             sap_value = '{0:.{1}f}'.format(rand_int / divider, scale_range)
         
