@@ -83,7 +83,7 @@ def test_decimal_precision_scale_zero():
     mckdecimal = DecimalMock(3,0)
     generated_decimal = EdmDecimal.generate(mckdecimal)
     
-    assert generated_decimal == '495m'
+    assert generated_decimal == '8.00m'
 
 
 def test_decimal_for_sap_vendor_enabled():
@@ -94,7 +94,7 @@ def test_decimal_for_sap_vendor_enabled():
     generated_decimal = EdmDecimal.generate(mckdecimal,generator_format='body')
     Config.fuzzer.sap_vendor_enabled = False
 
-    assert generated_decimal == '0.000113'
+    assert generated_decimal == '0.00000177'
 
 
 def test_time_for_sap_vendor_enabled():
