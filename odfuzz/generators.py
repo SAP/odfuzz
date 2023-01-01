@@ -108,7 +108,10 @@ class EdmDecimal:
             sap_value = "{}".format(rand_decimal)
         else:
             divider = random.randint(1, 10 ** self.scale)
-            scale_range = random.randint(0, self.scale)
+            scaleValue = self.scale
+            if self.scale < 2:
+                scaleValue = 2
+            scale_range = random.randint(2, scaleValue)
             rand_int = random.randint(1, (10 ** (self.precision - scale_range)) - 1)
             sap_value = '{0:.{1}f}'.format(rand_int / divider, scale_range)
         
@@ -203,7 +206,7 @@ class EdmInt64:
     @staticmethod
     def generate(generator_format='uri'):
         value_body = str(random.randint(-9223372036854775808, 9223372036854775807))
-        value_uri = value_uri + 'L'
+        value_uri = value_body + 'L'
         if generator_format == 'uri':
             return value_uri
         elif generator_format == 'body':

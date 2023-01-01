@@ -6,9 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## [0.17.1]
+## [0.17.2]
 
 - Fixing Edm.Int64 + Edm.Double Giving 400 Bad Request
+- Fixing 400 bad request for Edm.Decimal
+
+## [0.17.1]
+
+- Broken release, should not be used.
 
 ## [0.17.0]
 

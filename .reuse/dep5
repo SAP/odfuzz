@@ -4,5 +4,5 @@ Upstream-Contact: Petr Hanak <petr.hanak@sap.com>
 Source: https://github.com/SAP/odfuzz
 
 Files: *
-Copyright: 2021 SAP SE or an SAP affiliate company and task-explorer contributors
+Copyright: 2022 SAP SE or an SAP affiliate company and odfuzz contributors
 License: Apache-2.0
