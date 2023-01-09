@@ -211,3 +211,91 @@ def test_direct_builder_orderby_query_option():
             assert option_list_orderby_query == []
         else:
             assert "ProductID" not in option_list_orderby_query
+
+def test_direct_builder_exclusion_list_Uri():
+    random.seed(30)
+    methodLists = {"POST":[], "MERGE":[], "PUT":[], "DELETE":[]}
+    for method in methodLists.keys():
+        entities , queryable_factory = builder(method)
+        methodLists[method].clear()
+        for queryable in entities:
+            entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
+            for _ in range(entityset_urls_count):
+                q = queryable_factory(queryable, logger, 1)
+                queries,body = q.generate()
+                methodLists[method].append(queries.query_string)
+        
+        choice = random.choice(methodLists[method])
+        
+        if method == "POST":
+            assert choice == "Suppliers?sap-client=500"
+        if method == "MERGE":
+            assert choice == "Invoices(CustomerName='D0t%C2%A7%C2%A94%C3%98%C2%B3%C2%BA3%C3%83t%C3%9E%C2%B5%C3%A8%C2%B0Tc%C2%BA%C2%B374fP%20J%C3%B4',Salesperson='',OrderID=-351091532,ShipperName='A%20J%E2%80%A2%C2%B3%C3%AC%C3%B4%3D%C2%BFv%C2%8D-_%C2%A4%E2%80%A6%C3%89%E2%80%A0%C3%83%C3%BD7%C3%A2%C3%B1%3C%C3%9F',ProductID=-326207683,ProductName='%C2%BB%C2%A4%C3%99BA%5D%C5%93B7%C2%B21m%C2%AFI-K%20%C2%8D%C2%A2l%24%C3%85P%C3%AFh',UnitPrice=153300388545.5303m,Quantity=-19687,Discount=1.1858723596211711e+20f)?sap-client=500"
+        if method == "PUT":
+            assert choice == "Invoices(CustomerName='%C3%B5%E2%80%98%C3%BFD%C3%A3R%20%C3%B5.iH%7B%C3%AF%C3%A0%C3%BC%C2%BF%C3%B0N%C3%A8',Salesperson='%C2%A9d',OrderID=2129182719,ShipperName='%C3%AF_%C2%A3YU%C3%9A%3DKI%C3%BC%C2%B2%C2%B4%C2%A4a%C3%83S%C2%AA%C3%91Dc%C2%A7G9l%C3%87q',ProductID=1798319544,ProductName='i%3E%C3%AFj%C2%BC%C3%BE%C2%AE%E2%80%9C%3DF%C3%8Ed%C3%AA%2B%3C%C3%83%3D%C3%AE%C3%B9%C3%BDG%7B5%C2%B1%C2%8D%C2%B9Vr',UnitPrice=79189778900.5386m,Quantity=26127,Discount=3.0408649179978754e+20f)?sap-client=500"
+        if method == "DELETE":
+            assert choice == "Suppliers(SupplierID=1075178284)/Products?sap-client=500"
+    
+    random.seed(10)
+    for method in methodLists.keys():
+        entities , queryable_factory = builder_with_restrictions(method)
+        methodLists[method].clear()
+        for queryable in entities:
+            entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
+            for _ in range(entityset_urls_count):
+                q = queryable_factory(queryable, logger, 1)
+                queries,body = q.generate()
+                methodLists[method].append(queries.query_string)
+        
+        choice = random.choice(methodLists[method])
+
+        if method == "POST":
+            assert choice == "Alphabetical_list_of_products?sap-client=500"
+        if method == "MERGE":
+            assert choice == "Sales_by_Categories(CategoryID=-1953083790,CategoryName='Z%C3%93%C2%AB%C2%8F%C3%BC%E2%80%A1%5D%C3%9A%E2%80%99J%E2%80%A2%C3%AC%28',ProductName='%5D%C3%A5s%C3%95z%C3%A5%C3%97%C3%B74%C3%A3%206%E2%80%A1%C3%82J%C2%B1%C3%B8%C3%A2c%3D%C3%B4%C2%B3%C3%A9%C5%93%C2%BA%C2%A4k%C2%AA%C3%A2%C3%AB%7CZ%C2%B0S%C3%BC%C3%B4Y%C2%B6%C3%9C%20')?sap-client=500"
+        if method == "PUT":
+            assert choice == "Sales_Totals_by_Amounts(OrderID=203510101,CompanyName='h%E2%80%9C.Kd%C3%BA%C3%A3%C2%BA%24G')?sap-client=500"
+        if method == "DELETE":
+            assert choice == "Orders_Qries?sap-client=500"
+
+def test_direct_builder_exclusion_list_body():
+    random.seed(30)
+    methodLists = {"POST":[], "MERGE":[], "PUT":[]}
+    for method in methodLists.keys():
+        entities , queryable_factory = builder(method)
+        methodLists[method].clear()
+        for queryable in entities:
+            entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
+            for _ in range(entityset_urls_count):
+                q = queryable_factory(queryable, logger, 1)
+                queries,body = q.generate()
+                methodLists[method].append(body)
+        
+        choice = random.choice(methodLists[method])
+        
+        if method == "POST":
+            assert choice == "{\"SupplierID\": -752052732, \"CompanyName\": \"+\\u00b0\\u00a6bM\\u00f9V\\u00ec\\u00a2S\\u00b0\\u008f\\u00e1s]K\", \"ContactName\": \"\\u00fc\\u00f1!I\\u00d1\\u00ed\\u0153\\u00e6\\u00f5(\\u00b6\\u00c8J\\u008d\\u0192f\\u00f9\\u00f5.L\\u00deo\\u00e7\\u00f8\", \"ContactTitle\": \"j\\u00d6$\\u00dc\\u00a7\\u00ba\\u00c3_\\u201c\\u00ff\\u00b6|\\u2030\\u2018\\u00c8\\u00ac+\\u00e6\\u00f3\\u00bbo\", \"Address\": \"\\u00e3\", \"City\": \"\\u00abtx\\u00da\\u00e1([\\u00e9\", \"Region\": \"]\\u2020\\u00cf[5\\u00ef\\u2021\", \"PostalCode\": \"L!\\u00f7\\u008dh\\u00aeF\", \"Country\": \"\\u00c4\\u00b6(\\u00dd\\u00bd\\u00a8\", \"Phone\": \" \\u00fa\\u00eb\\u00ae\", \"Fax\": \"C\\u00d5\\u00c2\", \"HomePage\": \"\\u2030\\u2013(U\\u00ce\\u00c2[7E\\u00d2\\u00c7\\u00de\\u00bf\\u00e5\\u2014\\u00a9\\u00f6u\\u2021Vq\\u00fd\\u00b8e\\u00ceYl\\u00e7\\u00fc\\u00f9\\u00af>\\u00e8d\\u008180\\u00c9i\\u201cd\\u00ec\\u00d6\\u00a4\\u00f5}U)8\\u00a6-\\u2122ztn\\u00c5\\u00a5gU\\u00b7\\u00fa\\u0081\\u00f2\\u00af\\u00b3Ai\\u00f3F+G-n\\u00e1\\u00ff\\u0090 \\u00bf\\u00c6z\\u00f0\\u00e8Fn\\u00f3\\u00dc\\u00a3\\u00fb]\\u00f4c\\u00b5N\\u00ca\"}"
+        if method == "MERGE":
+            assert choice == "{\"ExtendedPrice\": \"8478871580765.81m\", \"ShipName\": \"\\u00e1\\u00a4\\u00b5E$\\u2122\\u00e1s(\\u00e5l\\u00a3\", \"OrderDate\": \"/Date(18826077145)/\", \"ShipCity\": \".\\u00ff\\u00da\\u00fd\\u2022\", \"Region\": \"L\\u00d4\\u00a7+\\u00e7\", \"CustomerID\": \"\\u00de\\u00c3\", \"ShipRegion\": \"\\u00fdI\\u00b338\\u2021\\u00c0@\\u00fb\\u00e7\"}"
+        if method == "PUT":
+            assert choice == "{\"ShipName\": \"i\\u00dc\\u00df\\u00a7\\u00f1\\u00d1\\u00ab\\u00b5Mh7-f\\u00a7\\u00b9\\u00e3\\u00cb\\u00bc\\u201c\\u00ffp\\u2022$\\u2020\\u00a2\\u00f0\\u00c8\\u00dc\\u00deDr\\u2021\\u00ae\\u00d1Y\", \"ShipAddress\": \"\\u00b2\\u00edY\\u00b1\\u00c3{\\u2013Mu\\u00b5\\u0192\\u2014e\\u00cdV\\u009d\\u00a7L\\u00ca\\u00e4P\\u00a9\\u00d3yn1\\u2019\\u00c13\\u00f6\\u00c5+[\\u00f1\\u00cc\\u00a4\\u00f5\\u00f3\\u00ec4\", \"ShipCity\": \"s\\u00fbB\", \"ShipRegion\": \"\\u00e5\\u00a5\\u00c1\\u00b8\\u00f9\", \"ShipPostalCode\": \"\\u00b0\\u00c95\\u0090\\u00b8\\u00ce3D!\", \"ShipCountry\": \"y\\u00ee\", \"CustomerID\": \"\\u00f5\", \"CustomerName\": \"\\u00f5\\u2018\\u00ffD\\u00e3R \\u00f5.iH{\\u00ef\\u00e0\\u00fc\\u00bf\\u00f0N\\u00e8\", \"Address\": \"\\u00d9M\", \"City\": \"p+\\u00f0\\u00d4vB\\u00a3\\u00c9Q\\u00da\\u00c0\", \"Region\": \"\\u00c3!\\u00e7\\u00f6FH\\u00c0\\u00e1\\u00cb\\u00c2\\u00a1N\\u00eeD\", \"PostalCode\": \"\\u00fa\\u00f1\\u00cc\\u00aa\\u00f7\\u2018\\u00b2\", \"Country\": \"\\u00c7-a\\u00e6\\u00ca\\u00bc\\u00a1s\", \"Salesperson\": \"\\u00a9d\", \"OrderID\": 2129182719, \"OrderDate\": \"/Date(253402300799)/\", \"RequiredDate\": \"/Date(19409152909)/\", \"ShippedDate\": \"/Date(26957101723)/\", \"ShipperName\": \"\\u00ef_\\u00a3YU\\u00da=KI\\u00fc\\u00b2\\u00b4\\u00a4a\\u00c3S\\u00aa\\u00d1Dc\\u00a7G9l\\u00c7q\", \"ProductID\": 1798319544, \"ProductName\": \"i>\\u00efj\\u00bc\\u00fe\\u00ae\\u201c=F\\u00ced\\u00ea+<\\u00c3=\\u00ee\\u00f9\\u00fdG{5\\u00b1\\u008d\\u00b9Vr\", \"UnitPrice\": \"79189778900.5386m\", \"Quantity\": 26127, \"Discount\": \"3.0408649179978754e+20f\", \"ExtendedPrice\": \"14912852064.8759m\", \"Freight\": \"19750283220367.55m\"}"
+
+    random.seed(10)
+    for method in methodLists.keys():
+        entities , queryable_factory = builder_with_restrictions(method)
+        methodLists[method].clear()
+        for queryable in entities:
+            entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
+            for _ in range(entityset_urls_count):
+                q = queryable_factory(queryable, logger, 1)
+                queries,body = q.generate()
+                methodLists[method].append(body)
+        
+        choice = random.choice(methodLists[method])
+        
+        if method == "POST":
+            assert choice == "{\"ProductName\": \"_\\u00d8\\u00d8\\u00c8\\u00e2ui!\\u00acT\\u00d2\\u00bb)Q\\u00e6\\u00cf\\u00d6d$C\\u00ac\\u00e0\\u00d6\\u00eam\\u00c8sI7\\u00daFJ\", \"SupplierID\": 829092798, \"CategoryID\": -1690973651, \"QuantityPerUnit\": \"\\u2122\\u00a3-`exT\", \"UnitPrice\": \"3483815661862.28m\", \"UnitsInStock\": -17798, \"UnitsOnOrder\": -22391, \"ReorderLevel\": -28014, \"Discontinued\": true, \"CategoryName\": \"\\u00fc\\u00a4\\u00f2\\u00b3(\"}"
+        if method == "MERGE":
+            assert choice == "{\"ProductSales\": \"192353423455.600m\"}"
+        if method == "PUT":
+            assert choice == "{\"SaleAmount\": \"78307108747750.81m\", \"OrderID\": 203510101, \"CompanyName\": \"h\\u201c.Kd\\u00fa\\u00e3\\u00ba$G\", \"ShippedDate\": \"/Date(28072299659)/\"}"

@@ -164,11 +164,11 @@ class DirectBuilder:
             if re.match(entity, entity_name) != None:
                 if proprty_name == None and nav_proprty_name == None and len(properties) == 0 and len(nav_properties) == 0:
                     return True
-                elif proprty_name != None and nav_proprty_name == None and len(properties) != 0:
+                if proprty_name != None and nav_proprty_name == None and len(properties) != 0:
                     for proprty in properties:
                         if re.match(proprty, proprty_name) != None:
                             return True
-                elif proprty_name == None and nav_proprty_name != None and len(nav_properties) != 0:
+                if proprty_name == None and nav_proprty_name != None and len(nav_properties) != 0:
                     for nav_proprty in nav_properties:
                         if re.match(nav_proprty, nav_proprty_name) != None:
                             return True
