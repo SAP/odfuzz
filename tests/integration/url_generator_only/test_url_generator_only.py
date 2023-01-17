@@ -174,7 +174,6 @@ def test_direct_builder_filter_query_option():
     for method in methodLists:
         entities , queryable_factory = builder_with_restrictions(method)
         option_list_filter_query = []
-        option_list_filter_query.clear()
         for queryable in entities:
             entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
             for _ in range(entityset_urls_count):
@@ -197,7 +196,6 @@ def test_direct_builder_orderby_query_option():
     for method in methodLists:
         entities , queryable_factory = builder_with_restrictions(method)
         option_list_orderby_query = []
-        option_list_orderby_query.clear()
         for queryable in entities:
             entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
             for _ in range(entityset_urls_count):
@@ -224,7 +222,6 @@ def test_direct_builder_Uri_unrestricted(method_name, URI):
     random.seed(30)
     entities , queryable_factory = builder(method_name)
     methodList = []
-    methodList.clear()
     for queryable in entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
@@ -246,7 +243,6 @@ def test_direct_builder_body_unrestricted(method_name, Body):
     random.seed(30)
     entities , queryable_factory = builder(method_name)
     methodList = []
-    methodList.clear()
     for queryable in entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
@@ -269,7 +265,6 @@ def test_direct_builder_Uri_unrestricted(method_name, URI):
     random.seed(10)
     entities , queryable_factory = builder_with_restrictions(method_name)
     methodList = []
-    methodList.clear()
     for queryable in entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
@@ -291,7 +286,6 @@ def test_direct_builder_body_unrestricted(method_name, Body):
     random.seed(10)
     entities , queryable_factory = builder_with_restrictions(method_name)
     methodList = []
-    methodList.clear()
     for queryable in entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):

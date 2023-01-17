@@ -380,7 +380,7 @@ class QueryGroup:
         self._entity_set._req_filter = entity_set._req_filter = needs_filter
 
         if not option_restr.is_restricted and entity_set.entity_type.proprties() or draft_properties:
-            self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr, draft_properties, self._restrictions)
+            self._query_options[FILTER] = FilterQuery(entity_set, draft_properties, self._restrictions)
             self._add_filter_option_to_list(entity_set)
 
     def _init_expand_option(self, restriction_type):
@@ -409,7 +409,7 @@ class QueryGroup:
         entity_set = self._delete_restricted_proprties(exclude_restrictions, 'sortable', [])
 
         if not option_restr.is_restricted and entity_set.entity_type.proprties():
-            self._query_options[ORDERBY] = OrderbyQuery(entity_set, option_restr.restr, self._restrictions)
+            self._query_options[ORDERBY] = OrderbyQuery(entity_set, self._restrictions)
             self._optional_query_options.append(self._query_options[ORDERBY])
 
     def _init_query_type(self, option_name, metadata_attr, query_object, dispatcher, restriction_type):
@@ -690,8 +690,8 @@ class ExpandQuery(QueryOption):
 class OrderbyQuery(QueryOption):
     """The search query option."""
 
-    def __init__(self, entity, restrictions, restrictions_group):
-        super(OrderbyQuery, self).__init__(entity, ORDERBY, '$', restrictions)
+    def __init__(self, entity, restrictions_group):
+        super(OrderbyQuery, self).__init__(entity, ORDERBY, '$', restrictions_group.get("$orderby"))
         self._proprties = self._get_properties(restrictions_group)
     
     def _get_properties(self, restrictions_group):
@@ -854,10 +854,10 @@ class FilterQuery(QueryOption):
     It needs to be also implemented on backend by developer, so potentially more prone to find unhandled exceptions in responses here.
     """
 
-    def __init__(self, entity, restrictions, draft_properties, restrictions_group):
-        super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions)
+    def __init__(self, entity, draft_properties, restrictions_group):
+        super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions_group.get("$filter"))
 
-        self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions)
+        self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions_group.get("$filter"))
         if not self._functions.group:
             self._noterm_function = self._generate_proprty
         else:
