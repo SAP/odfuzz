@@ -145,9 +145,9 @@ class DirectBuilder:
             for proprty in list(entity_set.entity_set.entity_type._properties.keys()):
                 if self._regex_match(entity_set._entity_set._name, proprty, None):
                     entity_set.entity_set.entity_type._properties.pop(proprty)
-
+            
             for nav_proprties in list(entity_set.entity_set.entity_type._nav_properties.keys()):
-                if self._regex_match(entity_set._entity_set._name, proprty, nav_proprties):
+                if self._regex_match(entity_set._entity_set._name, None, nav_proprties):
                     entity_set.entity_set.entity_type._nav_properties.pop(nav_proprties)
 
             if not self._regex_match(entity_set._entity_set._name, None, None):
@@ -161,19 +161,17 @@ class DirectBuilder:
         for entity in restrictions:
             properties = restrictions[entity]["Properties"]
             nav_properties = restrictions[entity]["Nav_Properties"]
-
             if re.match(entity, entity_name) != None:
-                if len(properties) == 0 and len(nav_properties) == 0:
+                if proprty_name == None and nav_proprty_name == None and len(properties) == 0 and len(nav_properties) == 0:
                     return True
-                elif len(nav_properties) == 0:
+                if proprty_name != None and nav_proprty_name == None and len(properties) != 0:
                     for proprty in properties:
-                        if proprty_name != None and re.match(proprty, proprty_name) != None:
+                        if re.match(proprty, proprty_name) != None:
                             return True
-                else:
+                if proprty_name == None and nav_proprty_name != None and len(nav_properties) != 0:
                     for nav_proprty in nav_properties:
-                        if nav_proprty_name != None and re.match(nav_proprty, nav_proprty_name) != None:
+                        if re.match(nav_proprty, nav_proprty_name) != None:
                             return True
-
         return False
 
     def _get_data_model(self):
@@ -382,7 +380,7 @@ class QueryGroup:
         self._entity_set._req_filter = entity_set._req_filter = needs_filter
 
         if not option_restr.is_restricted and entity_set.entity_type.proprties() or draft_properties:
-            self._query_options[FILTER] = FilterQuery(entity_set, option_restr.restr, draft_properties)
+            self._query_options[FILTER] = FilterQuery(entity_set, draft_properties, self._restrictions)
             self._add_filter_option_to_list(entity_set)
 
     def _init_expand_option(self, restriction_type):
@@ -411,7 +409,7 @@ class QueryGroup:
         entity_set = self._delete_restricted_proprties(exclude_restrictions, 'sortable', [])
 
         if not option_restr.is_restricted and entity_set.entity_type.proprties():
-            self._query_options[ORDERBY] = OrderbyQuery(entity_set, option_restr.restr)
+            self._query_options[ORDERBY] = OrderbyQuery(entity_set, self._restrictions)
             self._optional_query_options.append(self._query_options[ORDERBY])
 
     def _init_query_type(self, option_name, metadata_attr, query_object, dispatcher, restriction_type):
@@ -692,9 +690,18 @@ class ExpandQuery(QueryOption):
 class OrderbyQuery(QueryOption):
     """The search query option."""
 
-    def __init__(self, entity, restrictions):
-        super(OrderbyQuery, self).__init__(entity, ORDERBY, '$', restrictions)
-        self._proprties = set(proprty.name for proprty in self.entity_set.entity_type.proprties())
+    def __init__(self, entity, restrictions_group):
+        super(OrderbyQuery, self).__init__(entity, ORDERBY, '$', restrictions_group.get("$orderby"))
+        self._proprties = self._get_properties(restrictions_group)
+    
+    def _get_properties(self, restrictions_group):
+        properties_set = set()
+        for proprty in self.entity_set.entity_type.proprties():
+            if self._check_for_restricted_properties(self.entity_set._name, proprty.name, restrictions_group):
+                continue
+            else:
+                properties_set.add(proprty.name)
+        return properties_set
 
     def apply_restrictions(self):
         pass
@@ -711,6 +718,17 @@ class OrderbyQuery(QueryOption):
             option.add_proprty(proprty, order)
         option.option_string = OrderbyOptionBuilder(option).build()
         return option
+    
+    def _check_for_restricted_properties(self, entity_name, proprty_name, restrictions_group):
+        restrictions_group = restrictions_group.excluded_options()
+        for entity in restrictions_group:
+            properties = restrictions_group[entity]["Properties"]
+            if re.match(entity, entity_name) != None:
+                if len(properties) != 0:
+                    for proprty in properties:
+                        if re.match(proprty, proprty_name) != None:
+                            return True
+        return False
 
     def get_depending_data(self):
         return None
@@ -836,10 +854,10 @@ class FilterQuery(QueryOption):
     It needs to be also implemented on backend by developer, so potentially more prone to find unhandled exceptions in responses here.
     """
 
-    def __init__(self, entity, restrictions, draft_properties):
-        super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions)
+    def __init__(self, entity, draft_properties, restrictions_group):
+        super(FilterQuery, self).__init__(entity, FILTER, '$', restrictions_group.get("$filter"))
 
-        self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions)
+        self._functions = FilterFunctionsGroup(entity.entity_type.proprties(), restrictions_group.get("$filter"))
         if not self._functions.group:
             self._noterm_function = self._generate_proprty
         else:
@@ -851,6 +869,7 @@ class FilterQuery(QueryOption):
         self._option = None
         self._groups_stack = None
         self._option_string = ''
+        self._restrictions_group = restrictions_group
 
         self._filterable_proprties = list(self._entity_set.entity_type.proprties())
         if draft_properties:
@@ -868,6 +887,7 @@ class FilterQuery(QueryOption):
         for proprty in self._filterable_proprties:
             if proprty.required_in_filter or self._draft_proprty and proprty.name == self._draft_proprty.name:
                 self._append_required_proprty(proprty, False)
+            
 
     def _append_required_proprty(self, proprty, is_reaplaceable):
         setattr(proprty, 'replaceable', is_reaplaceable)
@@ -878,6 +898,7 @@ class FilterQuery(QueryOption):
 
     def generate(self, depending_data):
         self._init_variables()
+        self._remove_restricted_properties()
         self._generate_string()
 
         self._option.reverse_logicals()
@@ -888,6 +909,30 @@ class FilterQuery(QueryOption):
     def get_depending_data(self):
         pass
 
+    def _remove_restricted_properties(self):
+        for properties in self._proprties._proprties:
+            for required_properties in properties:
+                if "proprties" in dir(required_properties):
+                    proprty_index = 0
+                    while proprty_index < len(required_properties.proprties):
+                        proprty = required_properties.proprties[proprty_index]
+                        if self._check_for_restricted_properties(self.entity_set._name, proprty.name):
+                            required_properties._proprties.remove(proprty)
+                            self._filterable_proprties.remove(proprty)
+                            proprty_index -= 1
+                        proprty_index += 1
+    
+    def _check_for_restricted_properties(self, entity_name, proprty_name):
+        restriction = self._restrictions_group.excluded_options()
+        for entity in restriction:
+            properties = restriction[entity]["Properties"]
+            if re.match(entity, entity_name) != None:
+                if len(properties) != 0:
+                    for proprty in properties:
+                        if re.match(proprty, proprty_name) != None:
+                            return True
+        return False
+
     def _init_variables(self):
         self._recursion_depth = 0
         self._finalizing_groups = 0
@@ -896,6 +941,7 @@ class FilterQuery(QueryOption):
         self._groups_stack = Stack()
         self._option_string = ''
         self._proprties = ProprtiesSelector(self._filterable_proprties.copy(), self._required_proprties.copy())
+        
 
     def _set_generators_for_restricted_proprties(self):
         for proprty in self._entity_set.entity_type.proprties():
