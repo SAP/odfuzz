@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+
+## [0.18.0]
+
+- Exclude Properties from URI Using Exclusion List
+
+
 ## [0.17.2]
 
 - Fixing Edm.Int64 + Edm.Double Giving 400 Bad Request
