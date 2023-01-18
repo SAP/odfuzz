@@ -697,7 +697,7 @@ class OrderbyQuery(QueryOption):
     def _get_properties(self, restrictions_group):
         properties_set = set()
         for proprty in self.entity_set.entity_type.proprties():
-            if self._regex_match(self.entity_set._name, proprty.name, restrictions_group):
+            if self._check_for_restricted_properties(self.entity_set._name, proprty.name, restrictions_group):
                 continue
             else:
                 properties_set.add(proprty.name)
@@ -719,7 +719,7 @@ class OrderbyQuery(QueryOption):
         option.option_string = OrderbyOptionBuilder(option).build()
         return option
     
-    def _regex_match(self, entity_name, proprty_name, restrictions_group):
+    def _check_for_restricted_properties(self, entity_name, proprty_name, restrictions_group):
         restrictions_group = restrictions_group.excluded_options()
         for entity in restrictions_group:
             properties = restrictions_group[entity]["Properties"]
@@ -916,13 +916,13 @@ class FilterQuery(QueryOption):
                     proprty_index = 0
                     while proprty_index < len(required_properties.proprties):
                         proprty = required_properties.proprties[proprty_index]
-                        if self._regex_match(self.entity_set._name, proprty.name):
+                        if self._check_for_restricted_properties(self.entity_set._name, proprty.name):
                             required_properties._proprties.remove(proprty)
                             self._filterable_proprties.remove(proprty)
                             proprty_index -= 1
                         proprty_index += 1
     
-    def _regex_match(self, entity_name, proprty_name):
+    def _check_for_restricted_properties(self, entity_name, proprty_name):
         restriction = self._restrictions_group.excluded_options()
         for entity in restriction:
             properties = restriction[entity]["Properties"]
