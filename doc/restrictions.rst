@@ -57,14 +57,6 @@ Body:
 
 {"ProductName": "Q!a\u00bfbg\u2026\u00b5|\u00ce\u00c9qj\u00eb\u00b7\u00c1{SC@\u00e0\u2026VEs\u2019i\u2026(\u00b5", "SupplierID": 1593960140, "CategoryID": -1745367456, "QuantityPerUnit": "lM\u2013\u00ceo\u00a9\u00f7\u00b4\u00f8\u00e4\u00e0\u00bc<", "UnitPrice": "203518542564.221m", "UnitsInStock": 19375, "UnitsOnOrder": -12443, "ReorderLevel": 875, "Discontinued": true}
 
-Exclude_Properties_from_URI_Query_Options
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This will also restrict the generation of the ExclusionList Properties from two of the Query_Options **$filter** and **$orderby** which uses Exclusion_List_Properties as one of the parameters to generate the fuzzed URIs. The fuzzer will not generate HTTP requests for method types - GET, DELETE, POST, PUT and MERGE for the specified list of properties of a specific entity set. This will remove the following property from the URI of the request, but make sure not to remove any Key_Properties from the URI. This will only work on **$filter** and **$orderby** Query_Options. For example, when we define the following restriction, ODfuzz will exclude the property **ProductID** from **$filter** and **$orderby** Query_Options, making sure that the Key_Properties are not restricted from the URI
-
-URI:
-
-https://services.odata.org/V2/Northwind/Northwind.svc/Products(ProductID=-386222977)?$inlinecount=allpages&$filter=OrderID le 1672133452&$top=459&search=%C3%8C%C3%AA%C2%A5%21%C3%81%604%C3%AEOe_%C3%B1%C5%93%24%C3%97%C2%B8%2B%29 OR U%C3%A7T%C2%90%7B%C3%99nN%C2%8D%C2%A3N4 OR %21%C3%BBxVn%C2%81 OR %E2%80%9C%C3%89&$skip=141395401&$orderby=Quantity&$expand=Product/Category,Order/Order_Details&sap-client=500&$format=json
-
 .. code-block:: yaml
 
    Exclude:
@@ -73,6 +65,59 @@ https://services.odata.org/V2/Northwind/Northwind.svc/Products(ProductID=-386222
                 Properties:
                     - ProductID
                 Nav_Properties:
+
+Exclude Properties from URI Using Exclusion List
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Exclusion List is a feature which allows you to exclude/restrict certain entities and their respective properties while generating URL payloads for entity_sets parsed by pyodata from the metadata.xml file
+
+While using this Exclusion_List we can mention certain properties for a particular EntitySet which we do not want while generating the payloads.
+
+**Eaxmple Json:**
+
+.. code-block:: json
+
+    {
+        "$ENTITY_SET$": {
+            "Products": {
+                 "Properties":["ProductID", "ProductName"],
+                 "Nav_Properties":["Category"]
+            }
+        }
+    }
+
+Two functions use these properties to generate the payloads and include them in the URI:
+
+1. **$filter**
+2. **$orderby**
+
+Implemented ExclusionList feature in two of the classes which uses $orderby and $filter functions to generate the payloads for the URI:
+
+1. **FilterQuery**: Class to generate queries for $filter function
+2. **OrderbyQuery**: Class to generate queries for $orderby function
+
+Both the classes randomly choose properties from the list of all the available properties of that particular entity set to generate the payloads.
+
+After the properties are matched from the properties mentioned in the Exclusion List, they are removed from the List of properties used for generating queries for both the functions.
+
+The fuzzer will not generate HTTP requests for method types - GET, DELETE, POST, PUT and MERGE for the specified list of properties of a specific entity set. This will remove the following property from the URI of the request, but make sure not to remove any Key_Properties from the URI. This will only work on **$filter** and **$orderby** Query_Options. For example, when we define the following restriction, ODfuzz will exclude the property **ProductID** from **$filter** and **$orderby** Query_Options, making sure that the Key_Properties are not restricted from the URI
+
+**Eaxmple Restricted URI:**
+
+https://services.odata.org/V2/Northwind/Northwind.svc/Products(ProductID=-386222977)?$inlinecount=allpages&$filter=OrderID le 1672133452&$top=459&search=%C3%8C%C3%AA%C2%A5%21%C3%81%604%C3%AEOe_%C3%B1%C5%93%24%C3%97%C2%B8%2B%29 OR U%C3%A7T%C2%90%7B%C3%99nN%C2%8D%C2%A3N4 OR %21%C3%BBxVn%C2%81 OR %E2%80%9C%C3%89&$skip=141395401&$orderby=Quantity&$expand=Product/Category,Order/Order_Details&sap-client=500&$format=json
+
+**Similar Code-Block In Yaml:**
+
+.. code-block:: yaml
+
+   Exclude:
+       $ENTITY_SET$:
+           Products:
+                Properties:
+                    - ProductID
+                    - ProductName
+                Nav_Properties:
+                    - Category
  
 * \$ENTITY_SET Navigation Properties\$. The fuzzer will not generate HTTP requests for all method types - GET, POST, DELETE, PUT and MERGE for the specified list of navigation properties of a specific entity set. This will remove the generation of URI for following navigation property. For example, when we define the following restriction, ODfuzz will skip a generation of query options for the navigation property Categories for entity set Products 
 
