@@ -1,0 +1,10 @@
+version = 1
+SPDX-PackageName = "odfuzz"
+SPDX-PackageSupplier = "Petr Hanak <petr.hanak@sap.com>"
+SPDX-PackageDownloadLocation = "https://github.com/SAP/odfuzz"
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2022 SAP SE or an SAP affiliate company and odfuzz contributors"
+SPDX-License-Identifier = "Apache-2.0"
