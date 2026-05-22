@@ -69,19 +69,19 @@ Body:
 Exclude Properties from URI Using Exclusion List
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Exclusion List is a feature which allows you to exclude/restrict certain entities and their respective properties while generating URL payloads for entity_sets parsed by pyodata from the metadata.xml file
+An exclusion list can restrict entity sets and their properties when ODfuzz generates URL payloads from the entity sets parsed by pyodata from the metadata.xml file.
 
-While using this Exclusion_List we can mention certain properties for a particular EntitySet which we do not want while generating the payloads.
+For a particular entity set, add the properties and navigation properties that should not be used while generating payloads.
 
-**Eaxmple Json:**
+**Example JSON:**
 
 .. code-block:: json
 
     {
         "$ENTITY_SET$": {
             "Products": {
-                 "Properties":["ProductID", "ProductName"],
-                 "Nav_Properties":["Category"]
+                "Properties": ["ProductID", "ProductName"],
+                "Nav_Properties": ["Category"]
             }
         }
     }
@@ -91,22 +91,22 @@ Two functions use these properties to generate the payloads and include them in 
 1. **$filter**
 2. **$orderby**
 
-Implemented ExclusionList feature in two of the classes which uses $orderby and $filter functions to generate the payloads for the URI:
+The exclusion list is applied by the classes that generate URI payloads for these query options:
 
 1. **FilterQuery**: Class to generate queries for $filter function
 2. **OrderbyQuery**: Class to generate queries for $orderby function
 
-Both the classes randomly choose properties from the list of all the available properties of that particular entity set to generate the payloads.
+Both classes randomly choose properties from the list of available properties for a particular entity set.
 
-After the properties are matched from the properties mentioned in the Exclusion List, they are removed from the List of properties used for generating queries for both the functions.
+When a property matches the exclusion list, ODfuzz removes it from the list of properties used to generate the $filter and $orderby queries.
 
-The fuzzer will not generate HTTP requests for method types - GET, DELETE, POST, PUT and MERGE for the specified list of properties of a specific entity set. This will remove the following property from the URI of the request, but make sure not to remove any Key_Properties from the URI. This will only work on **$filter** and **$orderby** Query_Options. For example, when we define the following restriction, ODfuzz will exclude the property **ProductID** from **$filter** and **$orderby** Query_Options, making sure that the Key_Properties are not restricted from the URI
+This removes the configured properties from URI query options without removing key properties from the URI. It only applies to **$filter** and **$orderby** query options. For example, the following restriction excludes **ProductID** and **ProductName** from generated **$filter** and **$orderby** query options for the **Products** entity set.
 
-**Eaxmple Restricted URI:**
+**Example restricted URI:**
 
 https://services.odata.org/V2/Northwind/Northwind.svc/Products(ProductID=-386222977)?$inlinecount=allpages&$filter=OrderID le 1672133452&$top=459&search=%C3%8C%C3%AA%C2%A5%21%C3%81%604%C3%AEOe_%C3%B1%C5%93%24%C3%97%C2%B8%2B%29 OR U%C3%A7T%C2%90%7B%C3%99nN%C2%8D%C2%A3N4 OR %21%C3%BBxVn%C2%81 OR %E2%80%9C%C3%89&$skip=141395401&$orderby=Quantity&$expand=Product/Category,Order/Order_Details&sap-client=500&$format=json
 
-**Similar Code-Block In Yaml:**
+**Equivalent YAML:**
 
 .. code-block:: yaml
 
@@ -272,7 +272,7 @@ Complex example (FI_CORRESPONDENCE_V2_SRV)
 
 
 INCLUDE restrictions - e.g. PRIMARY KEYs for records
-........................
+....................................................
 
 * \$VALUE\$. The fuzzer will employ specified values in the creation of query options. For example, ODfuzz generates the \$filter query option targeting the property UnitPrice which is afterwards compared only to two values, "18.0000" or "19.0000", when we declare the restrictions as follows (i.e. https://services.odata.org/V2/Northwind/Northwind.svc/Products?\$filter=UnitPrice%20eq%2018.0000):
 
