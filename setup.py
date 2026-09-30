@@ -8,16 +8,16 @@ setup(
     version=version,
     license='Apache License Version 2.0',
     url='https://github.com/SAP/odfuzz',
-    author='Lubos Mjachky, Jakub Filak, Petr Hanak',
-    author_email='jakub.filak@sap.com, petr.hanak@sap.com',
+    author='Petr Hanak',
+    author_email='petr.hanak@sap.com',
     description='Fuzzer for testing applications communicating via the OData protocol',
     packages=find_packages(exclude=['tests', 'restrictions']),
     package_data={"odfuzz": ["py.typed"]},
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'pyyaml==5.4',
-        'pyodata==1.7.0',
+        'pyyaml==6.0.3',
+        'pyodata==1.12.1',
     ],
     tests_require=[
         'pytest>=7.1.2',
@@ -33,7 +33,7 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.11',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Software Development :: Testing'
     ]
