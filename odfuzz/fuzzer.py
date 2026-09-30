@@ -1,17 +1,29 @@
 """This module contains core parts of the fuzzer and additional handler classes."""
 
+from __future__ import annotations
+
 import random
 import hashlib
 import json
 from copy import deepcopy
 from collections import namedtuple
+from dataclasses import dataclass
 
 from odfuzz.entities import FilterOptionBuilder, FilterOption, \
     OrderbyOptionBuilder, OrderbyOption
 from odfuzz.config import Config
 
 # pylint: disable=wildcard-import
-from odfuzz.constants import *  
+from odfuzz.constants import *
+
+
+@dataclass
+class QueryResult:
+    url: str
+    entity_set: str
+    http_method: str
+    body: dict | None
+
 
 class Queryable:
     """ Assemble the final query by appending different enttity parts.
@@ -19,15 +31,26 @@ class Queryable:
 
     SelfMock = namedtuple('SelfMock', 'max_length')
 
-    def __init__(self, queryable):
+    def __init__(self, queryable, config=None):
         self._queryable = queryable
+        # Prefer an explicitly-supplied config; fall back to the one stored on
+        # the queryable (QueryGroup), and finally to the global Config.fuzzer.
+        if config is not None:
+            self._config = config
+        else:
+            self._config = getattr(queryable, 'config', None) or Config.fuzzer
 
-    def generate_query(self):
+    def generate_query(self) -> QueryResult:
         accessible_entity, body_key_pairs = self._queryable.get_accessible_entity()
-        query = Query(accessible_entity)
+        query = Query(accessible_entity, config=self._config)
         self.generate_options(query)
         body = self.generate_body(accessible_entity, body_key_pairs)
-        return query,body
+        return QueryResult(
+            url=query.query_string,
+            entity_set=query.entity_name,
+            http_method=self._config.http_method_enabled,
+            body=body,
+        )
     
     def generate_put_post_body(self, accessible_entity, body_key_pairs):
         body={}
@@ -75,11 +98,11 @@ class Queryable:
     def generate_body(self,accessible_entity,body_key_pairs):
         #body initialised as empty dict. For GET and DELETE the body would remain empty
         body={}
-        if Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "POST":
+        if self._config.http_method_enabled == "PUT" or self._config.http_method_enabled == "POST":
             body = self.generate_put_post_body(accessible_entity, body_key_pairs)
-        elif Config.fuzzer.http_method_enabled == "MERGE":
+        elif self._config.http_method_enabled == "MERGE":
             body = self.generate_merge_body(accessible_entity, body_key_pairs)
-        elif Config.fuzzer.http_method_enabled == "GET" or Config.fuzzer.http_method_enabled == "DELETE":
+        elif self._config.http_method_enabled == "GET" or self._config.http_method_enabled == "DELETE":
             pass
         else:
             raise ValueError("Config.fuzzer.http_method_enabled has unknown value")
@@ -99,16 +122,17 @@ class SingleQueryable(Queryable):
     """
     used when fuzzer is not triggered with async option, generates URLs by one
     """
-    def generate(self):
-        query,body = self.generate_query()
-        body = json.dumps(body)
-        return [query,body]
+    def generate(self) -> QueryResult:
+        result = self.generate_query()
+        result.body = json.dumps(result.body)
+        return result
 
 class Query:
     """A wrapper of a generated query."""
 
-    def __init__(self, accessible_entity):
+    def __init__(self, accessible_entity, config=None):
         self._accessible_entity = accessible_entity
+        self._config = config if config is not None else Config.fuzzer
         self._options = {}
         self._query_string = ''
         self._dict = None
@@ -186,7 +210,7 @@ class Query:
     def build_string(self):
     #TODO refactor rename build_url_part - this creates the parts after /Entity?$filter... etc ; not entire URL to send to Dispatcher.
         self._query_string = self._accessible_entity.path + '?'
-        if Config.fuzzer.http_method_enabled == "GET":
+        if self._config.http_method_enabled == "GET":
             for option_name in self._order:
                 if option_name.endswith('filter'):
                     filter_data = deepcopy(self._options[option_name[1:]])
@@ -237,16 +261,16 @@ class Query:
     '''
 
     def _add_appendix(self):
-        if Config.fuzzer.sap_client:
-            self._query_string += '&' + 'sap-client=' + Config.fuzzer.sap_client
-        if Config.fuzzer.data_format and (Config.fuzzer.http_method_enabled == "GET"):
-            self._query_string += '&' + '$format=' + Config.fuzzer.data_format
+        if self._config.sap_client:
+            self._query_string += '&' + 'sap-client=' + self._config.sap_client
+        if self._config.data_format and (self._config.http_method_enabled == "GET"):
+            self._query_string += '&' + '$format=' + self._config.data_format
 
 
 class HashGenerator:
     @staticmethod
     def generate(string):
-        return hashlib.md5(string.encode('utf-8')).hexdigest()
+        return hashlib.md5(string.encode(), usedforsecurity=False).hexdigest()
 
 
 class NullObject:

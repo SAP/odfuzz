@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx">
+  <edmx:DataServices m:DataServiceVersion="2.0" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+    <Schema Namespace="TestService" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+      <EntityType Name="Product">
+        <Key><PropertyRef Name="Id"/></Key>
+        <Property Name="Id" Type="Edm.Int32" Nullable="false"/>
+        <Property Name="Name" Type="Edm.String" MaxLength="100" Nullable="true" Filterable="true" Sortable="true"/>
+        <Property Name="Price" Type="Edm.Decimal" Precision="10" Scale="2" Nullable="true" Filterable="true" Sortable="true"/>
+      </EntityType>
+      <EntityContainer Name="TestContainer" m:IsDefaultEntityContainer="true">
+        <EntitySet Name="Products" EntityType="TestService.Product"/>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

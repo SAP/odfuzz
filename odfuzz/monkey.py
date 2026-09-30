@@ -19,7 +19,6 @@ the associated ends are tied to the corresponding entity sets.
 """
 
 import random
-import logging
 import types
 
 from pyodata.v2.model import VariableDeclaration, ComplexType
@@ -150,9 +149,9 @@ def patch_proprty_generator(entity_set_name, proprty, restrictions):
         elif proprty_type.endswith('64'):
             proprty.generate = EdmInt64.generate
         else:
-            logging.info('Property type {} is not supported by generator yet'.format(proprty_type))
+            pass  # property type not supported by generator
     else:
-        logging.info('Property type {} is not supported by generator yet'.format(proprty_type))
+        pass  # property type not supported by generator
 
 def patch_proprty_operator(proprty):
     proprty_type = proprty.typ.name

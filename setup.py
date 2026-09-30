@@ -12,18 +12,11 @@ setup(
     author_email='jakub.filak@sap.com, petr.hanak@sap.com',
     description='Fuzzer for testing applications communicating via the OData protocol',
     packages=find_packages(exclude=['tests', 'restrictions']),
+    package_data={"odfuzz": ["py.typed"]},
     include_package_data=True,
-    entry_points={
-        'console_scripts': [
-            'odfuzz = odfuzz.odfuzz:main'
-        ]
-    },
     zip_safe=False,
     install_requires=[
-        'requests==2.23.0',
-        'lxml==4.9.1',
         'pyyaml==5.4',
-        'python-dateutil==2.8.1',
         'pyodata==1.7.0',
     ],
     tests_require=[

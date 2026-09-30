@@ -7,6 +7,8 @@ concept naming
 QUERY = part of URL: EntitySet?queryoptions
 """
 
+from __future__ import annotations
+
 import copy
 import re
 import random
@@ -27,6 +29,7 @@ from odfuzz.generators import (
 )
 from odfuzz.monkey import patch_proprties, patch_entity_set
 from odfuzz.config import Config
+from odfuzz.restrictions import RestrictionsGroup
 
 # pylint: disable=wildcard-import
 from odfuzz.constants import *  
@@ -40,22 +43,41 @@ OptionRestriction = namedtuple('OptionRestriction', 'restr is_restricted')
 
 class DirectBuilder:
     """A class for building and initializing all queryable entities with metadata passed in constructor."""
-    def __init__(self, metadata, restrictions = None, method = "GET", sap_vendor_enabled = False):
+    def __init__(
+        self,
+        metadata: bytes | str,
+        restrictions: object | None = None,
+        method: str = "GET",
+        sap_vendor_enabled: bool = False,
+        config: object | None = None,
+    ) -> None:
         if method not in ["GET","DELETE","PUT","POST","MERGE"]:
             raise ValueError("The HTTP method \'{}\' is invalid\nUse either GET, DELETE, PUT, POST or MERGE".format(method))
         self._queryable = QueryableEntities()
         self._metadata_string = metadata
-        self._restrictions = restrictions
-        Config.init()
-        Config.fuzzer.http_method_enabled = method
-        Config.fuzzer.sap_vendor_enabled = sap_vendor_enabled
+        # Coerce None to an empty RestrictionsGroup so downstream code that
+        # calls restrictions.get(...) / restrictions.excluded_options() never
+        # has to guard against None.
+        self._restrictions = restrictions if restrictions is not None else RestrictionsGroup(None)
 
-        # Ugly but necessary so the field exists for classes and methods in fuzzer.py using the Config.
-        # Normally initialized in the middle of CLI calls, but in this case this is the first entrypoint and Config does not exists yet.     
+        if config is not None:
+            # Caller supplied an explicit config object — use it directly without
+            # touching the global Config singleton.
+            self._config = config
+            self._config.http_method_enabled = method
+            self._config.sap_vendor_enabled = sap_vendor_enabled
+        else:
+            # Legacy / CLI path: reinitialise the global singleton as before so
+            # that code paths still reading Config.fuzzer keep working.
+            Config.init()
+            Config.fuzzer.http_method_enabled = method
+            Config.fuzzer.sap_vendor_enabled = sap_vendor_enabled
+            self._config = Config.fuzzer
+
     def set_restrictions(self, restrictions):
         self._restrictions = restrictions
 
-    def build(self):
+    def build(self) -> list:
         # call just once on fuzzer process start
         data_model = self._get_data_model()
 
@@ -63,10 +85,29 @@ class DirectBuilder:
             patch_entity_set(entity_set, data_model.association_sets)
             patch_proprties(entity_set.name, entity_set.entity_type.proprties(), self._restrictions)
             principal_entities = get_principal_entities(data_model, entity_set)
-            query_group_data = QueryGroupData(entity_set, principal_entities, self._restrictions, None)
+            query_group_data = QueryGroupData(entity_set, principal_entities, self._restrictions, None, self._config)
             self._append_queryable(query_group_data)
 
         return self._apply_restrictions()
+
+    def generate_n(self, n: int, seed: int | None = None) -> list:
+        """Generate n query results as a flat list.
+
+        Pass *seed* to make the output deterministic across calls.
+        """
+        from odfuzz.fuzzer import SingleQueryable  # noqa: PLC0415
+        if seed is not None:
+            random.seed(seed)
+        results = []
+        query_groups = self.build()
+        while len(results) < n:
+            for query_group in query_groups:
+                if len(results) >= n:
+                    break
+                single = SingleQueryable(query_group, config=self._config)
+                result = single.generate()
+                results.append(result)
+        return results[:n]
     
     def _apply_restrictions(self):
         '''Method for excluding entities and their properties as a part of RestrictionsGroup'''
@@ -115,13 +156,13 @@ class DirectBuilder:
 
     def _append_queryable(self, query_group_data):
         # TODO REFACTOR DRY this method is direct copypaste from DispatchedBuilder just to have a prototype for integration. Intentionally no abstract class at the moment.
-        if Config.fuzzer.http_method_enabled == "GET" or Config.fuzzer.http_method_enabled == "DELETE":
+        if self._config.http_method_enabled == "GET" or self._config.http_method_enabled == "DELETE":
             self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
             self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
             self._append_associated_queryables(query_group_data)
-        elif Config.fuzzer.http_method_enabled == "PUT" or Config.fuzzer.http_method_enabled == "MERGE":
+        elif self._config.http_method_enabled == "PUT" or self._config.http_method_enabled == "MERGE":
             self._append_corresponding_queryable(QueryGroupSingle(query_group_data))
-        elif Config.fuzzer.http_method_enabled == "POST":
+        elif self._config.http_method_enabled == "POST":
             self._append_corresponding_queryable(QueryGroupMultiple(query_group_data))
             self._append_associated_queryables(query_group_data)
         else:
@@ -159,11 +200,15 @@ class QueryableEntities(object):
 
 
 class QueryGroupData:
-    def __init__(self, entity_set, principal_entities, restrictions, dispatcher):
+    def __init__(self, entity_set, principal_entities, restrictions, dispatcher, config=None):
         self._entity_set = entity_set
         self._principal_entities = principal_entities
         self._restrictions = restrictions
         self._dispatcher = dispatcher
+        # config is the FuzzerConfig instance to use; defaults to the global
+        # Config.fuzzer so that code paths that don't thread config explicitly
+        # continue to work unchanged.
+        self._config = config if config is not None else Config.fuzzer
 
     @property
     def entity_set(self):
@@ -181,12 +226,17 @@ class QueryGroupData:
     def dispatcher(self):
         return self._dispatcher
 
+    @property
+    def config(self):
+        return self._config
+
 
 class QueryGroup:
     def __init__(self, query_group_data):
         self._entity_set = query_group_data.entity_set
         self._restrictions = query_group_data.restrictions
         self._dispatcher = query_group_data.dispatcher
+        self._config = query_group_data.config
         # TODO REFACTOR this is not ideal structure.. if this module is  "wrapper classes for queryable entities" it should not contain essentially networking
 
         self._query_options = {}
@@ -203,6 +253,10 @@ class QueryGroup:
     @property
     def principal_entities(self):
         return self._principal_entities
+
+    @property
+    def config(self):
+        return self._config
 
     def get_accessible_entity(self):
         return self._accessible_entity.generate_accessible_entity()
@@ -311,13 +365,13 @@ class QueryGroup:
             return
 
         option_restr = self.get_restrictions(option_name, restriction_type)
-        if Config.fuzzer.ignore_restriction == 'True':
+        if self._config.ignore_restriction == 'True':
             is_queryable = True
         else:
             is_queryable = getattr(self._entity_set, metadata_attr)
 
         if is_queryable and not option_restr.is_restricted:
-            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr, dispatcher)
+            self._query_options[option_name] = query_object(self._entity_set, option_restr.restr, dispatcher, self._config)
             include_restrictions = getattr(option_restr.restr, 'include', None)
             if include_restrictions and include_restrictions.get(self._entity_set.name):
                 self._required_query_options.append(self._query_options[option_name])
@@ -333,9 +387,18 @@ class QueryGroup:
             restr_proprty_list = []
 
         for proprty in self._entity_set.entity_type.proprties():
-            if (proprty.name in restr_proprty_list or not getattr(proprty, attribute)) \
+            # Determine whether this property is allowed by metadata.
+            # For SAP services (sap_vendor_enabled=True) the pyodata attribute
+            # reflects sap:filterable / sap:sortable annotations.
+            # For non-SAP / standard OData services (sap_vendor_enabled=False)
+            # the same pyodata attribute reflects the standard CSDL Filterable /
+            # Sortable value (proprty.filterable, proprty.sortable), so we
+            # respect it instead of defaulting everything to True.
+            attribute_allowed = getattr(proprty, attribute)
+
+            if (proprty.name in restr_proprty_list or not attribute_allowed) \
                     and proprty.name not in draft_proprties:
-                if Config.fuzzer.ignore_restriction == 'True':
+                if self._config.ignore_restriction == 'True':
                     continue
                 else:
                     del entity_set.entity_type._properties[proprty.name]
@@ -486,7 +549,7 @@ class QueryOption(metaclass=ABCMeta):
 
 
 class InlineCountQuery(QueryOption): #TODO refactor rename InlineCOuntQueryOption (in all subclasses)
-    def __init__(self, entity, restrictions, dispatcher):
+    def __init__(self, entity, restrictions, dispatcher, config=None):
         super(InlineCountQuery, self).__init__(entity, INLINECOUNT, '$', restrictions)
 
     def apply_restrictions(self):
@@ -505,7 +568,7 @@ class InlineCountQuery(QueryOption): #TODO refactor rename InlineCOuntQueryOptio
 
 
 class SearchQuery(QueryOption):
-    def __init__(self, entity, restrictions, dispatcher):
+    def __init__(self, entity, restrictions, dispatcher, config=None):
         super(SearchQuery, self).__init__(entity, SEARCH, '', restrictions)
 
     def apply_restrictions(self):
@@ -538,10 +601,11 @@ class SearchQuery(QueryOption):
 class ExpandQuery(QueryOption):
     def __init__(self, entity, restrictions):
         super(ExpandQuery, self).__init__(entity, EXPAND, '$', restrictions)
-        self._navigation_paths = set()
+        self._navigation_paths = []
         self._init_possible_paths()
 
     def _init_possible_paths(self):
+        seen = set()
         for navigation_proprty in self._entity_set.entity_type.nav_proprties:
             possible_paths = [navigation_proprty.name]
             # TODO: search deeper for navigation properties
@@ -555,7 +619,10 @@ class ExpandQuery(QueryOption):
             # https://services.odata.org/V2/Northwind/Northwind.svc/Products(ProductID=1)?$expand=Category/CategoryDetails/Customers
             for inner_nav_proprty in navigation_proprty.to_role.entity_type.nav_proprties:
                 possible_paths.append(navigation_proprty.name + '/' + inner_nav_proprty.name)
-            self._navigation_paths.update(possible_paths)
+            for path in possible_paths:
+                if path not in seen:
+                    seen.add(path)
+                    self._navigation_paths.append(path)
 
     def apply_restrictions(self):
         pass
@@ -589,13 +656,17 @@ class OrderbyQuery(QueryOption):
         self._proprties = self._get_properties(restrictions_group)
     
     def _get_properties(self, restrictions_group):
-        properties_set = set()
+        # Use a list (not a set) so random.sample works on Python 3.12+.
+        properties_list = []
+        seen = set()
         for proprty in self.entity_set.entity_type.proprties():
+            if proprty.name in seen:
+                continue
+            seen.add(proprty.name)
             if self._check_for_restricted_properties(self.entity_set._name, proprty.name, restrictions_group):
                 continue
-            else:
-                properties_set.add(proprty.name)
-        return properties_set
+            properties_list.append(proprty.name)
+        return properties_list
 
     def apply_restrictions(self):
         pass
@@ -631,9 +702,10 @@ class OrderbyQuery(QueryOption):
 class TopQuery(QueryOption):
     """The $top query option."""
 
-    def __init__(self, entity, restrictions, dispatcher):
+    def __init__(self, entity, restrictions, dispatcher, config=None):
         super(TopQuery, self).__init__(entity, TOP, '$', restrictions)
         self._dispatcher = dispatcher
+        self._config = config if config is not None else Config.fuzzer
         self._max_range_prob = {INT_MAX: 1.0}
         self._depending_data = 0
         self.apply_restrictions()
@@ -679,7 +751,7 @@ class TopQuery(QueryOption):
         total_entities = INT_MAX  # default value, used for when called trough DirectBuilder
         if (self._dispatcher):
             try:
-                url = self._entity_set.name + '/' + '$count?' + 'sap-client=' + Config.fuzzer.sap_client
+                url = self._entity_set.name + '/' + '$count?' + 'sap-client=' + self._config.sap_client
                 response = self._dispatcher.get(url, timeout=5)
             except DispatcherError:
                 total_entities = INT_MAX
@@ -695,7 +767,7 @@ class TopQuery(QueryOption):
 class SkipQuery(QueryOption):
     """The $skip query option."""
 
-    def __init__(self, entity, restrictions, dispatcher):
+    def __init__(self, entity, restrictions, dispatcher, config=None):
         super(SkipQuery, self).__init__(entity, SKIP, '$', restrictions)
         self._dispatcher = dispatcher
         self._max_range_prob = {INT_MAX: 1.0}
@@ -757,7 +829,6 @@ class FilterQuery(QueryOption):
         else:
             self._noterm_function = self._generate_function
 
-        self._recursion_depth = 0
         self._finalizing_groups = 0
         self._right_part = False
         self._option = None
@@ -828,7 +899,6 @@ class FilterQuery(QueryOption):
         return False
 
     def _init_variables(self):
-        self._recursion_depth = 0
         self._finalizing_groups = 0
         self._right_part = False
         self._option = FilterOption([], [], [])
@@ -852,7 +922,7 @@ class FilterQuery(QueryOption):
             self._option.add_part()
             self._generate_proprty()
         else:
-            self._noterm_expression()
+            self._noterm_expression(depth=0)
 
     def _generate_interval_values(self, proprty, used_operator):
         #i.e. if present sap:filter-restriction="interval"
@@ -887,7 +957,7 @@ class FilterQuery(QueryOption):
         replaceable = getattr(proprty, 'replaceable', True)
         self._update_proprty_part(proprty.name, operator, operand, replaceable)
 
-    def _noterm_expression(self):
+    def _noterm_expression(self, depth=0):
         """
         https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
         1. EXPRESSION -> PROPFUNC OPERATOR OPERAND | CHILD
@@ -896,36 +966,38 @@ class FilterQuery(QueryOption):
 
         :return:
         """
-        self._recursion_depth += 1
+        depth = depth + 1
         if (not self._proprties.has_remaining()) \
-                and (random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT):
+                or random.random() < 0.5 \
+                or depth > RECURSION_LIMIT:
             self._generate_element()
         else:
-            self._noterm_child()
+            self._noterm_child(depth)
 
-    def _noterm_parent(self):
+    def _noterm_parent(self, depth=0):
         """
         https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
         3. PARENT -> EXPRESSION | CHILD | ( CHILD )
         :return:
         """
         if (not self._proprties.has_remaining()) \
-                and (random.random() < 0.5 or self._recursion_depth > RECURSION_LIMIT):
-            self._noterm_expression()
+                or random.random() < 0.5 \
+                or depth > RECURSION_LIMIT:
+            self._noterm_expression(depth)
         else:
-            self._generate_child()
+            self._generate_child(depth)
 
-    def _generate_child(self):
+    def _generate_child(self, depth=0):
         """
 
         :return:
         """
         if random.random() < 0.5 or not self._proprties.has_remaining():
-            self._noterm_child()
+            self._noterm_child(depth)
         else:
-            self._generate_child_group()
+            self._generate_child_group(depth)
 
-    def _generate_child_group(self):
+    def _generate_child_group(self, depth=0):
         """
         https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
         = ( CHILD )
@@ -940,7 +1012,7 @@ class FilterQuery(QueryOption):
         if self._right_part:
             self._update_group_references(last_group)
         self._groups_stack.push(last_group)
-        self._noterm_child()
+        self._noterm_child(depth)
         self._finalizing_groups += 1
         self._option_string += ')'
 
@@ -952,20 +1024,20 @@ class FilterQuery(QueryOption):
         if stacked_group:
             stacked_group['logicals'].append(last_logical['id'])
 
-    def _noterm_child(self):
+    def _noterm_child(self, depth=0):
         """
         https://github.wdf.sap.corp/ODfuzz/ODfuzz/blob/master/doc/architecture.rst#filter-grammar
         2. CHILD -> PARENT LOGICAL PARENT
 
         :return:
         """
-        self._noterm_parent()# = PARENT
-        self._generate_rest()# = LOGICAL PARENT
+        self._noterm_parent(depth)# = PARENT
+        self._generate_rest(depth)# = LOGICAL PARENT
 
-    def _generate_rest(self):
+    def _generate_rest(self, depth=0):
         if self._proprties.has_filterable():
             self._noterm_logical()
-            self._noterm_parent()
+            self._noterm_parent(depth)
 
     def _noterm_logical(self):
         operator = weighted_random(LOGICAL_OPERATORS.items())

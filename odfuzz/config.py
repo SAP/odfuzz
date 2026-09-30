@@ -17,6 +17,17 @@ from odfuzz.constants import (
 
 
 class FuzzerConfig:
+    # Class-level defaults so instances are always in a valid state even before
+    # environment variables are read.  These are overridden per-instance in
+    # __init__ but serve as safe fallbacks when FuzzerConfig() has not yet been
+    # called (e.g. in library mode where Config.init() is never invoked).
+    use_encoder: bool = True
+    sap_client: str = DEFAULT_SAP_CLIENT
+    data_format: str = DEFAULT_DATA_FORMAT
+    ignore_restriction: str = DEFAULT_IGNORE_METADATA_RESTRICTIONS
+    http_method_enabled: str = "GET"
+    sap_vendor_enabled: bool = False
+
     def __init__(self):
         self._sap_client = os.getenv(ENV_SAP_CLIENT, DEFAULT_SAP_CLIENT)
         self._data_format = os.getenv(ENV_DATA_FORMAT, DEFAULT_DATA_FORMAT)
@@ -52,17 +63,20 @@ class FuzzerConfig:
     @http_method_enabled.setter
     def http_method_enabled(self, value):
         self._http_method_enabled = value
-    
+
     @property
     def sap_vendor_enabled(self):
         return self._sap_vendor_enabled
-    
+
     @sap_vendor_enabled.setter
     def sap_vendor_enabled(self, value):
         self._sap_vendor_enabled = value
 
+
 class Config:
-    fuzzer = None
+    # Default FuzzerConfig instance so Config.fuzzer is never None even when
+    # Config.init() has not been called (library / unit-test mode).
+    fuzzer: FuzzerConfig = FuzzerConfig()
 
     @staticmethod
     def init():
