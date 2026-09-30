@@ -1,37 +1,6 @@
 """This module contains global constants."""
-import os
 from datetime import datetime
 
-# configuration constants, used while initializing loggers which are used for logging stats and logging info messages;
-# used in loggers.py
-LOGGING_CONFIG_PATH = 'config/logging/logging.conf'
-
-FUZZER_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir))
-FUZZER_LOGGING_CONFIG_PATH = os.path.join(FUZZER_PATH, LOGGING_CONFIG_PATH)
-
-FUZZER_LOGS_NAME = 'logs'
-STATS_LOGS_NAME = 'stats_overall'
-FILTER_LOGS_NAME = 'stats_filter'
-DATA_RESPONSES_NAME = 'data_responses'
-URLS_LOGS_NAME = 'list_urls'
-RUNTIME_FILE_NAME = 'runtime_info.txt'
-
-# this set of constants must be equal to the corresponding
-# logger keys defined in the CONFIG_PATH
-FUZZER_LOGGER = 'fuzzer'
-STATS_LOGGER = 'stats'
-FILTER_LOGGER = 'filter'
-URLS_LOGGER = 'urls'
-RESPONSE_LOGGER = 'data'
-
-# used in databases.py as a name of the database in MongoDB (https://docs.mongodb.com/manual/core/databases-and-collections/);
-# collections are created for each OData service separately
-MONGODB_NAME = 'odfuzz'
-
-# used for mounting adapters in the module `requests` (this may be located right in Dispatcher)
-ACCESS_PROTOCOL = 'https://'
-# used in Dispatcher (fuzzer.py) to obtain SAP login from environmental variables
-# TODO this should probably be used in one place only (config.py) and not scattered + rename with prefix ODFUZZ_
 ENV_USERNAME = 'ODFUZZ_USERNAME'
 ENV_PASSWORD = 'ODFUZZ_PASSWORD'
 ENV_SAP_CLIENT = 'ODFUZZ_SAP_CLIENT'
@@ -53,7 +22,6 @@ DEFAULT_IGNORE_METADATA_RESTRICTIONS = 'False'
 DEFAULT_USE_ENCODER = 'True'
 DEFAULT_CLI_RUNNER_SEED = datetime.now() #the default value for random.seed() in CLI runner, as was in fuzzer.py hardcoded
 DEFAULT_SAP_VENDOR_ENABLED = 'False'
-
 
 # names of restrictions which are used for searching for keywords; these constants are also used in the module fuzzer.py
 # for creating dictionary which is going to be saved to the database - these constants are truly global, so the user
@@ -136,17 +104,7 @@ FILTER_SAMPLE_SIZE = 30
 MAX_BEST_QUERIES = 30
 INLINECOUNT_ALL_PAGES_PROB = 0.5
 
-# headers for CSV files (StatsLogger, ResponseTimeLogger)
-CSV = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;AccessibleSet;AccessibleKeys;Property;orderby;top;skip;filter;expand;search;inlinecount;hash'
-CSV_FILTER = 'StatusCode;ErrorCode;ErrorMessage;EntitySet;Property;logical;operator;function;operand;hash'
-CSV_RESPONSES_HEADER = 'Time;Data;EntitySet;URL;Brief'
-
-INFINITY_TIMEOUT = -1
-YEAR_IN_SECONDS = 31622400
-REQUEST_TIMEOUT = 600
-RETRY_TIMEOUT = 100
-
-# range for basic charsets for generator (generators.py) and mutators (mutators.py)
+# range for basic charsets for generator (generators.py)
 HEX_BINARY = 'ABCDEFabcdef0123456789'
 
 # The character "~" has been  removed from BASE_CHARSET, as since Python 3.7, urllib.parse.quote() uses RFC 3986 for encoding.

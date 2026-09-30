@@ -1,4 +1,3 @@
-import logging
 from pathlib import Path
 import random
 import os
@@ -8,10 +7,6 @@ from odfuzz.restrictions import RestrictionsGroup
 from odfuzz.entities import DirectBuilder
 from odfuzz.fuzzer import SingleQueryable
 from odfuzz.functionimport import FunctionImport
-
-logger = logging.getLogger("testDirectBuilder")
-logger.setLevel(logging.CRITICAL)
-#logger is needed not for the test but as part of DirectBuilder constructor
 
 
 def test_expected_integration_sample():
@@ -46,13 +41,9 @@ def test_expected_integration_sample():
         '''
 
         for _ in range(URL_COUNT_PER_ENTITYSET):
-            q = queryable_factory(queryable, logger, 1)
-            queries = q.generate()
-            ''' uncomment for code sample purposes            
-            print(queries[0].query_string)    
-            #hardcoded 0, since SingleQueryable is used and therefore generate only one URL
-            '''
-            assert queries[0].query_string != ""
+            q = queryable_factory(queryable)
+            result = q.generate()
+            assert result.url != ""
 
 
 def builder(method):
@@ -83,9 +74,9 @@ def test_direct_builder_http_get():
     for queryable in get_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries, body = q.generate()
-            queries_list.append(queries.query_string)
+            q = queryable_factory(queryable)
+            result = q.generate()
+            queries_list.append(result.url)
     queries_list=set(queries_list)
     choice = queries_list.pop()
     assert ("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice) == True
@@ -98,9 +89,9 @@ def test_direct_builder_http_delete():
     for queryable in del_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            queries_list.append(queries.query_string)
+            q = queryable_factory(queryable)
+            result = q.generate()
+            queries_list.append(result.url)
     queries_list=set(queries_list)
     choice = queries_list.pop()
     assert ("filter" in choice or "expand" in choice or "startswith" in choice or "replace" in choice or "substring" in choice or "inlinecount" in choice) == False
@@ -113,12 +104,12 @@ def test_direct_builder_http_put_url():
     for queryable in put_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            queries_list.append(queries.query_string)
+            q = queryable_factory(queryable)
+            result = q.generate()
+            queries_list.append(result.url)
     queries_list=queries_list
     choice = random.choice(queries_list)
-    assert "Invoices(CustomerName='%C3%8B%C2%B4J%E2%80%A6%C3%B4%C3%AE%C3%AC%C3%99%C3%9D%C3%A5B%C2%AFNZ%C3%96n%C3%80J%C2%A8%40%C2%BF%C3%A2%5D%C2%B0%C3%B6%C3%8A%C2%A4%C3%848%C3%90njgk%C3%82%E2%80%98',Salesperson='%20%C6%92%C2%B3%C2%A8%3D%C3%AAI%C3%94R%C3%AC_%C2%BF%C3%8E%C3%9DV%C3%8B%C3%BC9%C3%BF',OrderID=-1738698126,ShipperName='b',ProductID=-1469737969,ProductName='Rg%C3%81b%C3%8CZ%C3%95%C2%B3%3A%C2%A4mC%40%C3%B3%C2%B8%C3%AD%C3%8CO%C3%81%C2%B5%C3%ACD%C3%80',UnitPrice=109582959431.9592m,Quantity=32113,Discount=1.949561421076087e+20f)?sap-client=500" == choice
+    assert "Employees(EmployeeID=-847321771)?sap-client=500" == choice
 
 def test_direct_builder_http_post_url():
     random.seed(20)
@@ -128,12 +119,12 @@ def test_direct_builder_http_post_url():
     for queryable in post_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            queries_list.append(queries.query_string)
+            q = queryable_factory(queryable)
+            result = q.generate()
+            queries_list.append(result.url)
     queries_list=queries_list
     choice = random.choice(queries_list)
-    assert "Employees?sap-client=500" == choice
+    assert "Products?sap-client=500" == choice
 
 def test_direct_builder_body_generation():
     random.seed(20)
@@ -143,10 +134,10 @@ def test_direct_builder_body_generation():
     for queryable in dir_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            body_list.append(body)
-    assert random.choice(body_list) == "{\"ShipName\": \"P\\u0192vC}\\u00e8\\u00fa\\u00b40y\\u00b8RN\\u00e5tKo\\u00d4+S\\u00c8\", \"ShipAddress\": \"\\u00e5+\\u00a5\\u00b1$_OO\\u00f5\\u00bf<G\\u00e8\\u00e1H\\u00f2\\u00c5\\u00bb\\u0153R\\u00c5P-\\u00e4 \\u00b0\\u00e7\\u00a9r^\\u00bd]\\u00d84e\\u00df-\\u009d\\u00a7\\u00d9\\u00e7\\u00d64\\u00f3 \\u00a69!\\u00f0\\u00fd7\\u2020g\\u00bb\\u0152`g$\", \"ShipCity\": \"I\\u00c0e\", \"ShipRegion\": \"\\u0090\\u00f4\\u00b5e\\u00c2j\\u00f5\\u00a4\\u00fa\\u00fe\\u00d5\\u00d2\\u00b6\\u00c7\\u00a7\", \"ShipPostalCode\": \"m\", \"ShipCountry\": \"\\u00d5\\u00feSM\\u00b9AQ\\u00d1\\u00ee*E+\\u00c0\", \"CustomerID\": \"n\\u00d8\\u00b3\", \"CustomerName\": \"\\u00cb\\u00b4J\\u2026\\u00f4\\u00ee\\u00ec\\u00d9\\u00dd\\u00e5B\\u00afNZ\\u00d6n\\u00c0J\\u00a8@\\u00bf\\u00e2]\\u00b0\\u00f6\\u00ca\\u00a4\\u00c48\\u00d0njgk\\u00c2\\u2018\", \"Address\": \"\\u00a3N\\u0192\\u00c5\\u2026\", \"City\": \"a\\u00c4\\u2021\\u008fI\\u00aa{nP\\u00b5\", \"Region\": \"!\\u00e7m2a\\u00ca\", \"PostalCode\": \"Q\\u00c2\\u00e6\\u2018R\\u00a1Z\\u00f4\\u00c1\\u00b3\", \"Country\": \"8\\u00b1Z\\u00f5\\u00bb81\", \"Salesperson\": \" \\u0192\\u00b3\\u00a8=\\u00eaI\\u00d4R\\u00ec_\\u00bf\\u00ce\\u00ddV\\u00cb\\u00fc9\\u00ff\", \"OrderID\": -1738698126, \"OrderDate\": \"/Date(10911881527)/\", \"RequiredDate\": \"/Date(31373613612)/\", \"ShippedDate\": \"/Date(8601631755)/\", \"ShipperName\": \"b\", \"ProductID\": -1469737969, \"ProductName\": \"Rg\\u00c1b\\u00ccZ\\u00d5\\u00b3:\\u00a4mC@\\u00f3\\u00b8\\u00ed\\u00ccO\\u00c1\\u00b5\\u00ecD\\u00c0\", \"UnitPrice\": \"109582959431.9592m\", \"Quantity\": 32113, \"Discount\": \"1.949561421076087e+20f\", \"ExtendedPrice\": \"71789779110.3390m\", \"Freight\": \"16854839578893.180m\"}"
+            q = queryable_factory(queryable)
+            result = q.generate()
+            body_list.append(result.body)
+    assert random.choice(body_list) == "{\"EmployeeID\": -847321771, \"LastName\": \"\\u00af\\u2013\", \"FirstName\": \"]M\\u00cd\\u00c8q\\u00c0\", \"Title\": \">\\u00d9J\\u00c7\\u00c1:|\\u00cd\\u00d4\\u00fe!\", \"TitleOfCourtesy\": \"C\\u00e9\\u00a8\\u00e7\", \"BirthDate\": \"/Date(25670646156)/\", \"HireDate\": \"/Date(27987149575)/\", \"Address\": \"K\\u00d0\\u0152I\\u00d7Zn\\u00f7\\u00ed\\u00fdo\\u2022|\\u00ba\\u00f5\\u00cbh\\u00d06\\u00f0X\\u00b7vk\\u2020\\u00a9\\u00d7\\u00fb\\u2030\\u00b6\\u0192\\u009d\\u00f2kE\\u0153\\u2014\\u00d6i\\u00e0\\u00b9[c\\u00dc2\\u201c\\u00e0\\u00ce\\u2022f@\\u00e9DKYZ\", \"City\": \"l\", \"Region\": \"\\u00be\\u00e3S$zC\\u00f7\\u00ba\\u00d0\\u00a2\\u00b5\", \"PostalCode\": \"N\\u2013@\\u00f0\\u00e1\\u00fa o\\u00e5\", \"Country\": \"\\u00b07\\u00a7\\u00c0Gh\\u00c84\\u00c2yue\\u201d\\u00e8\", \"HomePhone\": \"7*fp\\u2122\\u2030[5K\\u00b2\", \"Extension\": \"\\u00d6\\u00e7C\", \"Photo\": \"YmluYXJ5JzY5NzYn\", \"Notes\": \"Ki\\u2022\\u00d5\\u00c8J\\u009d\\u00c8K\\u00ceo\\u00f4A\\u00c6\\u00cf\\u008d\\u2122\\u00fe\\u00ce\\u00ecq\\u00fabn\\u00e2i<I\\u00e3\\u00ea\\u00c2|\\u00df\\u00e4\\u2021\\u00f3\\u2014e\\u00f5\\u00e6\\u00f5\\u2026U\\u00d18\\u00b8!\\u00b4\\u00caE)q\\u00e7V\\u201d\\u00e9\\u00a8\\u00d1d\\u00fav\\u00d29)C\\u00ab\\u00c5\\u00f8\\u00a7\\u008f5\\u0192\\u0152\\u00e3U\\u00bfR\\u00e3c\\u00e3\\u00c6V\\u00f33|\\u2021\\u00ac\\u00c53v\\u00a47\\u00f9\\u00cb\\u00cb\\u201d\", \"ReportsTo\": -549769433, \"PhotoPath\": \"\\u00f6\\u00f8v)\\u00afT\\u00c8I\\u2021\\u008f\\u2026\\u00eaJk<^\\u00b4\\u2020\\u00d5\\u00be\\u00fd\\u00e3\\u00e8I\\u00f3\\u00ec\\u00f6\\u00c5\\u00d3\\u00f8>\\u00f9P\\u00a5\\u2020^\\u00df_\\u00b7+\\u00f0\\u00a9\\u00e2\\u00bf\\u2014\\u00ebX\\u00e5\\u00d2\\u00da:\\u00ee\\u00acLn\\u00ac\\u00c2B\\u00be\\u00c6\\u00f7q5\\u00f4\\u00d6cG\\u00c1`\\u00c46\\u00f5^\\u00f8x5\\u2022F\\u00b1\\u00c3)*r>\\u00a6\\u2122\\u2022\\u0152\\u2022+\\u00fb\\u00c1\\u00f3b\\u00f3\\u00c1\\u0153\\u00fe\\u2014>\\u00fc\\u00e2f\\u00d4\\u00baE*\\u00ce\\u00d8o\\u00b5\\u00e3\\u2021\\u00a4\\u2021\\u00a5*\\u00c1)\\u00b2D\\u00a2h\\u00caL\\u00f9\\u00ebk\\u00fd\\u00e4=\\u00e6\\u00a5\\u00f5\\u00ce\\u00c6H\\u2022\\u00c5\\u00da\\u00b6{\\u00a9p\\u00d4O\\u00f3\\u00barQ\\u00fc\\u00b5j\\u2122\\u00be\\u00c4\\u00f5\\u00c4\\u00b4\\u00e3\\u2013\\u00b1-hy\\u00ae\\u00fd\\u00fd\\u2013\\u00ff\\u00e6\\u00cc\\u00c1C2t\\u00fdF\\u00fe\\u0153\\u2122\\u00b0\\u00c1\\u00de9K\\u00ff\\u0192\\u00d3\\u00af6\\u00b8\\u00b7]\\u00d0+K\\u00c1\\u00f0\\u0090\\u00d9$|\\u00a8\\u00e9\\u00f1\"}"
 
 def test_direct_builder_http_merge_body():
     random.seed(20)
@@ -156,10 +147,10 @@ def test_direct_builder_http_merge_body():
     for queryable in merge_entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            body_list.append(body)
-    assert body_list[10] == "{\"Region\": \"\\u00f6\", \"ContactName\": \"\\u00a1\\u008f\\u2014\\u00e0\\u0192\\u00e6RZK\\u00bfoK-[@V\", \"Fax\": \"[|\\u00a4\\u00e0Zu\\u008f\\u00a1a\\u00efnIL=\\u00d5\\u00e6T\", \"PostalCode\": \"\\u00b61\\u0081B\\u00f9B\\u00a7\", \"CompanyName\": \"\\u00b3s\\u00f3\\u00a91\\u00b5\\u00d7\\u0081\\u00e5G\\u00ca\\u00a7o0\\u00f9\", \"Country\": \"\\u00a1\\u00d4\", \"City\": \"l]_\\u00eas\\u0090\\u00f6\\u00ff\", \"Address\": \"(F\\u00ca\\u00a4[R\\u00a7\\u00b7kT\\u00f2\\u00ef\\u2022\\u00bbd\\u00c4see\\u00cb\\u00a7y\\u2030}L6\\u2122c\\u00b4C\\u00db\\u00d1\\u00b6\\u00b1\\u00aa\\u00bc+8\\u00e2[\\u00aa^-c\\u00c6`\\u00ff\\u0081\\u00aa\", \"ContactTitle\": \"\\u00dd\\u00b5q\\u00f9\\u00bbd$E\\u0192a\\u00d0>\\u00de\\u00c8b\\u00f2u\\u00dc\\u00c1P\\u2030\"}"
+            q = queryable_factory(queryable)
+            result = q.generate()
+            body_list.append(result.body)
+    assert body_list[10] == "{\"ContactTitle\": \"li\\u00de:\\u2013Oi\\u00c3R\\u2026\\u00e0\", \"CompanyName\": \"*\\u00eeg*\\u00aa\\u00ec\\u00bdl\\u00df\\u00fapJ\\u00e4j\\u00ccK\\u00f7\\u00edR\\u00f4\\u00eee\\u2022\\u2013\\u00df\", \"Address\": \"SoA\\u2014=M\\u00c2F.\\u00d7\\u00db\\u00c9\\u00a4F\", \"City\": \"P\\u00fe\", \"ContactName\": \"\\u00f1\\u2122h\\u00f2n\\u00a1\\u008f\\u00a2\\u00fbT\\u00d6I\", \"Region\": \"*\\u0081b>\\u00bb\\u00ec\\u00b0*\\u00cd\\u00dd\\u00ff.\\u00de\", \"Country\": \"EQ\", \"Phone\": \"9\\u2013\"}"
 
 def test_function_imports():
     random.seed(10)
@@ -177,13 +168,16 @@ def test_direct_builder_filter_query_option():
         for queryable in entities:
             entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
             for _ in range(entityset_urls_count):
-                q = queryable_factory(queryable, logger, 1)
-                queries,body = q.generate()
-                for option_query in queries.options_strings:
-                    if option_query == "$filter":
-                        if len(queries.options_strings[option_query]) != 0:
-                              option_list_filter_query.append(queries.options_strings[option_query])
-                        
+                q = queryable_factory(queryable)
+                result = q.generate()
+                # Access the internal Query object's options_strings via url parsing
+                # The result.url contains the full URL string; parse filter from it
+                url = result.url
+                # Extract $filter value if present
+                if "$filter=" in url:
+                    filter_part = url.split("$filter=")[1].split("&")[0]
+                    option_list_filter_query.append(filter_part)
+
         if method == "POST" or method == "PUT" or method == "MERGE" or method == "DELETE":
             assert option_list_filter_query == []
         else:
@@ -199,23 +193,23 @@ def test_direct_builder_orderby_query_option():
         for queryable in entities:
             entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
             for _ in range(entityset_urls_count):
-                q = queryable_factory(queryable, logger, 1)
-                queries,body = q.generate()
-                for option_query in queries.options_strings:
-                    if option_query == "$orderby":
-                        if len(queries.options_strings[option_query]) != 0:
-                              option_list_orderby_query.append(queries.options_strings[option_query])
-          
+                q = queryable_factory(queryable)
+                result = q.generate()
+                url = result.url
+                if "$orderby=" in url:
+                    orderby_part = url.split("$orderby=")[1].split("&")[0]
+                    option_list_orderby_query.append(orderby_part)
+
         if method == "POST" or method == "PUT" or method == "MERGE" or method == "DELETE":
             assert option_list_orderby_query == []
         else:
             assert "ProductID" not in option_list_orderby_query
 
 @pytest.mark.parametrize('method_name,URI', [
-    ("POST", "Suppliers?sap-client=500"),
-    ("MERGE", "Suppliers(SupplierID=1564408389)?sap-client=500"),
-    ("PUT", "Order_Details_Extendeds(OrderID=-717893126,ProductID=349786362,ProductName='8%C2%A3T%E2%80%A0%C2%81%C3%A1C%C3%8F%C3%96%C3%A5%C5%92%C2%A7%29%C3%83T%C3%9A%C5%92m',UnitPrice=16647857647390.73m,Quantity=-1289,Discount=1.4474711818031789e+20f)?sap-client=500"),
-    ("DELETE", "Alphabetical_list_of_products?sap-client=500")
+    ("POST", "Products_by_Categories?sap-client=500"),
+    ("MERGE", "Orders(OrderID=-487590680)?sap-client=500"),
+    ("PUT", "Orders_Qries(OrderID=-74801719,CompanyName='%24%C2%B2')?sap-client=500"),
+    ("DELETE", "Territories(TerritoryID='Pe%C3%BD%C3%AD%5B')?sap-client=500")
 ])
 
 def test_direct_builder_Uri_unrestricted(method_name, URI):
@@ -225,18 +219,18 @@ def test_direct_builder_Uri_unrestricted(method_name, URI):
     for queryable in entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            methodList.append(queries.query_string)
-    
+            q = queryable_factory(queryable)
+            result = q.generate()
+            methodList.append(result.url)
+
     choice = random.choice(methodList)
 
     assert choice == URI
 
 @pytest.mark.parametrize('method_name,Body', [
-    ("POST", "{\"SupplierID\": -752052732, \"CompanyName\": \"+\\u00b0\\u00a6bM\\u00f9V\\u00ec\\u00a2S\\u00b0\\u008f\\u00e1s]K\", \"ContactName\": \"\\u00fc\\u00f1!I\\u00d1\\u00ed\\u0153\\u00e6\\u00f5(\\u00b6\\u00c8J\\u008d\\u0192f\\u00f9\\u00f5.L\\u00deo\\u00e7\\u00f8\", \"ContactTitle\": \"j\\u00d6$\\u00dc\\u00a7\\u00ba\\u00c3_\\u201c\\u00ff\\u00b6|\\u2030\\u2018\\u00c8\\u00ac+\\u00e6\\u00f3\\u00bbo\", \"Address\": \"\\u00e3\", \"City\": \"\\u00abtx\\u00da\\u00e1([\\u00e9\", \"Region\": \"]\\u2020\\u00cf[5\\u00ef\\u2021\", \"PostalCode\": \"L!\\u00f7\\u008dh\\u00aeF\", \"Country\": \"\\u00c4\\u00b6(\\u00dd\\u00bd\\u00a8\", \"Phone\": \" \\u00fa\\u00eb\\u00ae\", \"Fax\": \"C\\u00d5\\u00c2\", \"HomePage\": \"\\u2030\\u2013(U\\u00ce\\u00c2[7E\\u00d2\\u00c7\\u00de\\u00bf\\u00e5\\u2014\\u00a9\\u00f6u\\u2021Vq\\u00fd\\u00b8e\\u00ceYl\\u00e7\\u00fc\\u00f9\\u00af>\\u00e8d\\u008180\\u00c9i\\u201cd\\u00ec\\u00d6\\u00a4\\u00f5}U)8\\u00a6-\\u2122ztn\\u00c5\\u00a5gU\\u00b7\\u00fa\\u0081\\u00f2\\u00af\\u00b3Ai\\u00f3F+G-n\\u00e1\\u00ff\\u0090 \\u00bf\\u00c6z\\u00f0\\u00e8Fn\\u00f3\\u00dc\\u00a3\\u00fb]\\u00f4c\\u00b5N\\u00ca\"}"),
-    ("MERGE", "{\"HomePage\": \"\", \"Region\": \"\\u00d9\", \"CompanyName\": \"\\u008d^5\\u008d\\u00ebG3G\\u00dam\\u0090\\u00fa>\\u00cc\\u2020\\u00c1\\u00e0\\u00b9\\u00fd\\u00d0u\\u00ca\\u00a4X+S\\u00a7\\u00b6\\u00c2(7\", \"ContactName\": \"d\\u00df\\u00d7\\u201c\\u00ff\\u00c2>\\u00ac\\u00cd\\u00deu\"}"),
-    ("PUT", "{\"OrderID\": -717893126, \"ProductID\": 349786362, \"ProductName\": \"8\\u00a3T\\u2020\\u0081\\u00e1C\\u00cf\\u00d6\\u00e5\\u0152\\u00a7)\\u00c3T\\u00da\\u0152m\", \"UnitPrice\": \"16647857647390.73m\", \"Quantity\": -1289, \"Discount\": \"1.4474711818031789e+20f\", \"ExtendedPrice\": \"19869531782366.04m\"}")
+    ("POST", "{\"CategoryName\": \"bbV\\u201d\\u00d8\\u2021F*\", \"ProductName\": \"\\u00fb\\u00ddd1\\u00e9\\u00b0I\\u00ae\\u00a25$\\u201c6P\\u00c5*\\u00fd\\u00d3\\u00c0R0\\u00c2\\u00e9X\\u00d6xu\\u00af.\\u00c4gG`Z.C\\u0152\\u00e3\\u00c2\", \"QuantityPerUnit\": \"r\\u00afE1\\u00fe\\u00e4\\u00f3\\u00d7P8\\u00e8\\u00c2\\u2013\\u00af\", \"UnitsInStock\": 1724, \"Discontinued\": true}"),
+    ("MERGE", "{\"Freight\": \"196583300759.8999m\", \"RequiredDate\": \"/Date(253402300799)/\", \"ShipVia\": 1580076080, \"ShipName\": \"\\u00a9Fk\\u00e7t\\u00d7\\u00de7@\\u00a3\\u00a7\\u00f9\\u00a9\\u00ff\\u00bcY\\u00bd\\u00d5\\u00d45\\u00b0!\\u00d9cS}\\u00a1Vg\\u00baq\\u00c3\\u00f6\\u00d4\\u2021\", \"OrderDate\": \"/Date(29884514773)/\", \"CustomerID\": \"\\u00d5\", \"ShipPostalCode\": \"gZ[\", \"ShipCity\": \"}<]B\\u00a5\\u00de\\u2021j\", \"ShipRegion\": \"1m\\u00f7\\u00a7\\u00dbq:\\u00fd\", \"ShipAddress\": \"\\u00e5\\u00b8\\u00ebP\\u00e1\\u00a8{H\\u00fb\\u00bbqdq\"}"),
+    ("PUT", "{\"OrderID\": -74801719, \"CustomerID\": \"R\\u008f\", \"EmployeeID\": -1924929169, \"OrderDate\": \"/Date(7406226575)/\", \"RequiredDate\": \"/Date(4382242045)/\", \"ShippedDate\": \"/Date(14154596310)/\", \"ShipVia\": 182879621, \"Freight\": \"1770947247616.09m\", \"ShipName\": \"\\u0152\\u00ff\\u00d5+\\u00c1Y\\u2018\\u00ee\\u00c7i\\u00c5q\\u0152G\\u00eb}\\u00ab\\u00f9b\\u00bc\\u00f8^p\\u00da\\u00eceC\\u00b2\\u00bf\\u00bb\\u00bb\\u00d2p)\\u00a5\\u00a4n\", \"ShipAddress\": \"\\u00ca\\u00a2]\\u00eaY\\u2026\\u00beFZ\\u00c1)\\u00e4=o\\u00b1X\\u00f0\\u0153_\\u00f3\\u00d8\\u00e3\\u00a8\\u00d5\\u00d3\", \"ShipCity\": \"G\\u00c1\\u2020\\u00bekz\\u00aa\\u00b9\\u00c6\\u00e8\\u00c2 \\u00d3\", \"ShipRegion\": \"z\\u00c2(SgB\\u201d\\u2030\", \"ShipPostalCode\": \"q\\u00b6\\u00ea\\u00d3\", \"ShipCountry\": \"yR\\u00eeD\", \"CompanyName\": \"$\\u00b2\", \"Address\": \"n\\u00b4g\\u00eag\\u00b6e\\u2030\\u00ee\\u00dd\\u00b1\\u00f2Ik\\u00eb\\u00fd\\u00f7\\u00a5\\u00a9\\u00bat\\u00b6\\u00a63t7\\u00a1J\\u00cd\\u2021\\u00c1\\u00c5X\\u00b1\\u00a5j\\u00e2\\u00cfs\\u00c1\\u00fbi\\u0192\\u00d7\\u2013=\\u00ed\\u2020\\u00c8\\u2026\\u00f2 \\u00a4Q\\u01923\", \"City\": \"\\u00c24m\\u00feH\\u2018:]M\", \"Region\": \"b\\u00b2\\u00eb\\u2014\\u00f9\\u00f0c\", \"PostalCode\": \"|\\u00f6\", \"Country\": \"\\u00f96\\u00efK\\u2013\\u00c4\\u00bfR\\u00de\\u00bf\"}")
 ])
 
 def test_direct_builder_body_unrestricted(method_name, Body):
@@ -246,19 +240,19 @@ def test_direct_builder_body_unrestricted(method_name, Body):
     for queryable in entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            methodList.append(body)
-    
+            q = queryable_factory(queryable)
+            result = q.generate()
+            methodList.append(result.body)
+
     choice = random.choice(methodList)
 
     assert choice == Body
 
 @pytest.mark.parametrize('method_name,URI', [
-    ("POST", "Alphabetical_list_of_products?sap-client=500"),
-    ("MERGE", "Order_Details_Extendeds(OrderID=505194340,ProductID=-198767217,ProductName='%C3%B2',UnitPrice=5992329101239.70m,Quantity=14009,Discount=1.835664460305276e+20f)?sap-client=500"),
-    ("PUT", "Invoices(CustomerName='%C3%82%C3%87%C2%A4%C2%AE%C3%92%20%C3%8EJ%C3%92%C3%96x%C3%8F%C2%A2%C3%B9%C3%9E%C3%91TI%C3%8E%C2%A2%C2%AB%C3%9F%C3%B3',Salesperson='h%C3%B9%C3%91%7D%C3%B3%C2%A5%C2%A1%3A3Q%C2%BE%C2%A8M%C3%84%C2%90',OrderID=340222912,ShipperName='%C3%A6%C3%BD%C2%90-%3D%C3%95%40%C2%A4k%C5%93a%C5%92U',ProductID=360629792,ProductName='%C2%B6',UnitPrice=5269337783774.461m,Quantity=-4830,Discount=4.876322097957371e+19f)?sap-client=500"),
-    ("DELETE", "Regions(RegionID=260860390)/Territories?sap-client=500")
+    ("POST", "Orders_Qries?sap-client=500"),
+    ("MERGE", "Territories(TerritoryID='%C3%A7%C3%B9eq%C3%A1%C3%BCl%5E%3AGn%C3%B5S_%C3%89Q')?sap-client=500"),
+    ("PUT", "Alphabetical_list_of_products(ProductID=1951986690,ProductName='F%C3%8BLH%C3%83%C3%96%C3%B2%7B%E2%80%A6%C5%92%C3%9F%C2%BDeV%C3%A7z%C2%9D%C3%B3lVJC%C2%A1T%C3%AE%C3%A9%7B%C2%B8%C2%A4%C3%ADb%C2%AA%C2%B1',Discontinued=true,CategoryName='%C3%8CFR%28c%C2%B1%29I')?sap-client=500"),
+    ("DELETE", "Suppliers?sap-client=500")
 ])
 
 def test_direct_builder_Uri_unrestricted(method_name, URI):
@@ -268,18 +262,18 @@ def test_direct_builder_Uri_unrestricted(method_name, URI):
     for queryable in entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            methodList.append(queries.query_string)
-    
+            q = queryable_factory(queryable)
+            result = q.generate()
+            methodList.append(result.url)
+
     choice = random.choice(methodList)
 
     assert choice == URI
 
 @pytest.mark.parametrize('method_name,Body', [
-    ("POST", "{\"ProductName\": \"_\\u00d8\\u00d8\\u00c8\\u00e2ui!\\u00acT\\u00d2\\u00bb)Q\\u00e6\\u00cf\\u00d6d$C\\u00ac\\u00e0\\u00d6\\u00eam\\u00c8sI7\\u00daFJ\", \"SupplierID\": 829092798, \"CategoryID\": -1690973651, \"QuantityPerUnit\": \"\\u2122\\u00a3-`exT\", \"UnitPrice\": \"3483815661862.28m\", \"UnitsInStock\": -17798, \"UnitsOnOrder\": -22391, \"ReorderLevel\": -28014, \"Discontinued\": true, \"CategoryName\": \"\\u00fc\\u00a4\\u00f2\\u00b3(\"}"),
-    ("MERGE", "{\"ExtendedPrice\": \"167586037575.0167m\"}"),
-    ("PUT", "{\"ShipName\": \"\\u00e46)1\\u00b5H5\\u00fc+\\u20186-G\\u00abI\\u00ef\\u00c0\\u00e2\\u00816![\\u00fe\\u00ac\\u00e3\\u00cb\\u00b2\", \"ShipAddress\": \"|V9\\u0153\\u00a60>\\u0153:sx\\u00c4\\u00ef\\u00e1\\u00fb\\u00ce\\u00ee5\\u00e3\\u00b5mf\\u00c1\\u2018\\u00ca\\u00b9\\u2030\\u00a2\\u00e6\\u00f6\\u00b64\\u00b9\\u00f3hn\", \"ShipCity\": \"f\\u00f0\\u00e5\", \"ShipRegion\": \"\\u00ba\\u2013\\u00e1\\u00d3\\u00e1q\\u00c9\\u00a6]\\u00fe!\", \"ShipPostalCode\": \"s-+j\\u00a2\\u00e1\\u00bb\\u00e0\\u0192\\u201c\", \"ShipCountry\": \"\\u00c5\", \"CustomerID\": \"\\u00bc\", \"CustomerName\": \"\\u00c2\\u00c7\\u00a4\\u00ae\\u00d2 \\u00ceJ\\u00d2\\u00d6x\\u00cf\\u00a2\\u00f9\\u00de\\u00d1TI\\u00ce\\u00a2\\u00ab\\u00df\\u00f3\", \"Address\": \"\\u2021\\u00e5\\u00f64\\u2030G\\u00e5d\\u00e6\\u008d\\u00f3\\u00cd\\u2026\\u00e3\\u00d1\\u00e5\\u00e8h\\u00b3s\\u00ee9\\u00d46 \\u00edtT\\u00c0DX\\u00d4]\\u00e8\\u00ee\\u0192\\u00b3p\\u00f7d=\", \"City\": \"\\u00be\\u00eal\", \"Region\": \"\\u00f6[\\u00de\", \"PostalCode\": \"\", \"Country\": \"r\\u00c5[p5\\u2022\", \"Salesperson\": \"h\\u00f9\\u00d1}\\u00f3\\u00a5\\u00a1:3Q\\u00be\\u00a8M\\u00c4\\u0090\", \"OrderID\": 340222912, \"OrderDate\": \"/Date(21578561005)/\", \"RequiredDate\": \"/Date(5767869169)/\", \"ShippedDate\": \"/Date(1812704175)/\", \"ShipperName\": \"\\u00e6\\u00fd\\u0090-=\\u00d5@\\u00a4k\\u0153a\\u0152U\", \"ProductName\": \"\\u00b6\", \"UnitPrice\": \"5269337783774.461m\", \"Quantity\": -4830, \"Discount\": \"4.876322097957371e+19f\", \"ExtendedPrice\": \"2780466105345.283m\", \"Freight\": \"89230624851.7479m\"}")
+    ("POST", "{\"OrderID\": 2033125339, \"CustomerID\": \"\\u00d0\", \"EmployeeID\": 119981761, \"OrderDate\": \"/Date(14672560418)/\", \"RequiredDate\": \"/Date(253402300799)/\", \"ShippedDate\": \"/Date(253402300799)/\", \"ShipVia\": -2138149459, \"Freight\": \"11425516230949.02m\", \"ShipName\": \"F+\\u00f7v*\\u00cf\\u2022!\\u00c2\\u00a7\", \"ShipAddress\": \"\\u00b7M\\u00a5\\u00ddI2L\\u00c8\\u2021\\u2026\\u00e0\\u00ca\\u00a98C\\u00efx\\u0153\\u00d9d\\u00e0\\u2014n\\u00de\\u2018\\u00faAs\", \"ShipCity\": \"\\u2022b\\u00c9\\u00ca:\\u00cd\", \"ShipRegion\": \"\\u00f0\\u00b6lO\\u0192\\u00ef\\u00d6F\\u00bc\\u00ee\", \"ShipPostalCode\": \"j\\u00d5\\u00b4\\u00bdJ\", \"ShipCountry\": \"n\\u00f1`\\u00d5^\\u00c5\\u00ef\\u00a2\\u00feDT\", \"CompanyName\": \"\\u0192Y\\u00c66\\u00fe]zT\\u008f\\u00e1\\u00b4eHKmu6\\u00d4\\u0153\", \"Address\": \"4{\\u00bf\\u00d1\\u2019\\u00c9\\u00f4\\u00fa\\u00eai\\u0152k\\u2013\\u2021\\u00dc\\u00b8\\u00a8y\\u00b5B]\\u00beu\\u00c5\\u00d62\\u00ca\\u00f8\", \"City\": \"\", \"Region\": \"\\u00e1\\u00beD\", \"PostalCode\": \"\\u00afC\\u00bc\\u00d8\\u00b8F\\u00cfob\", \"Country\": \"\\u00ee\\u00ed\"}"),
+    ("MERGE", "{\"TerritoryDescription\": \"\\u2020\\u00bb\\u00e7\\u00fc\"}"),
+    ("PUT", "{\"ProductName\": \"F\\u00cbLH\\u00c3\\u00d6\\u00f2{\\u2026\\u0152\\u00df\\u00bdeV\\u00e7z\\u009d\\u00f3lVJC\\u00a1T\\u00ee\\u00e9{\\u00b8\\u00a4\\u00edb\\u00aa\\u00b1\", \"SupplierID\": 121329056, \"CategoryID\": -185397071, \"QuantityPerUnit\": \"<iG\\u00c5z\\u00c0d\\u0152^\\u00ebde(\", \"UnitPrice\": \"394759704486.52m\", \"UnitsInStock\": -2190, \"UnitsOnOrder\": -6939, \"ReorderLevel\": -20366, \"Discontinued\": true, \"CategoryName\": \"\\u00ccFR(c\\u00b1)I\"}")
 ])
 
 def test_direct_builder_body_unrestricted(method_name, Body):
@@ -289,10 +283,10 @@ def test_direct_builder_body_unrestricted(method_name, Body):
     for queryable in entities:
         entityset_urls_count = len(queryable.entity_set.entity_type.proprties())
         for _ in range(entityset_urls_count):
-            q = queryable_factory(queryable, logger, 1)
-            queries,body = q.generate()
-            methodList.append(body)
-    
+            q = queryable_factory(queryable)
+            result = q.generate()
+            methodList.append(result.body)
+
     choice = random.choice(methodList)
 
     assert choice == Body

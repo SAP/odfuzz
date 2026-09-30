@@ -16,7 +16,7 @@ END_DATE = datetime.datetime(3000, 12, 31, 23, 59, 59)
 '''The END_DATE is reduced to 23:59:59 31st DEC 3000 as that is the highest supported timestamp possible on Windows x64 platforms. 
 https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/localtime-localtime32-localtime64 '''
 
-DATE_INTERVAL = (END_DATE - START_DATE).total_seconds()
+DATE_INTERVAL = int((END_DATE - START_DATE).total_seconds())
 
 
 class EdmBinary:

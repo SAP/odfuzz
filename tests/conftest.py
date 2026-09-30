@@ -5,7 +5,6 @@ from collections import namedtuple
 from lxml import etree
 
 from pyodata.v2.model import Edmx
-from odfuzz.arguments import ArgParser
 
 NullRestrictions = namedtuple('NullRestrictions', 'include exclude')
 

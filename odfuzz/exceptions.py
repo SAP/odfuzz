@@ -6,11 +6,6 @@ class ODfuzzException(Exception):
     pass
 
 
-class ArgParserError(ODfuzzException):
-    """An error occurred while parsing arguments."""
-    pass
-
-
 class BuilderError(ODfuzzException):
     """An error occurred while initializing queryable entities."""
     pass
